@@ -3,6 +3,7 @@
 .gradle-user-home/
 build/
 app/build/
+**/build/
 
 # IDE and local machine files
 .idea/
