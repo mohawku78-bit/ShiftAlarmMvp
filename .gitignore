@@ -1,0 +1,16 @@
+# Gradle and build output
+.gradle/
+.gradle-user-home/
+build/
+app/build/
+
+# IDE and local machine files
+.idea/
+.ksp/
+local.properties
+*.hprof
+*.iml
+
+# OS noise
+.DS_Store
+Thumbs.db

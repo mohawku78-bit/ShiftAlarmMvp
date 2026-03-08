@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">교대근무 알람</string>
+    <string name="notification_title">교대 알람</string>
+    <string name="notification_text">알람이 울리는 중</string>
+    <string name="notification_stop">끄기</string>
+    <string name="notification_snooze_after">%1$d분 후</string>
+    <string name="notification_snooze_count">%1$d분 후 (%2$d/%3$d)</string>
+    <string name="notification_snooze_limit">스누즈 횟수 제한 도달</string>
+    <string name="notification_one_more">한 번만 더 울리기</string>
+    <string name="notification_screen_title">알람</string>
+    <string name="notification_retry">%1$d분 후 다시</string>
+    <string name="notification_snooze_finished">스누즈 종료 (끄기만 가능)</string>
+</resources>
+
+
