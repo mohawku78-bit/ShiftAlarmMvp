@@ -235,7 +235,7 @@ fun ShiftPage(
                                                 modifier = Modifier.weight(1f),
                                                 colors = segmentedActionButtonColors(selected)
                                             ) {
-                                                Text(type)
+                                                Text(step1TypeChipLabel(type))
                                             }
                                         }
                                         repeat(4 - rowItems.size) {
@@ -484,6 +484,17 @@ private fun RowScope.CategoryButton(
     }
 }
 
+private fun step1TypeChipLabel(type: String): String {
+    val normalized = type.trim()
+    return when (normalized) {
+        "\uC8FC\uAC04" -> "\uC8FC"
+        "\uC57C\uAC04" -> "\uC57C"
+        "\uB2F9\uC9C1" -> "\uB2F9"
+        "\uBE44\uBC88" -> "\uBE44"
+        "\uD734\uBB34", "\uD734\uC77C", "\uD734\uAC00" -> "\uD734"
+        else -> normalized
+    }
+}
 
 @Composable
 private fun WorkPreviewCalendar(previewDays: List<Pair<LocalDate, String>>) {
