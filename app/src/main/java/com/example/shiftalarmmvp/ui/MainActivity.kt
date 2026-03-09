@@ -42,6 +42,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -524,6 +526,8 @@ private fun AlarmScreen(
         return createdCount > 0
     }
     val primaryPages = listOf(AlarmPage.TODAY, AlarmPage.PATTERN, AlarmPage.MANAGE)
+    val patternTabs = listOf("패턴 설정", "예외 처리")
+    var selectedPatternTab by remember { mutableIntStateOf(0) }
 
     val recentManualChangeLogs = alarmLogs
         .filter { it.type.name.startsWith("MANUAL_") }
@@ -595,45 +599,50 @@ private fun AlarmScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF060C24))
+        AnimatedVisibility(
+            visible = currentPage == AlarmPage.TODAY || currentPage == AlarmPage.PATTERN,
+            enter = EnterTransition.None,
+            exit = ExitTransition.None
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF060C24))
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_brand_badge),
-                    contentDescription = "브랜드 로고",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(56.dp)
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_brand_badge),
+                        contentDescription = "브랜드 로고",
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "교대근무",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "알람",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Color(0xFF6EA0FF)
+                            )
+                        }
                         Text(
-                            text = "교대근무",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "알람",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = Color(0xFF6EA0FF)
+                            "패턴을 설정하면 자동 반복됩니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.86f)
                         )
                     }
-                    Text(
-                        "교대근무 패턴을 한 번 설정하면 자동으로 반복됩니다.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.86f)
-                    )
                 }
             }
         }
-
         AnimatedVisibility(
             visible = currentPage == AlarmPage.TODAY,
             enter = EnterTransition.None,
@@ -923,7 +932,21 @@ private fun AlarmScreen(
             enter = EnterTransition.None,
             exit = ExitTransition.None
         ) {
-            ShiftPage(
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                TabRow(selectedTabIndex = selectedPatternTab) {
+                    patternTabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedPatternTab == index,
+                            onClick = { selectedPatternTab = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+                if (selectedPatternTab == 0) {
+                    ShiftPage(
                 customWorkTypeInput = customWorkTypeInput,
                 onCustomWorkTypeInputChange = { customWorkTypeInput = it },
                 onAddType = {
@@ -1030,7 +1053,34 @@ private fun AlarmScreen(
                 anchorDate = anchorDate,
                 onAnchorDateChange = { anchorDate = it },
                 preview14 = buildWorkPreview(rotationSequence, todayRotationIndex, 14, LocalDate.now())
-            )
+                    )
+                } else {
+                    ExceptionPage(
+                        alarms = alarms,
+                        onToggleTodaySkip = { alarm ->
+                            if (LocalDate.now() in alarm.skipDateEpochDays) vm.unskipToday(alarm) else vm.skipToday(alarm)
+                        },
+                        onToggleTomorrowAdd = { alarm ->
+                            if (LocalDate.now().plusDays(1) in alarm.addDateEpochDays) vm.removeTomorrow(alarm) else vm.addTomorrow(alarm)
+                        },
+                        onOpenManage = {
+                            currentPage = AlarmPage.MANAGE
+                            scope.launch { scrollState.animateScrollTo(0) }
+                        },
+                        onOpenEditor = {
+                            editingAlarmId = null
+                            editingEnabled = true
+                            selectedLabel = ""
+                            selectedTime = LocalTime.of(7, 0)
+                            skipDates = emptySet()
+                            addDates = emptySet()
+                            exceptionDate = LocalDate.now()
+                            currentPage = AlarmPage.EDITOR
+                            scope.launch { scrollState.animateScrollTo(0) }
+                        }
+                    )
+                }
+            }
         }
 
         AnimatedVisibility(
@@ -1254,5 +1304,4 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
-
 
