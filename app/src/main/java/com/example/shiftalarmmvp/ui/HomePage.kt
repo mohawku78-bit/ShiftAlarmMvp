@@ -187,13 +187,20 @@ fun HomePage(
                             color = Color.White
                         )
                         Text("남은 시간: $remainingText", color = Color.White.copy(alpha = 0.94f))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = onOpenManage, modifier = Modifier.weight(1f), colors = summaryButtonColors) {
-                                Text("관리 화면")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(onClick = onOpenManage, colors = summaryButtonColors) {
+                                Text("\uAD00\uB9AC \uD654\uBA74")
                             }
-                            Button(onClick = onReconfigurePattern, modifier = Modifier.weight(1f), colors = summaryButtonColors) {
-                                Text("패턴 다시 설정")
-                            }
+                            Text(
+                                text = "\uD328\uD134 \uB2E4\uC2DC \uC124\uC815",
+                                modifier = Modifier.clickable(onClick = onReconfigurePattern),
+                                color = Color.White.copy(alpha = 0.9f),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
                         }
                     }
                 }
