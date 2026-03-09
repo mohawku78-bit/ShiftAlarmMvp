@@ -330,6 +330,7 @@ fun EditorPage(
                 val batteryReady = !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimization)
                 val notificationReady = canPostNotifications
                 val allSetupReady = exactReady && batteryReady && notificationReady
+                val next3Preview = next10Preview.take(3)
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -362,7 +363,18 @@ fun EditorPage(
                         }
                     }
                 }
-
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("다음 예약 3회", style = MaterialTheme.typography.titleSmall)
+                        if (next3Preview.isEmpty()) {
+                            Text("예정된 예약이 없습니다.")
+                        } else {
+                            next3Preview.forEachIndexed { idx, dt ->
+                                Text("${idx + 1}. ${dt.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}")
+                            }
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("복제 시 즉시 저장")
                     Switch(checked = autoSaveOnDuplicate, onCheckedChange = onAutoSaveOnDuplicateChange)
@@ -521,9 +533,4 @@ private fun GalaxyTimeInput(
         Text("선택 시간: ${selectedTime.format(DateTimeFormatter.ofPattern("HH:mm"))}")
     }
 }
-
-
-
-
-
 
