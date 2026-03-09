@@ -727,31 +727,33 @@ private fun AlarmScreen(
                                 scope.launch { scrollState.animateScrollTo(0) }
                             }
                         )
-                        Card(
-                            modifier = Modifier.clickable {
-                                editorForcedStep = 3
-                                currentPage = AlarmPage.EDITOR
-                                scope.launch { scrollState.animateScrollTo(0) }
-                            },
-                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
-                        ) {
-                            Text(
-                                text = "테스트 열기",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
-                            )
-                        }
-                        Card(
-                            modifier = Modifier.clickable { scheduleSelfTest(showToast = true) },
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2F6EF1))
-                        ) {
-                            Text(
-                                text = "2분 테스트",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
-                            )
+                        if ((context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                            Card(
+                                modifier = Modifier.clickable {
+                                    editorForcedStep = 3
+                                    currentPage = AlarmPage.EDITOR
+                                    scope.launch { scrollState.animateScrollTo(0) }
+                                },
+                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
+                            ) {
+                                Text(
+                                    text = "테스트 열기",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White
+                                )
+                            }
+                            Card(
+                                modifier = Modifier.clickable { scheduleSelfTest(showToast = true) },
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2F6EF1))
+                            ) {
+                                Text(
+                                    text = "2분 테스트",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
