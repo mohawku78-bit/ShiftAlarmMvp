@@ -263,6 +263,19 @@ fun ShiftPage(
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth()
                                     )
+                                    Text("\uBE60\uB978 \uC120\uD0DD")
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                        listOf("06:00", "07:00", "08:00", "09:00").forEach { candidate ->
+                                            val selectedQuick = selectedConfig.primaryTime == candidate
+                                            Button(
+                                                onClick = { onConfigPrimaryChange(selectedConfigIndex, candidate) },
+                                                modifier = Modifier.weight(1f),
+                                                colors = segmentedActionButtonColors(selectedQuick)
+                                            ) {
+                                                Text(candidate)
+                                            }
+                                        }
+                                    }
                                     OutlinedTextField(
                                         value = selectedConfig.secondaryTime,
                                         onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
