@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+Ôªøpackage com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -95,7 +95,7 @@ fun HomePage(
             .sortedWith(compareBy<AlarmRule> { it.hour }.thenBy { it.minute }.thenBy { it.label })
     }
     val vacationExcludedPreview = vacationExcludedAlarms.take(5).map { alarm ->
-        val name = alarm.label.ifBlank { "¿Ã∏ß æ¯¿Ω" }
+        val name = alarm.label.ifBlank { "Ïù¥Î¶Ñ ÏóÜÏùå" }
         String.format("%02d:%02d %s", alarm.hour, alarm.minute, name)
     }
     val shiftTypeOptions = alarms.map { extractWorkTypeFromLabel(it.label) }.filter { it.isNotBlank() }.distinct()
@@ -132,7 +132,7 @@ fun HomePage(
                 ) {
                     Text(undoMessage, modifier = Modifier.weight(1f))
                     Button(onClick = onUndoLastChange, colors = secondaryButtonColors) {
-                        Text("Ω««‡ √Îº“")
+                        Text("Ïã§Ìñâ Ï∑®ÏÜå")
                     }
                 }
             }
@@ -145,20 +145,20 @@ fun HomePage(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(onClick = { month = month.minusMonths(1) }, colors = mutedButtonColors) { Text("¿Ã¿¸") }
-                    Text(month.format(DateTimeFormatter.ofPattern("yyyy≥‚ Mø˘")), style = MaterialTheme.typography.titleMedium)
-                    Button(onClick = { month = month.plusMonths(1) }, colors = mutedButtonColors) { Text("¥Ÿ¿Ω") }
+                    Button(onClick = { month = month.minusMonths(1) }, colors = mutedButtonColors) { Text("Ïù¥Ï†Ñ") }
+                    Text(month.format(DateTimeFormatter.ofPattern("yyyyÎÖÑ MÏõî")), style = MaterialTheme.typography.titleMedium)
+                    Button(onClick = { month = month.plusMonths(1) }, colors = mutedButtonColors) { Text("Îã§Ïùå") }
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    ShiftLegendChip("¡÷∞£", Color(0xFFD9E8FA), Color(0xFF1E4E8C))
-                    ShiftLegendChip("æﬂ∞£", Color(0xFFFFE3C8), Color(0xFF9A5400))
-                    ShiftLegendChip("¥Á¡˜", Color(0xFFFFE9D6), Color(0xFF8A3E00))
-                    ShiftLegendChip("∫Òπ¯", Color(0xFFE3E8EE), Color(0xFF4F6375))
-                    ShiftLegendChip("»ﬁπ´", Color(0xFFEEF1F4), Color(0xFF5B6670))
+                    ShiftLegendChip("Ï£ºÍ∞Ñ", Color(0xFFD9E8FA), Color(0xFF1E4E8C))
+                    ShiftLegendChip("ÏïºÍ∞Ñ", Color(0xFFFFE3C8), Color(0xFF9A5400))
+                    ShiftLegendChip("ÎãπÏßÅ", Color(0xFFFFE9D6), Color(0xFF8A3E00))
+                    ShiftLegendChip("ÎπÑÎ≤à", Color(0xFFE3E8EE), Color(0xFF4F6375))
+                    ShiftLegendChip("Ìú¥Î¨¥", Color(0xFFEEF1F4), Color(0xFF5B6670))
                 }
 
                 ShiftCalendarMonthGrid(
@@ -173,12 +173,34 @@ fun HomePage(
                     badgeForDate = { date -> inferShiftBadgeForDate(date, alarms) },
                     compact = false
                 )
+                Card(modifier = Modifier.fillMaxWidth(), colors = summaryCardColors) {
+                    val nextTriggerText = nextTrigger?.format(DateTimeFormatter.ofPattern("MM-dd HH:mm")) ?: "ÏòàÏ†ï ÏóÜÏùå"
+                    val remainingText = nextTrigger?.let { formatTimeUntil(it, now) } ?: "-"
+
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Îã§Ïùå ÏïåÎûå", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        Text(
+                            nextTriggerText,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Color.White
+                        )
+                        Text("ÎÇ®ÏùÄ ÏãúÍ∞Ñ: $remainingText", color = Color.White.copy(alpha = 0.94f))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(onClick = onOpenManage, modifier = Modifier.weight(1f), colors = summaryButtonColors) {
+                                Text("Í¥ÄÎ¶¨ ÌôîÎ©¥")
+                            }
+                            Button(onClick = onReconfigurePattern, modifier = Modifier.weight(1f), colors = summaryButtonColors) {
+                                Text("Ìå®ÌÑ¥ Îã§Ïãú ÏÑ§Ï†ï")
+                            }
+                        }
+                    }
+                }
 
                 if (chosenDate == null) {
-                    Text("≥Ø¬•∏¶ º±≈√«œ∏È øπø‹ √≥∏Æ∏¶ ¡¯«‡«“ ºˆ ¿÷Ω¿¥œ¥Ÿ.")
+                    Text("ÎÇ†ÏßúÎ•º ÏÑ†ÌÉùÌïòÎ©¥ ÏòàÏô∏ Ï≤òÎ¶¨Î•º ÏßÑÌñâÌï† Ïàò ÏûàÏäµÎãàÎã§.")
                 } else {
                     Text(
-                        "º±≈√ ≥Ø¬•: ${chosenDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} / ±Ÿπ´: ${shiftBadgeLabel(selectedBadge)}",
+                        "ÏÑ†ÌÉù ÎÇ†Ïßú: ${chosenDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} / Í∑ºÎ¨¥: ${shiftBadgeLabel(selectedBadge)}",
                         style = MaterialTheme.typography.bodyMedium
                     )
 
@@ -187,17 +209,17 @@ fun HomePage(
                             onClick = { adjustMode = DateAdjustMode.VACATION },
                             modifier = Modifier.weight(1f),
                             colors = if (adjustMode == DateAdjustMode.VACATION) selectedModeButtonColors else mutedButtonColors
-                        ) { Text("»ﬁ∞°") }
+                        ) { Text("Ìú¥Í∞Ä") }
                         Button(
                             onClick = { adjustMode = DateAdjustMode.SKIP },
                             modifier = Modifier.weight(1f),
                             colors = if (adjustMode == DateAdjustMode.SKIP) selectedModeButtonColors else mutedButtonColors
-                        ) { Text("Ω∫≈µ") }
+                        ) { Text("Ïä§ÌÇµ") }
                         Button(
                             onClick = { adjustMode = DateAdjustMode.SHIFT_CHANGE },
                             modifier = Modifier.weight(1f),
                             colors = if (adjustMode == DateAdjustMode.SHIFT_CHANGE) selectedModeButtonColors else mutedButtonColors
-                        ) { Text("±Ÿπ´∫Ø∞Ê") }
+                        ) { Text("Í∑ºÎ¨¥Î≥ÄÍ≤Ω") }
                     }
 
                     when (adjustMode) {
@@ -208,16 +230,16 @@ fun HomePage(
                                         modifier = Modifier.padding(10.dp),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Text("¿œ∫Œ æÀ∂˜∏∏ »ﬁ∞° √≥∏Æµ ", color = MaterialTheme.colorScheme.primary)
-                                        Text("¿˚øÎ ${vacationAppliedCount}∞≥ / πÃ¿˚øÎ ${vacationExcludedAlarms.size}∞≥")
-                                        Text("πÃ¿˚øÎ æÀ∂˜")
+                                        Text("ÏùºÎ∂Ä ÏïåÎûåÎßå Ìú¥Í∞Ä Ï≤òÎ¶¨Îê®", color = MaterialTheme.colorScheme.primary)
+                                        Text("Ï†ÅÏö© ${vacationAppliedCount}Í∞ú / ÎØ∏Ï†ÅÏö© ${vacationExcludedAlarms.size}Í∞ú")
+                                        Text("ÎØ∏Ï†ÅÏö© ÏïåÎûå")
                                         if (vacationExcludedPreview.isEmpty()) {
-                                            Text("- æ¯¿Ω")
+                                            Text("- ÏóÜÏùå")
                                         } else {
                                             vacationExcludedPreview.forEach { line -> Text("- $line") }
                                         }
                                         if (vacationExcludedAlarms.size > vacationExcludedPreview.size) {
-                                            Text("ø‹ ${vacationExcludedAlarms.size - vacationExcludedPreview.size}∞≥")
+                                            Text("Ïô∏ ${vacationExcludedAlarms.size - vacationExcludedPreview.size}Í∞ú")
                                         }
                                     }
                                 }
@@ -229,7 +251,7 @@ fun HomePage(
                                     modifier = Modifier.weight(1f),
                                     colors = mutedButtonColors
                                 ) {
-                                    Text("»ﬁ∞° √≥∏Æ(1¿œ)")
+                                    Text("Ìú¥Í∞Ä Ï≤òÎ¶¨(1Ïùº)")
                                 }
                                 Button(
                                     onClick = { onClearVacationDate(chosenDate) },
@@ -237,14 +259,14 @@ fun HomePage(
                                     modifier = Modifier.weight(1f),
                                     colors = mutedButtonColors
                                 ) {
-                                    Text("»ﬁ∞° «ÿ¡¶(1¿œ)")
+                                    Text("Ìú¥Í∞Ä Ìï¥Ï†ú(1Ïùº)")
                                 }
                             }
 
-                            Text("±‚∞£ »ﬁ∞°", style = MaterialTheme.typography.titleSmall)
+                            Text("Í∏∞Í∞Ñ Ìú¥Í∞Ä", style = MaterialTheme.typography.titleSmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                DatePickerButton(label = "Ω√¿€", date = vacationStart, onDatePicked = { vacationStart = it })
-                                DatePickerButton(label = "¡æ∑·", date = vacationEnd, onDatePicked = { vacationEnd = it })
+                                DatePickerButton(label = "ÏãúÏûë", date = vacationStart, onDatePicked = { vacationStart = it })
+                                DatePickerButton(label = "Ï¢ÖÎ£å", date = vacationEnd, onDatePicked = { vacationEnd = it })
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 Button(
@@ -253,7 +275,7 @@ fun HomePage(
                                     modifier = Modifier.weight(1f),
                                     colors = mutedButtonColors
                                 ) {
-                                    Text("±‚∞£ ¿˚øÎ")
+                                    Text("Í∏∞Í∞Ñ Ï†ÅÏö©")
                                 }
                                 Button(
                                     onClick = { onClearVacationRange(vacationStart, vacationEnd) },
@@ -261,7 +283,7 @@ fun HomePage(
                                     modifier = Modifier.weight(1f),
                                     colors = mutedButtonColors
                                 ) {
-                                    Text("±‚∞£ «ÿ¡¶")
+                                    Text("Í∏∞Í∞Ñ Ìï¥Ï†ú")
                                 }
                             }
                         }
@@ -274,7 +296,7 @@ fun HomePage(
                                     modifier = Modifier.weight(1f),
                                     colors = mutedButtonColors
                                 ) {
-                                    Text("«ÿ¥Á æÀ∂˜ Ω∫≈µ")
+                                    Text("Ìï¥Îãπ ÏïåÎûå Ïä§ÌÇµ")
                                 }
                                 Button(
                                     onClick = { onClearSkipDateForIds(chosenDate, selectedIds) },
@@ -282,16 +304,16 @@ fun HomePage(
                                     modifier = Modifier.weight(1f),
                                     colors = mutedButtonColors
                                 ) {
-                                    Text("Ω∫≈µ «ÿ¡¶")
+                                    Text("Ïä§ÌÇµ Ìï¥Ï†ú")
                                 }
                             }
                         }
 
                         DateAdjustMode.SHIFT_CHANGE -> {
                             if (shiftTypeOptions.isEmpty()) {
-                                Text("±Ÿπ´ ¿Ø«¸¿ª √£¿ª ºˆ æ¯Ω¿¥œ¥Ÿ. ∆–≈œø°º≠ ¿Ø«¸¿ª ∏’¿˙ º≥¡§«œººø‰.")
+                                Text("Í∑ºÎ¨¥ Ïú†ÌòïÏùÑ Ï∞æÏùÑ Ïàò ÏóÜÏäµÎãàÎã§. Ìå®ÌÑ¥ÏóêÏÑú Ïú†ÌòïÏùÑ Î®ºÏ†Ä ÏÑ§Ï†ïÌïòÏÑ∏Ïöî.")
                             } else {
-                                Text("∫Ø∞Ê«“ ±Ÿπ´ ¿Ø«¸")
+                                Text("Î≥ÄÍ≤ΩÌï† Í∑ºÎ¨¥ Ïú†Ìòï")
                                 shiftTypeOptions.chunked(3).forEach { rowTypes ->
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                         rowTypes.forEach { type ->
@@ -315,9 +337,9 @@ fun HomePage(
                                     colors = mutedButtonColors,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("º±≈√ ±Ÿπ´∑Œ ∫Ø∞Ê")
+                                    Text("ÏÑ†ÌÉù Í∑ºÎ¨¥Î°ú Î≥ÄÍ≤Ω")
                                 }
-                                Text("º±≈√«— ≥Ø¬•∏∏ «ÿ¥Á ±Ÿπ´ Ω√∞£¿∏∑Œ æÀ∂˜¿Ã πŸ≤Ú¥œ¥Ÿ.")
+                                Text("ÏÑ†ÌÉùÌïú ÎÇ†ÏßúÎßå Ìï¥Îãπ Í∑ºÎ¨¥ ÏãúÍ∞ÑÏúºÎ°ú ÏïåÎûåÏù¥ Î∞îÎÄùÎãàÎã§.")
                             }
                         }
                     }
@@ -325,49 +347,16 @@ fun HomePage(
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth(), colors = summaryCardColors) {
-            val nextTriggerText = nextTrigger?.format(DateTimeFormatter.ofPattern("MM-dd HH:mm")) ?: "øπ¡§ æ¯¿Ω"
-            val remainingText = nextTrigger?.let { formatTimeUntil(it, now) } ?: "-"
-
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("¥Ÿ¿Ω æÀ∂˜", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Text(
-                    nextTriggerText,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White
-                )
-                Text("≥≤¿∫ Ω√∞£: $remainingText", color = Color.White.copy(alpha = 0.94f))
-                if (selectedLabel.isNotBlank()) {
-                    Text("æÀ∂˜ ¿Ã∏ß: $selectedLabel", color = Color.White.copy(alpha = 0.94f))
-                }
-                Text(
-                    "±‚∫ª Ω√∞£: ${selectedTime.format(DateTimeFormatter.ofPattern("HH:mm"))}",
-                    color = Color.White.copy(alpha = 0.94f)
-                )
-                if (rotationPreview.isNotEmpty()) {
-                    Text("ø¿¥√ ±Ÿπ´: ${rotationPreview.first()}", color = Color.White.copy(alpha = 0.94f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Button(onClick = onOpenManage, modifier = Modifier.weight(1f), colors = summaryButtonColors) {
-                        Text("∞¸∏Æ »≠∏È")
-                    }
-                    Button(onClick = onReconfigurePattern, modifier = Modifier.weight(1f), colors = summaryButtonColors) {
-                        Text("∆–≈œ ¥ŸΩ√ º≥¡§")
-                    }
-                }
-            }
-        }
-
         Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("º±≈√ ≥Ø¬• æÀ∂˜ (${alarmsForSelectedDate.size}∞≥)", style = MaterialTheme.typography.titleSmall)
+                Text("ÏÑ†ÌÉù ÎÇ†Ïßú ÏïåÎûå (${alarmsForSelectedDate.size}Í∞ú)", style = MaterialTheme.typography.titleSmall)
                 if (chosenDate == null) {
-                    Text("≥Ø¬•∏¶ ∏’¿˙ º±≈√«œººø‰.")
+                    Text("ÎÇ†ÏßúÎ•º Î®ºÏ†Ä ÏÑ†ÌÉùÌïòÏÑ∏Ïöî.")
                 } else if (alarmsForSelectedDate.isEmpty()) {
-                    Text("¿Ã ≥Ø¬•ø°¥¬ øÔ∏± æÀ∂˜¿Ã æ¯Ω¿¥œ¥Ÿ.")
+                    Text("Ïù¥ ÎÇ†ÏßúÏóêÎäî Ïö∏Î¶¥ ÏïåÎûåÏù¥ ÏóÜÏäµÎãàÎã§.")
                 } else {
                     alarmsForSelectedDate.forEach { alarm ->
-                        val label = alarm.label.ifBlank { "¿Ã∏ß æ¯¿Ω" }
+                        val label = alarm.label.ifBlank { "Ïù¥Î¶Ñ ÏóÜÏùå" }
                         Text(String.format("%02d:%02d  %s", alarm.hour, alarm.minute, label))
                     }
                 }
@@ -394,21 +383,26 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
         .map { inferShiftTagFromLabel(it.label) }
         .toSet()
 
-    if (dayTags.isEmpty()) return "»ﬁ"
+    if (dayTags.isEmpty()) return "Ìú¥"
 
     return when {
-        "æﬂ" in dayTags && "¥Á" in dayTags -> "æﬂ/¥Á"
-        "¡÷" in dayTags && "æﬂ" in dayTags -> "¡÷/æﬂ"
-        "¡÷" in dayTags && "¥Á" in dayTags -> "¡÷/¥Á"
-        "¥Á" in dayTags -> "¥Á"
-        "æﬂ" in dayTags -> "æﬂ"
-        "¡÷" in dayTags -> "¡÷"
-        "»ﬁ" in dayTags -> "»ﬁ"
-        "∫Ò" in dayTags -> "∫Ò"
-        else -> "±Ÿ"
+        "Ïïº" in dayTags && "Îãπ" in dayTags -> "Ïïº/Îãπ"
+        "Ï£º" in dayTags && "Ïïº" in dayTags -> "Ï£º/Ïïº"
+        "Ï£º" in dayTags && "Îãπ" in dayTags -> "Ï£º/Îãπ"
+        "Îãπ" in dayTags -> "Îãπ"
+        "Ïïº" in dayTags -> "Ïïº"
+        "Ï£º" in dayTags -> "Ï£º"
+        "Ìú¥" in dayTags -> "Ìú¥"
+        "ÎπÑ" in dayTags -> "ÎπÑ"
+        else -> "Í∑º"
     }
 }
 
 private fun inferShiftTagFromLabel(label: String): String {
     return shiftTypeToBadge(extractWorkTypeFromLabel(label))
 }
+
+
+
+
+
