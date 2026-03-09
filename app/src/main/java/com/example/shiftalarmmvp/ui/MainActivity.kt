@@ -658,14 +658,34 @@ private fun AlarmScreen(
                             )
                         }
                     }
-                    AlarmReliabilityChip(
-                        status = reliabilityStatus,
-                        onOpenReliabilityCenter = {
-                            editorForcedStep = 3
-                            currentPage = AlarmPage.EDITOR
-                            scope.launch { scrollState.animateScrollTo(0) }
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AlarmReliabilityChip(
+                            status = reliabilityStatus,
+                            onOpenReliabilityCenter = {
+                                editorForcedStep = 3
+                                currentPage = AlarmPage.EDITOR
+                                scope.launch { scrollState.animateScrollTo(0) }
+                            }
+                        )
+                        Card(
+                            modifier = Modifier.clickable {
+                                editorForcedStep = 3
+                                currentPage = AlarmPage.EDITOR
+                                scope.launch { scrollState.animateScrollTo(0) }
+                            },
+                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
+                        ) {
+                            Text(
+                                text = "테스트 열기",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
