@@ -472,7 +472,7 @@ private fun WorkPreviewCalendar(previewDays: List<Pair<LocalDate, String>>) {
     }
 
     monthList.forEach { month ->
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
             Text("${month.year}년 ${month.monthValue}월", style = MaterialTheme.typography.titleSmall)
             PreviewMonthGrid(month = month, previewMap = previewMap, startDate = startDate, endDate = endDate)
         }
@@ -498,8 +498,8 @@ private fun PreviewMonthGrid(
         dates += null
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             dayLabels.forEach { label ->
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(label, style = MaterialTheme.typography.labelSmall)
@@ -508,23 +508,23 @@ private fun PreviewMonthGrid(
         }
 
         dates.chunked(7).forEach { week ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 week.forEach { date ->
                     val type = date?.let { previewMap[it] }
+                    val badge = type?.let(::previewTypeBadge)
                     val inRange = date != null && !date.isBefore(startDate) && !date.isAfter(endDate)
                     val bg = when {
-                        type != null -> previewTypeBackground(type)
+                        badge != null -> previewBadgeBackgroundColor(badge)
                         inRange -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                         else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
                     }
-                    val fg = if (type != null) previewTypeForeground(type) else MaterialTheme.colorScheme.onSurfaceVariant
-
+                    val fg = if (badge != null) previewBadgeColor(badge) else MaterialTheme.colorScheme.onSurfaceVariant
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .background(bg, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                             .border(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .padding(vertical = 6.dp, horizontal = 2.dp),
+                            .padding(vertical = 5.dp, horizontal = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -534,9 +534,9 @@ private fun PreviewMonthGrid(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Medium
                             )
-                            if (type != null) {
+                            if (badge != null) {
                                 Text(
-                                    text = previewTypeLabel(type),
+                                    text = previewBadgeLabel(badge),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = fg,
                                     fontWeight = FontWeight.SemiBold
@@ -550,7 +550,7 @@ private fun PreviewMonthGrid(
     }
 }
 
-private fun previewTypeLabel(type: String): String {
+private fun previewTypeBadge(type: String): String {
     return when (normalizeWorkType(type)) {
         "주간" -> "주"
         "야간" -> "야"
@@ -561,10 +561,36 @@ private fun previewTypeLabel(type: String): String {
     }
 }
 
-private fun previewTypeBackground(type: String): Color {
-    return workTypeColor(type).copy(alpha = 0.18f)
+private fun previewBadgeLabel(badge: String): String {
+    return when (badge) {
+        "주" -> "▲ 주"
+        "야" -> "■ 야"
+        "당" -> "◆ 당"
+        "비" -> "● 비"
+        "휴" -> "○ 휴"
+        else -> "• 근"
+    }
 }
 
-private fun previewTypeForeground(type: String): Color {
-    return workTypeColor(type)
+private fun previewBadgeBackgroundColor(badge: String): Color {
+    return when (badge) {
+        "주" -> Color(0xFFD9E8FA)
+        "야" -> Color(0xFFFFE3C8)
+        "당" -> Color(0xFFFFE9D6)
+        "비" -> Color(0xFFE3E8EE)
+        "휴" -> Color(0xFFEEF1F4)
+        else -> Color(0xFFE2F0EA)
+    }
 }
+
+private fun previewBadgeColor(badge: String): Color {
+    return when (badge) {
+        "주" -> Color(0xFF1E4E8C)
+        "야" -> Color(0xFF9A5400)
+        "당" -> Color(0xFF8A3E00)
+        "비" -> Color(0xFF4F6375)
+        "휴" -> Color(0xFF5B6670)
+        else -> Color(0xFF4D6B5C)
+    }
+}
+
