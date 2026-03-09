@@ -526,7 +526,7 @@ private fun AlarmScreen(
         return createdCount > 0
     }
     val primaryPages = listOf(AlarmPage.TODAY, AlarmPage.PATTERN, AlarmPage.MANAGE)
-    val patternTabs = listOf("패턴 설정", "예외 처리")
+    val patternTabs = listOf("패턴 설정")
     var selectedPatternTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(currentPage) {
@@ -1026,7 +1026,7 @@ private fun AlarmScreen(
                             .putBoolean("shift_quick_setup_done", true)
                             .putBoolean("shift_quick_setup_hidden", true)
                             .apply()
-                        currentPage = AlarmPage.MANAGE
+                        currentPage = AlarmPage.TODAY
                     }
                 },
                 onHideFirstSetupWizard = {

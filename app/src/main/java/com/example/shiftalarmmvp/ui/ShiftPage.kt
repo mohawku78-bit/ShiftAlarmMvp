@@ -73,7 +73,7 @@ fun ShiftPage(
     var selectedTemplate by remember(showFirstSetupWizard, selectedCategory) { mutableStateOf<QuickShiftTemplate?>(null) }
     var previewDays by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(7) }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
-    var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
+    var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(true) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
     val selectedTemplatePreview30Days = selectedTemplate?.let { template ->
@@ -113,7 +113,7 @@ fun ShiftPage(
             PrimaryActionButton(onClick = onReopenFirstSetupWizard, modifier = Modifier.weight(1f)) {
                 Text("근무패턴 다시 설정")
             }
-            NeutralActionButton(onClick = { showAdvanced = !showAdvanced }, modifier = Modifier.weight(1f)) {
+            NeutralActionButton(onClick = { showAdvanced = !showAdvanced }, enabled = !showFirstSetupWizard, modifier = Modifier.weight(1f)) {
                 Text(if (showAdvanced) "고급 설정 숨기기" else "고급 설정 보기")
             }
         }
@@ -149,7 +149,7 @@ fun ShiftPage(
                                 onSelectedCategoryChange(ShiftCategory.CUSTOM)
                                 selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.CUSTOM }
                                     ?: templatesForCategory(ShiftCategory.CUSTOM).firstOrNull()
-                                showAdvanced = true
+                                // Keep wizard focused; advanced stays hidden during setup.
                             }
                         }
 
