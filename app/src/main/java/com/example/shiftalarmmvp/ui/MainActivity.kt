@@ -276,6 +276,7 @@ private fun AlarmScreen(
     var presetFeedbackMessage by remember { mutableStateOf("") }
     var importMergeMode by remember { mutableStateOf(true) }
     var currentPage by remember { mutableStateOf(AlarmPage.TODAY) }
+    var editorForcedStep by remember { mutableStateOf<Int?>(null) }
 
     fun persistSelectedCategory(category: ShiftCategory) {
         selectedShiftCategory = category
@@ -655,6 +656,7 @@ private fun AlarmScreen(
                     AlarmReliabilityChip(
                         status = reliabilityStatus,
                         onOpenReliabilityCenter = {
+                            editorForcedStep = 3
                             currentPage = AlarmPage.EDITOR
                             scope.launch { scrollState.animateScrollTo(0) }
                         }
@@ -775,6 +777,7 @@ private fun AlarmScreen(
                     scope.launch { scrollState.animateScrollTo(0) }
                 },
                 onOpenEditor = {
+                    editorForcedStep = null
                     editingAlarmId = null
                     editingEnabled = true
                     selectedLabel = ""
@@ -799,6 +802,7 @@ private fun AlarmScreen(
 
             EditorPage(
                 editingAlarmId = editingAlarmId,
+                initialStep = editorForcedStep,
                 selectedLabel = selectedLabel,
                 onSelectedLabelChange = { selectedLabel = it },
                 canScheduleExact = canScheduleExact,
@@ -1086,6 +1090,7 @@ private fun AlarmScreen(
                             scope.launch { scrollState.animateScrollTo(0) }
                         },
                         onOpenEditor = {
+                            editorForcedStep = null
                             editingAlarmId = null
                             editingEnabled = true
                             selectedLabel = ""
@@ -1237,6 +1242,7 @@ private fun AlarmScreen(
                             addDateEpochDays = alarm.addDateEpochDays
                         )
                     } else {
+                        editorForcedStep = null
                         editingAlarmId = null
                         editingEnabled = true
                         selectedTime = LocalTime.of(alarm.hour, alarm.minute)
@@ -1261,6 +1267,7 @@ private fun AlarmScreen(
                     }
                 },
                 onEdit = { alarm ->
+                    editorForcedStep = null
                     editingAlarmId = alarm.id
                     editingEnabled = alarm.enabled
                     selectedTime = LocalTime.of(alarm.hour, alarm.minute)
@@ -1380,6 +1387,8 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
+
 
 
 

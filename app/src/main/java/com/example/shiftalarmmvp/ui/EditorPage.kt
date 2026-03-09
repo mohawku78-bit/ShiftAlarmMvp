@@ -99,11 +99,18 @@ fun EditorPage(
     canSaveByPermission: Boolean,
     onSaveOrUpdate: () -> Unit,
     onCancelEdit: () -> Unit,
-    requiresExactPermission: Boolean
+    requiresExactPermission: Boolean,
+    initialStep: Int? = null
 ) {
     var step by rememberSaveable(editingAlarmId) { mutableIntStateOf(0) }
     var currentNow by remember { mutableStateOf(LocalDateTime.now()) }
     val lastStep = EDITOR_STEPS.lastIndex
+
+    LaunchedEffect(initialStep, lastStep) {
+        initialStep?.let { forced ->
+            step = forced.coerceIn(0, lastStep)
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -514,6 +521,7 @@ private fun GalaxyTimeInput(
         Text("선택 시간: ${selectedTime.format(DateTimeFormatter.ofPattern("HH:mm"))}")
     }
 }
+
 
 
 
