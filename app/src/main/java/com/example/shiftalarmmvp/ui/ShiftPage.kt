@@ -103,6 +103,10 @@ fun ShiftPage(
         }
     }
 
+    LaunchedEffect(showFirstSetupWizard) {
+        if (showFirstSetupWizard) showAdvanced = false
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -129,7 +133,7 @@ fun ShiftPage(
                     Icon(Icons.Filled.Settings, contentDescription = null)
                     Text("교대근무 맞춤 설정", style = MaterialTheme.typography.titleMedium)
                 }
-                Text("${wizardStep + 1}/5 단계")
+                Text("${wizardStep + 1}/4 단계")
 
                 when (wizardStep) {
                     0 -> {
@@ -301,7 +305,7 @@ fun ShiftPage(
                             }
                         }
 
-                        if (wizardStep < 4) {
+                        if (wizardStep < 3) {
                             PrimaryActionButton(
                                 onClick = {
                                     if (wizardStep == 0) {
@@ -309,12 +313,12 @@ fun ShiftPage(
                                         if (chosen != null) {
                                             onApplyQuickTemplate(chosen)
                                             if (chosen.category == ShiftCategory.CUSTOM || chosen.label.contains("직접")) {
-                                                showAdvanced = true
+                                                // Keep wizard focused; advanced stays hidden during setup.
                                             }
                                         } else if (selectedCategory != ShiftCategory.CUSTOM) {
                                             return@PrimaryActionButton
                                         } else {
-                                            showAdvanced = true
+                                            return@PrimaryActionButton
                                         }
                                     }
                                     wizardStep += 1
@@ -593,4 +597,5 @@ private fun previewBadgeColor(badge: String): Color {
         else -> Color(0xFF4D6B5C)
     }
 }
+
 
