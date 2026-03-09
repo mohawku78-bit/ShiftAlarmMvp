@@ -36,7 +36,12 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun TimePickerButton(time: LocalTime, onTimePicked: (LocalTime) -> Unit) {
+fun TimePickerButton(
+    time: LocalTime,
+    onTimePicked: (LocalTime) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = "시간 선택"
+) {
     val context = LocalContext.current
     SecondaryActionButton(
         onClick = {
@@ -47,12 +52,12 @@ fun TimePickerButton(time: LocalTime, onTimePicked: (LocalTime) -> Unit) {
                 time.minute,
                 true
             ).show()
-        }
+        },
+        modifier = modifier
     ) {
-        Text("시간: ${time.format(DateTimeFormatter.ofPattern("HH:mm"))}")
+        Text("$label ${time.format(DateTimeFormatter.ofPattern("HH:mm"))}")
     }
 }
-
 @Composable
 fun DatePickerButton(label: String, date: LocalDate, onDatePicked: (LocalDate) -> Unit) {
     val context = LocalContext.current
@@ -239,6 +244,7 @@ private fun StatusChip(text: String, bg: Color, fg: Color) {
         Text(text = text, color = fg, style = MaterialTheme.typography.labelMedium)
     }
 }
+
 
 
 

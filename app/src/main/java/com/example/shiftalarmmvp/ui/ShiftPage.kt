@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
+import java.time.LocalTime
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -260,14 +261,19 @@ fun ShiftPage(
                                             onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
                                         )
                                     }
-                                    OutlinedTextField(
-                                        value = selectedConfig.primaryTime,
-                                        onValueChange = { onConfigPrimaryChange(selectedConfigIndex, it.take(5)) },
-                                        label = { Text("1차 알람(HH:mm)") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
+                                    val primaryDisplay = parseHm(selectedConfig.primaryTime)
+                                        ?: parseHm(defaultPrimaryTime(selectedConfig.type))
+                                        ?: LocalTime.of(7, 0)
+                                    Text("1차 알람")
+                                    TimePickerButton(
+                                        time = primaryDisplay,
+                                        onTimePicked = { picked ->
+                                            onConfigPrimaryChange(selectedConfigIndex, String.format("%02d:%02d", picked.hour, picked.minute))
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = "시간 선택"
                                     )
-                                    Text("\uBE60\uB978 \uC120\uD0DD")
+                                    Text("빠른 선택")
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                         listOf("06:00", "07:00", "08:00", "09:00").forEach { candidate ->
                                             val selectedQuick = selectedConfig.primaryTime == candidate
@@ -287,7 +293,7 @@ fun ShiftPage(
                                             checked = secondaryEnabled,
                                             onCheckedChange = { checked ->
                                                 if (checked) {
-                                                    val defaultSecond = selectedConfig.secondaryTime.ifBlank { selectedConfig.primaryTime }
+                                                    val defaultSecond = selectedConfig.secondaryTime.ifBlank { selectedConfig.primaryTime.ifBlank { String.format("%02d:%02d", primaryDisplay.hour, primaryDisplay.minute) } }
                                                     onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
                                                 } else {
                                                     onConfigSecondaryChange(selectedConfigIndex, "")
@@ -296,12 +302,14 @@ fun ShiftPage(
                                         )
                                     }
                                     if (secondaryEnabled) {
-                                        OutlinedTextField(
-                                            value = selectedConfig.secondaryTime,
-                                            onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
-                                            label = { Text("2차 알람(선택)") },
-                                            singleLine = true,
-                                            modifier = Modifier.fillMaxWidth()
+                                        val secondaryDisplay = parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
+                                        TimePickerButton(
+                                            time = secondaryDisplay,
+                                            onTimePicked = { picked ->
+                                                onConfigSecondaryChange(selectedConfigIndex, String.format("%02d:%02d", picked.hour, picked.minute))
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = "2차 시간 선택"
                                         )
                                     }
                                 }
