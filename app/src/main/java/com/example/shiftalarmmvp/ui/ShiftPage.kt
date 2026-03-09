@@ -73,7 +73,6 @@ fun ShiftPage(
     var selectedTemplate by remember(showFirstSetupWizard, selectedCategory) { mutableStateOf<QuickShiftTemplate?>(null) }
     var previewDays by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(7) }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
-    var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(true) }
     var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
@@ -215,65 +214,60 @@ fun ShiftPage(
 
                     1 -> {
                         Text("근무 유형 확인 및 알람 시간")
-                        NeutralActionButton(
-                            onClick = { showStep1AlarmDetails = !showStep1AlarmDetails },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (showStep1AlarmDetails) "상세 알람 설정 숨기기" else "상세 알람 설정 보기")
-                        }
-
-                        if (showStep1AlarmDetails) {
-                            if (workTypeConfigs.isEmpty()) {
-                                Text("\uB4F1\uB85D\uB41C \uADFC\uBB34 \uC720\uD615\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")
-                            } else {
-                                val selectedConfigIndex = selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
-                                val selectedConfig = workTypeConfigs[selectedConfigIndex]
-                                Text("\uADFC\uBB34 \uC720\uD615 \uC120\uD0DD")
-                                workTypeConfigs.mapIndexed { index, config -> index to config.type }
-                                    .chunked(4)
-                                    .forEach { rowItems ->
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            rowItems.forEach { (index, type) ->
-                                                val selected = selectedConfigIndex == index
-                                                Button(
-                                                    onClick = { selectedStep1TypeIndex = index },
-                                                    modifier = Modifier.weight(1f),
-                                                    colors = segmentedActionButtonColors(selected)
-                                                ) {
-                                                    Text(type)
-                                                }
-                                            }
-                                            repeat(4 - rowItems.size) {
-                                                Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            "\uC704 \uADFC\uBB34\uC720\uD615 \uBC84\uD2BC\uC744 \uB20C\uB7EC \uC2DC\uAC04\uC744 \uC124\uC815\uD558\uC138\uC694.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (workTypeConfigs.isEmpty()) {
+                            Text("\uB4F1\uB85D\uB41C \uADFC\uBB34 \uC720\uD615\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")
+                        } else {
+                            val selectedConfigIndex = selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
+                            val selectedConfig = workTypeConfigs[selectedConfigIndex]
+                            Text("\uADFC\uBB34 \uC720\uD615 \uC120\uD0DD")
+                            workTypeConfigs.mapIndexed { index, config -> index to config.type }
+                                .chunked(4)
+                                .forEach { rowItems ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                        rowItems.forEach { (index, type) ->
+                                            val selected = selectedConfigIndex == index
+                                            Button(
+                                                onClick = { selectedStep1TypeIndex = index },
+                                                modifier = Modifier.weight(1f),
+                                                colors = segmentedActionButtonColors(selected)
+                                            ) {
+                                                Text(type)
                                             }
                                         }
-                                    }
-
-                                Card(modifier = Modifier.fillMaxWidth()) {
-                                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(selectedConfig.type, style = MaterialTheme.typography.titleMedium)
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            Text("알람 사용")
-                                            Switch(
-                                                checked = selectedConfig.enabled,
-                                                onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
-                                            )
+                                        repeat(4 - rowItems.size) {
+                                            Spacer(modifier = Modifier.weight(1f))
                                         }
-                                        OutlinedTextField(
-                                            value = selectedConfig.primaryTime,
-                                            onValueChange = { onConfigPrimaryChange(selectedConfigIndex, it.take(5)) },
-                                            label = { Text("1차 알람(HH:mm)") },
-                                            singleLine = true,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                        OutlinedTextField(
-                                            value = selectedConfig.secondaryTime,
-                                            onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
-                                            label = { Text("2차 알람(선택)") },
-                                            singleLine = true,
-                                            modifier = Modifier.fillMaxWidth()
+                                    }
+                                }
+
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(selectedConfig.type, style = MaterialTheme.typography.titleMedium)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                        Text("알람 사용")
+                                        Switch(
+                                            checked = selectedConfig.enabled,
+                                            onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
                                         )
                                     }
+                                    OutlinedTextField(
+                                        value = selectedConfig.primaryTime,
+                                        onValueChange = { onConfigPrimaryChange(selectedConfigIndex, it.take(5)) },
+                                        label = { Text("1차 알람(HH:mm)") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    OutlinedTextField(
+                                        value = selectedConfig.secondaryTime,
+                                        onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
+                                        label = { Text("2차 알람(선택)") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
                         }
