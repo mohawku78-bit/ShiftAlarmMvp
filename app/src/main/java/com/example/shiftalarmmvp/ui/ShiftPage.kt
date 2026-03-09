@@ -207,11 +207,21 @@ fun ShiftPage(
                         Text("기준일과 오늘 위치를 확인하세요")
                         DatePickerButton(label = "기준일", date = anchorDate, onDatePicked = onAnchorDateChange)
                         if (rotationSequence.isNotEmpty()) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                rotationSequence.forEachIndexed { index, type ->
-                                    val selected = todayRotationIndex == index
-                                    Button(onClick = { onTodayRotationIndexChange(index) }, colors = segmentedActionButtonColors(selected)) {
-                                        Text("${index + 1}:$type")
+                            val sequenceItems = rotationSequence.mapIndexed { index, type -> index to type }
+                            sequenceItems.chunked(3).forEach { rowItems ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    rowItems.forEach { (index, type) ->
+                                        val selected = todayRotationIndex == index
+                                        Button(
+                                            onClick = { onTodayRotationIndexChange(index) },
+                                            modifier = Modifier.weight(1f),
+                                            colors = segmentedActionButtonColors(selected)
+                                        ) {
+                                            Text("${index + 1}:$type")
+                                        }
+                                    }
+                                    repeat(3 - rowItems.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }
@@ -402,6 +412,7 @@ private fun RowScope.CategoryButton(
         Text(label)
     }
 }
+
 
 
 
