@@ -156,6 +156,7 @@ fun HomePage(
                 ) {
                     ShiftLegendChip("주간", Color(0xFFD9E8FA), Color(0xFF1E4E8C))
                     ShiftLegendChip("야간", Color(0xFFFFE3C8), Color(0xFF9A5400))
+                    ShiftLegendChip("당직", Color(0xFFFFE9D6), Color(0xFF8A3E00))
                     ShiftLegendChip("비번", Color(0xFFE3E8EE), Color(0xFF4F6375))
                     ShiftLegendChip("휴무", Color(0xFFEEF1F4), Color(0xFF5B6670))
                 }
@@ -482,7 +483,10 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
     if (dayTags.isEmpty()) return "휴"
 
     return when {
+        "야" in dayTags && "당" in dayTags -> "야/당"
         "주" in dayTags && "야" in dayTags -> "주/야"
+        "주" in dayTags && "당" in dayTags -> "주/당"
+        "당" in dayTags -> "당"
         "야" in dayTags -> "야"
         "주" in dayTags -> "주"
         "휴" in dayTags -> "휴"
@@ -494,7 +498,8 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
 private fun inferShiftTagFromLabel(label: String): String {
     return when (extractWorkTypeFromLabel(label)) {
         "주간" -> "주"
-        "야간", "당직" -> "야"
+        "야간" -> "야"
+        "당직" -> "당"
         "휴가", "휴무", "휴일" -> "휴"
         "비번" -> "비"
         else -> "근"
@@ -505,10 +510,13 @@ private fun badgeLabel(badge: String): String {
     return when (badge) {
         "주" -> "▲ 주"
         "야" -> "■ 야"
+        "당" -> "◆ 당"
         "비" -> "● 비"
         "휴" -> "○ 휴"
         "석" -> "◆ 석"
         "주/야" -> "▣ 주/야"
+        "주/당" -> "▣ 주/당"
+        "야/당" -> "▣ 야/당"
         else -> "• 근"
     }
 }
@@ -517,10 +525,13 @@ private fun badgeBackgroundColor(badge: String): Color {
     return when (badge) {
         "주" -> Color(0xFFD9E8FA)
         "야" -> Color(0xFFFFE3C8)
+        "당" -> Color(0xFFFFE9D6)
         "비" -> Color(0xFFE3E8EE)
         "휴" -> Color(0xFFEEF1F4)
         "석" -> Color(0xFFE9DCF7)
         "주/야" -> Color(0xFFE8E6F8)
+        "주/당" -> Color(0xFFE9ECFB)
+        "야/당" -> Color(0xFFF7E7DB)
         else -> Color(0xFFE2F0EA)
     }
 }
@@ -530,10 +541,13 @@ private fun badgeColor(badge: String): Color {
     return when (badge) {
         "주" -> Color(0xFF1E4E8C)
         "야" -> Color(0xFF9A5400)
+        "당" -> Color(0xFF8A3E00)
         "비" -> Color(0xFF4F6375)
         "휴" -> Color(0xFF5B6670)
         "석" -> Color(0xFF68478F)
         "주/야" -> Color(0xFF5A4D99)
+        "주/당" -> Color(0xFF4A5EA8)
+        "야/당" -> Color(0xFF8E4B16)
         else -> Color(0xFF4D6B5C)
     }
 }
