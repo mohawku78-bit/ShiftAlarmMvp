@@ -287,30 +287,75 @@ fun ShiftPage(
                                         }
                                     }
                                     val secondaryEnabled = selectedConfig.secondaryTime.isNotBlank()
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                        Text("2차 알람 사용")
-                                        Switch(
-                                            checked = secondaryEnabled,
-                                            onCheckedChange = { checked ->
-                                                if (checked) {
-                                                    val defaultSecond = selectedConfig.secondaryTime.ifBlank { selectedConfig.primaryTime.ifBlank { String.format("%02d:%02d", primaryDisplay.hour, primaryDisplay.minute) } }
-                                                    onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
-                                                } else {
-                                                    onConfigSecondaryChange(selectedConfigIndex, "")
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text("2차 알람 사용")
+                                                Switch(
+                                                    checked = secondaryEnabled,
+                                                    onCheckedChange = { checked ->
+                                                        if (checked) {
+                                                            val defaultSecond = selectedConfig.secondaryTime.ifBlank {
+                                                                selectedConfig.primaryTime.ifBlank {
+                                                                    String.format(
+                                                                        "%02d:%02d",
+                                                                        primaryDisplay.hour,
+                                                                        primaryDisplay.minute
+                                                                    )
+                                                                }
+                                                            }
+                                                            onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
+                                                        } else {
+                                                            onConfigSecondaryChange(selectedConfigIndex, "")
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                            if (secondaryEnabled) {
+                                                val secondaryDisplay =
+                                                    parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
+                                                TimePickerButton(
+                                                    time = secondaryDisplay,
+                                                    onTimePicked = { picked ->
+                                                        onConfigSecondaryChange(
+                                                            selectedConfigIndex,
+                                                            String.format("%02d:%02d", picked.hour, picked.minute)
+                                                        )
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    label = "2차 시간 선택"
+                                                )
+                                                Text("빠른 선택")
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    listOf("12:00", "18:00", "21:00", "22:00").forEach { candidate ->
+                                                        val selectedQuick = selectedConfig.secondaryTime == candidate
+                                                        Button(
+                                                            onClick = {
+                                                                onConfigSecondaryChange(selectedConfigIndex, candidate)
+                                                            },
+                                                            modifier = Modifier.weight(1f),
+                                                            colors = segmentedActionButtonColors(selectedQuick)
+                                                        ) {
+                                                            Text(candidate)
+                                                        }
+                                                    }
                                                 }
                                             }
-                                        )
-                                    }
-                                    if (secondaryEnabled) {
-                                        val secondaryDisplay = parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
-                                        TimePickerButton(
-                                            time = secondaryDisplay,
-                                            onTimePicked = { picked ->
-                                                onConfigSecondaryChange(selectedConfigIndex, String.format("%02d:%02d", picked.hour, picked.minute))
-                                            },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            label = "2차 시간 선택"
-                                        )
+                                        }
                                     }
                                 }
                             }
