@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+ï»¿package com.example.shiftalarmmvp.ui
 
 import android.Manifest
 import android.app.Activity
@@ -50,7 +50,6 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 
 
@@ -285,9 +284,9 @@ private fun AlarmScreen(
     }
 
     var customWorkTypeInput by remember { mutableStateOf("") }
-    var rotationSequence by remember { mutableStateOf(listOf("ÁÖ°£", "´çÁ÷", "ºñ¹ø", "ÈÞ¹«")) }
+    var rotationSequence by remember { mutableStateOf(listOf("ì£¼ê°„", "ë‹¹ì§", "ë¹„ë²ˆ", "íœ´ë¬´")) }
     var todayRotationIndex by remember { mutableIntStateOf(0) }
-    var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct() + listOf("ÈÞ¹«"))) }
+    var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct() + listOf("íœ´ë¬´"))) }
     var infiniteRotationEnabled by remember { mutableStateOf(true) }
     var autoBuildFeedback by remember { mutableStateOf("") }
     val presetStore = remember(context) { RotationPresetStore(context) }
@@ -326,7 +325,7 @@ private fun AlarmScreen(
         apply()
         alarmLogStore.append(
             alarmId = -1,
-            label = "È¨ Ä¶¸°´õ",
+            label = "í™ˆ ìº˜ë¦°ë”",
             type = type,
             detail = detail
         )
@@ -364,11 +363,11 @@ private fun AlarmScreen(
                 if (isUriPlayable(context, pickedUri)) {
                     selectedCustomSoundUri = pickedUri.toString()
                     selectedSoundType = AlarmSoundType.CUSTOM
-                    customSoundMessage = "Ä¿½ºÅÒ ¼Ò¸® ¼³Á¤ ¿Ï·á"
+                    customSoundMessage = "ì»¤ìŠ¤í…€ ì†Œë¦¬ ì„¤ì • ì™„ë£Œ"
                 } else {
                     selectedCustomSoundUri = null
                     selectedSoundType = AlarmSoundType.ALARM
-                    customSoundMessage = "ÀÌ ¼Ò¸®´Â Àç»ý ºÒ°¡ÇÏ¿© ±âº» ¾Ë¶÷À½À¸·Î ÀüÈ¯µÊ"
+                    customSoundMessage = "ì´ ì†Œë¦¬ëŠ” ìž¬ìƒ ë¶ˆê°€í•˜ì—¬ ê¸°ë³¸ ì•ŒëžŒìŒìœ¼ë¡œ ì „í™˜ë¨"
                 }
             }
         }
@@ -383,12 +382,12 @@ private fun AlarmScreen(
                 val payload = presetStore.exportJson()
                 context.contentResolver.openOutputStream(uri)?.use { stream ->
                     stream.write(payload.toByteArray(Charsets.UTF_8))
-                } ?: error("Ãâ·Â ½ºÆ®¸²À» ¿­ ¼ö ¾øÀ½")
+                } ?: error("ì¶œë ¥ ìŠ¤íŠ¸ë¦¼ì„ ì—´ ìˆ˜ ì—†ìŒ")
             }
             presetFeedbackMessage = if (exportResult.isSuccess) {
-                "ÇÁ¸®¼Â ³»º¸³»±â ¿Ï·á"
+                "í”„ë¦¬ì…‹ ë‚´ë³´ë‚´ê¸° ì™„ë£Œ"
             } else {
-                "ÇÁ¸®¼Â ³»º¸³»±â ½ÇÆÐ: ${exportResult.exceptionOrNull()?.message ?: "¾Ë ¼ö ¾øÀ½"}"
+                "í”„ë¦¬ì…‹ ë‚´ë³´ë‚´ê¸° ì‹¤íŒ¨: ${exportResult.exceptionOrNull()?.message ?: "ì•Œ ìˆ˜ ì—†ìŒ"}"
             }
         }
     }
@@ -403,16 +402,16 @@ private fun AlarmScreen(
                 val content = context.contentResolver.openInputStream(uri)
                     ?.bufferedReader(Charsets.UTF_8)
                     ?.use { it.readText() }
-                    ?: error("ÀÔ·Â ½ºÆ®¸²À» ¿­ ¼ö ¾øÀ½")
+                    ?: error("ìž…ë ¥ ìŠ¤íŠ¸ë¦¼ì„ ì—´ ìˆ˜ ì—†ìŒ")
                 presetStore.importJson(content, merge = importMergeMode)
             }
             if (importResult.isSuccess) {
                 savedPresets.clear()
                 savedPresets.addAll(presetStore.load())
-                val modeLabel = if (importMergeMode) "º´ÇÕ" else "±³Ã¼"
-                presetFeedbackMessage = "ÇÁ¸®¼Â ${importResult.getOrDefault(0)}°³ ${modeLabel} °¡Á®¿À±â ¿Ï·á"
+                val modeLabel = if (importMergeMode) "ë³‘í•©" else "êµì²´"
+                presetFeedbackMessage = "í”„ë¦¬ì…‹ ${importResult.getOrDefault(0)}ê°œ ${modeLabel} ê°€ì ¸ì˜¤ê¸° ì™„ë£Œ"
             } else {
-                presetFeedbackMessage = "ÇÁ¸®¼Â °¡Á®¿À±â ½ÇÆÐ: ${importResult.exceptionOrNull()?.message ?: "Çü½Ä ¿À·ù"}"
+                presetFeedbackMessage = "í”„ë¦¬ì…‹ ê°€ì ¸ì˜¤ê¸° ì‹¤íŒ¨: ${importResult.exceptionOrNull()?.message ?: "í˜•ì‹ ì˜¤ë¥˜"}"
             }
         }
     }
@@ -444,15 +443,15 @@ private fun AlarmScreen(
 
     fun runAutoBuildFromShiftConfig(requireInfinite: Boolean): Boolean {
         if (rotationSequence.isEmpty()) {
-            autoBuildFeedback = "·ÎÅ×ÀÌ¼ÇÀ» ¸ÕÀú ÀÔ·ÂÇÏ¼¼¿ä."
+            autoBuildFeedback = "ë¡œí…Œì´ì…˜ì„ ë¨¼ì € ìž…ë ¥í•˜ì„¸ìš”."
             return false
         }
         if (requireInfinite && !infiniteRotationEnabled) {
-            autoBuildFeedback = "°è¼Ó ¼øÈ¯ ½ºÀ§Ä¡¸¦ ÄÑ¸é ÀÚµ¿ »ý¼ºµË´Ï´Ù."
+            autoBuildFeedback = "ê³„ì† ìˆœí™˜ ìŠ¤ìœ„ì¹˜ë¥¼ ì¼œë©´ ìžë™ ìƒì„±ë©ë‹ˆë‹¤."
             return false
         }
         if (workTypeConfigs.none { it.enabled }) {
-            autoBuildFeedback = "È°¼ºÈ­µÈ ±Ù¹« ¾Ë¶÷ÀÌ ¾ø½À´Ï´Ù."
+            autoBuildFeedback = "í™œì„±í™”ëœ ê·¼ë¬´ ì•ŒëžŒì´ ì—†ìŠµë‹ˆë‹¤."
             return false
         }
 
@@ -467,7 +466,7 @@ private fun AlarmScreen(
         workTypeConfigs.forEach { cfg ->
             if (!cfg.enabled) return@forEach
             val pattern = typeToPattern[cfg.type].orEmpty()
-            val isVacationType = cfg.type.contains("ÈÞ°¡")
+            val isVacationType = cfg.type.contains("íœ´ê°€")
             if (pattern.all { it.isEmpty() } && !isVacationType) return@forEach
 
             val primary = parseHm(cfg.primaryTime)
@@ -475,7 +474,7 @@ private fun AlarmScreen(
                 invalidCount += 1
             } else {
                 vm.addAlarm(
-                    label = "${cfg.type} 1Â÷",
+                    label = "${cfg.type} 1ì°¨",
                     hour = primary.hour,
                     minute = primary.minute,
                     weeklyPattern = pattern,
@@ -499,7 +498,7 @@ private fun AlarmScreen(
                     invalidCount += 1
                 } else {
                     vm.addAlarm(
-                        label = "${cfg.type} 2Â÷",
+                        label = "${cfg.type} 2ì°¨",
                         hour = second.hour,
                         minute = second.minute,
                         weeklyPattern = pattern,
@@ -520,14 +519,14 @@ private fun AlarmScreen(
         }
 
         autoBuildFeedback = when {
-            createdCount == 0 -> "»ý¼ºµÈ ¾Ë¶÷ÀÌ ¾ø½À´Ï´Ù. ½Ã°£ Çü½ÄÀ» È®ÀÎÇÏ¼¼¿ä."
-            invalidCount > 0 -> "${createdCount}°³ »ý¼º, ${invalidCount}°³ ½Ã°£ Çü½Ä ¿À·ù"
-            else -> "${createdCount}°³ ¾Ë¶÷ ÀÚµ¿ »ý¼º ¿Ï·á"
+            createdCount == 0 -> "ìƒì„±ëœ ì•ŒëžŒì´ ì—†ìŠµë‹ˆë‹¤. ì‹œê°„ í˜•ì‹ì„ í™•ì¸í•˜ì„¸ìš”."
+            invalidCount > 0 -> "${createdCount}ê°œ ìƒì„±, ${invalidCount}ê°œ ì‹œê°„ í˜•ì‹ ì˜¤ë¥˜"
+            else -> "${createdCount}ê°œ ì•ŒëžŒ ìžë™ ìƒì„± ì™„ë£Œ"
         }
         return createdCount > 0
     }
     val primaryPages = listOf(AlarmPage.TODAY, AlarmPage.PATTERN, AlarmPage.MANAGE)
-    val patternTabs = listOf("ÆÐÅÏ ¼³Á¤", "¿¹¿Ü Ã³¸®")
+    val patternTabs = listOf("íŒ¨í„´ ì„¤ì •", "ì˜ˆì™¸ ì²˜ë¦¬")
     var selectedPatternTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(currentPage) {
@@ -547,8 +546,8 @@ private fun AlarmScreen(
                         else -> currentPage == page
                     }
                     val icon = when (page) {
-                        AlarmPage.TODAY -> Icons.Filled.Home
-                        AlarmPage.PATTERN -> Icons.Filled.Edit
+                        AlarmPage.TODAY -> Icons.Filled.Settings
+                        AlarmPage.PATTERN -> Icons.Filled.Settings
                         AlarmPage.EXCEPTION -> Icons.Filled.Edit
                         AlarmPage.MANAGE -> Icons.Filled.Settings
                         AlarmPage.EDITOR -> Icons.Filled.Edit
@@ -607,25 +606,25 @@ private fun AlarmScreen(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_brand_badge),
-                        contentDescription = "ºê·£µå ·Î°í",
+                        contentDescription = "ë¸Œëžœë“œ ë¡œê³ ",
                         tint = Color.Unspecified,
                         modifier = Modifier.size(40.dp)
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "±³´ë±Ù¹«",
+                                text = "êµëŒ€ê·¼ë¬´",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = Color.White
                             )
                             Text(
-                                text = "¾Ë¶÷",
+                                text = "ì•ŒëžŒ",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = Color(0xFF6EA0FF)
                             )
                         }
                         Text(
-                            "ÆÐÅÏÀ» ¼³Á¤ÇÏ¸é ÀÚµ¿ ¹Ýº¹µË´Ï´Ù.",
+                            "íŒ¨í„´ì„ ì„¤ì •í•˜ë©´ ìžë™ ë°˜ë³µë©ë‹ˆë‹¤.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.86f)
                         )
@@ -654,14 +653,14 @@ private fun AlarmScreen(
                 },
                 onSetVacationDate = { date ->
                     registerCalendarChange(
-                        message = "ÈÞ°¡ Ã³¸® Àû¿ëµÊ",
+                        message = "íœ´ê°€ ì²˜ë¦¬ ì ìš©ë¨",
                         type = AlarmLogType.MANUAL_VACATION_SET,
                         detail = date.toString()
                     ) { vm.setVacationDateForAll(date) }
                 },
                 onClearVacationDate = { date ->
                     registerCalendarChange(
-                        message = "ÈÞ°¡ ÇØÁ¦ Àû¿ëµÊ",
+                        message = "íœ´ê°€ í•´ì œ ì ìš©ë¨",
                         type = AlarmLogType.MANUAL_VACATION_CLEAR,
                         detail = date.toString()
                     ) { vm.clearVacationDateForAll(date) }
@@ -670,7 +669,7 @@ private fun AlarmScreen(
                     val from = minOf(start, end)
                     val to = maxOf(start, end)
                     registerCalendarChange(
-                        message = "±â°£ ÈÞ°¡ Àû¿ëµÊ",
+                        message = "ê¸°ê°„ íœ´ê°€ ì ìš©ë¨",
                         type = AlarmLogType.MANUAL_VACATION_SET,
                         detail = "$from~$to"
                     ) { vm.setVacationRangeForAll(start, end) }
@@ -679,7 +678,7 @@ private fun AlarmScreen(
                     val from = minOf(start, end)
                     val to = maxOf(start, end)
                     registerCalendarChange(
-                        message = "±â°£ ÈÞ°¡ ÇØÁ¦µÊ",
+                        message = "ê¸°ê°„ íœ´ê°€ í•´ì œë¨",
                         type = AlarmLogType.MANUAL_VACATION_CLEAR,
                         detail = "$from~$to"
                     ) { vm.clearVacationRangeForAll(start, end) }
@@ -687,24 +686,24 @@ private fun AlarmScreen(
                 onSetSkipDateForIds = { date, ids ->
                     if (ids.isNotEmpty()) {
                         registerCalendarChange(
-                            message = "½ºÅµ Ã³¸®µÊ",
+                            message = "ìŠ¤í‚µ ì²˜ë¦¬ë¨",
                             type = AlarmLogType.MANUAL_SKIP_SET,
-                            detail = "${date} (${ids.size}°³ ¾Ë¶÷)"
+                            detail = "${date} (${ids.size}ê°œ ì•ŒëžŒ)"
                         ) { vm.setSkipDateForAlarmIds(date, ids) }
                     }
                 },
                 onClearSkipDateForIds = { date, ids ->
                     if (ids.isNotEmpty()) {
                         registerCalendarChange(
-                            message = "½ºÅµ ÇØÁ¦µÊ",
+                            message = "ìŠ¤í‚µ í•´ì œë¨",
                             type = AlarmLogType.MANUAL_SKIP_CLEAR,
-                            detail = "${date} (${ids.size}°³ ¾Ë¶÷)"
+                            detail = "${date} (${ids.size}ê°œ ì•ŒëžŒ)"
                         ) { vm.clearSkipDateForAlarmIds(date, ids) }
                     }
                 },
                 onApplyShiftChange = { date, type ->
                     registerCalendarChange(
-                        message = "±Ù¹« º¯°æ Àû¿ëµÊ",
+                        message = "ê·¼ë¬´ ë³€ê²½ ì ìš©ë¨",
                         type = AlarmLogType.MANUAL_SHIFT_CHANGE,
                         detail = "${date} -> ${type}"
                     ) { vm.applyShiftTypeForDate(date, type) }
@@ -716,9 +715,9 @@ private fun AlarmScreen(
                         vm.restoreExceptionSnapshot(snapshot)
                         alarmLogStore.append(
                             alarmId = -1,
-                            label = "È¨ Ä¶¸°´õ",
+                            label = "í™ˆ ìº˜ë¦°ë”",
                             type = AlarmLogType.MANUAL_UNDO,
-                            detail = pendingUndoMessage ?: "Á÷Àü º¯°æ Ãë¼Ò"
+                            detail = pendingUndoMessage ?: "ì§ì „ ë³€ê²½ ì·¨ì†Œ"
                         )
                         refreshAlarmLogs()
                         pendingUndoMessage = null
@@ -765,7 +764,7 @@ private fun AlarmScreen(
             exit = ExitTransition.None
         ) {
             if (editingAlarmId != null) {
-                Text("ÆíÁý ¸ðµå: ¾Æ·¡ °ª ¼öÁ¤ ÈÄ '¾Ë¶÷ ¼öÁ¤ ÀúÀå'À» ´©¸£¼¼¿ä.")
+                Text("íŽ¸ì§‘ ëª¨ë“œ: ì•„ëž˜ ê°’ ìˆ˜ì • í›„ 'ì•ŒëžŒ ìˆ˜ì • ì €ìž¥'ì„ ëˆ„ë¥´ì„¸ìš”.")
             }
 
             EditorPage(
@@ -791,7 +790,7 @@ private fun AlarmScreen(
                     val testIntent = Intent(context, AlarmRingingService::class.java)
                         .setAction(AlarmRingingService.ACTION_START)
                         .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
-                        .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "Å×½ºÆ® ¾Ë¶÷" else selectedLabel)
+                        .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "í…ŒìŠ¤íŠ¸ ì•ŒëžŒ" else selectedLabel)
                         .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
                         .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
                         .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
@@ -941,11 +940,11 @@ private fun AlarmScreen(
                 onAddType = {
                     val name = normalizeWorkType(customWorkTypeInput)
                     if (name.isBlank()) {
-                        autoBuildFeedback = "±Ù¹« À¯Çü ÀÌ¸§À» ÀÔ·ÂÇÏ¼¼¿ä."
+                        autoBuildFeedback = "ê·¼ë¬´ ìœ í˜• ì´ë¦„ì„ ìž…ë ¥í•˜ì„¸ìš”."
                         return@ShiftPage
                     }
                     if (workTypeConfigs.any { normalizeWorkType(it.type) == name }) {
-                        autoBuildFeedback = "ÀÌ¹Ì ÀÖ´Â ±Ù¹« À¯ÇüÀÔ´Ï´Ù."
+                        autoBuildFeedback = "ì´ë¯¸ ìžˆëŠ” ê·¼ë¬´ ìœ í˜•ìž…ë‹ˆë‹¤."
                         return@ShiftPage
                     }
                     workTypeConfigs = workTypeConfigs + WorkTypeAlarmConfig(
@@ -955,31 +954,31 @@ private fun AlarmScreen(
                         secondaryTime = ""
                     )
                     customWorkTypeInput = ""
-                    autoBuildFeedback = "±Ù¹« À¯Çü '$name' Ãß°¡ ¿Ï·á"
+                    autoBuildFeedback = "ê·¼ë¬´ ìœ í˜• '$name' ì¶”ê°€ ì™„ë£Œ"
                 },
                 onResetDefaults = {
-                    val defaults = defaultWorkTypeConfigs(listOf("ÁÖ°£", "´çÁ÷", "ºñ¹ø", "ÈÞ¹«"))
+                    val defaults = defaultWorkTypeConfigs(listOf("ì£¼ê°„", "ë‹¹ì§", "ë¹„ë²ˆ", "íœ´ë¬´"))
                     workTypeConfigs = defaults
-                    rotationSequence = listOf("ÁÖ°£", "´çÁ÷", "ºñ¹ø", "ÈÞ¹«")
+                    rotationSequence = listOf("ì£¼ê°„", "ë‹¹ì§", "ë¹„ë²ˆ", "íœ´ë¬´")
                     todayRotationIndex = 0
                     persistSelectedCategory(ShiftCategory.THREE_SHIFT)
-                    autoBuildFeedback = "±âº» ÆÐÅÏ Àû¿ëµÊ"
+                    autoBuildFeedback = "ê¸°ë³¸ íŒ¨í„´ ì ìš©ë¨"
                 },
                 quickTemplates = templatesForCategory(selectedShiftCategory),
                 onApplyQuickTemplate = { template ->
                     val normalized = template.sequence.map(::normalizeWorkType).filter { it.isNotBlank() }
-                    val configTypes = (normalized + listOf("ÈÞ¹«")).distinct()
+                    val configTypes = (normalized + listOf("íœ´ë¬´")).distinct()
                     workTypeConfigs = defaultWorkTypeConfigs(configTypes)
                     rotationSequence = normalized
                     todayRotationIndex = 0
                     infiniteRotationEnabled = true
                     persistSelectedCategory(template.category)
-                    autoBuildFeedback = "´ëÇ¥ ±Ù¹«Çü '${template.label}' Àû¿ë ¿Ï·á"
+                    autoBuildFeedback = "ëŒ€í‘œ ê·¼ë¬´í˜• '${template.label}' ì ìš© ì™„ë£Œ"
                 },
                 workTypeConfigs = workTypeConfigs,
                 onAppendRotationType = { type ->
                     rotationSequence = rotationSequence + normalizeWorkType(type)
-                    autoBuildFeedback = "${type} Ä­ Ãß°¡"
+                    autoBuildFeedback = "${type} ì¹¸ ì¶”ê°€"
                 },
                 rotationSequence = rotationSequence,
                 onDropLastRotation = {
@@ -1081,7 +1080,7 @@ private fun AlarmScreen(
                 onSaveCurrent = {
                     val normalized = weekPatterns.take(intervalWeeks.coerceIn(1, 4))
                     val name = presetNameInput.trim().ifBlank {
-                        "ÇÁ¸®¼Â ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}"
+                        "í”„ë¦¬ì…‹ ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}"
                     }
                     presetStore.upsert(
                         RotationPreset(
@@ -1181,7 +1180,7 @@ private fun AlarmScreen(
                     if (LocalDate.now().plusDays(1) in alarm.addDateEpochDays) vm.removeTomorrow(alarm) else vm.addTomorrow(alarm)
                 },
                 onDuplicate = { alarm ->
-                    val copiedLabel = if (alarm.label.isBlank()) "¾Ë¶÷ º¹»çº»" else "${alarm.label} º¹»çº»".take(24)
+                    val copiedLabel = if (alarm.label.isBlank()) "ì•ŒëžŒ ë³µì‚¬ë³¸" else "${alarm.label} ë³µì‚¬ë³¸".take(24)
                     val copiedPattern = listOf(
                         alarm.weeklyPattern.getOrNull(0).orEmpty(),
                         alarm.weeklyPattern.getOrNull(1).orEmpty(),
