@@ -88,6 +88,17 @@ fun HomePage(
     val allVacationApplied = chosenDate != null && alarms.isNotEmpty() && alarms.all { chosenDate in it.skipDateEpochDays }
     val anySkipApplied = chosenDate != null && alarmsForSelectedDate.any { chosenDate in it.skipDateEpochDays }
     val allSkipApplied = alarmsForSelectedDate.isNotEmpty() && chosenDate != null && alarmsForSelectedDate.all { chosenDate in it.skipDateEpochDays }
+    val vacationAppliedCount = if (chosenDate == null) 0 else alarms.count { chosenDate in it.skipDateEpochDays }
+    val vacationExcludedAlarms = if (chosenDate == null) {
+        emptyList()
+    } else {
+        alarms.filter { chosenDate !in it.skipDateEpochDays }
+            .sortedWith(compareBy<AlarmRule> { it.hour }.thenBy { it.minute }.thenBy { it.label })
+    }
+    val vacationExcludedPreview = vacationExcludedAlarms.take(5).map { alarm ->
+        val name = alarm.label.ifBlank { "이름 없음" }
+        String.format("%02d:%02d %s", alarm.hour, alarm.minute, name)
+    }
     val shiftTypeOptions = alarms.map { extractWorkTypeFromLabel(it.label) }.filter { it.isNotBlank() }.distinct()
     val selectedShiftTypeResolved = when {
         shiftTypeOptions.isEmpty() -> null
@@ -191,7 +202,24 @@ fun HomePage(
                     when (adjustMode) {
                         DateAdjustMode.VACATION -> {
                             if (anyVacationApplied && !allVacationApplied) {
-                                Text("일부 알람만 휴가 처리됨", color = MaterialTheme.colorScheme.primary)
+                                Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
+                                    Column(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text("일부 알람만 휴가 처리됨", color = MaterialTheme.colorScheme.primary)
+                                        Text("적용 ${vacationAppliedCount}개 / 미적용 ${vacationExcludedAlarms.size}개")
+                                        Text("미적용 알람")
+                                        if (vacationExcludedPreview.isEmpty()) {
+                                            Text("- 없음")
+                                        } else {
+                                            vacationExcludedPreview.forEach { line -> Text("- $line") }
+                                        }
+                                        if (vacationExcludedAlarms.size > vacationExcludedPreview.size) {
+                                            Text("외 ${vacationExcludedAlarms.size - vacationExcludedPreview.size}개")
+                                        }
+                                    }
+                                }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 Button(
