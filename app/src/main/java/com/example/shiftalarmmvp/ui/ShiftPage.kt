@@ -1,4 +1,4 @@
-ï»¿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -111,10 +111,10 @@ fun ShiftPage(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             PrimaryActionButton(onClick = onReopenFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                Text("ê·¼ë¬´íŒ¨í„´ ë‹¤ì‹œ ì„¤ì •")
+                Text("±Ù¹«ÆĞÅÏ ´Ù½Ã ¼³Á¤")
             }
             NeutralActionButton(onClick = { showAdvanced = !showAdvanced }, modifier = Modifier.weight(1f)) {
-                Text(if (showAdvanced) "ê³ ê¸‰ ì„¤ì • ìˆ¨ê¸°ê¸°" else "ê³ ê¸‰ ì„¤ì • ë³´ê¸°")
+                Text(if (showAdvanced) "°í±Ş ¼³Á¤ ¼û±â±â" else "°í±Ş ¼³Á¤ º¸±â")
             }
         }
     }
@@ -127,25 +127,25 @@ fun ShiftPage(
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text("êµëŒ€ê·¼ë¬´ ë§ì¶¤ ì„¤ì •", style = MaterialTheme.typography.titleMedium)
+                    Text("±³´ë±Ù¹« ¸ÂÃã ¼³Á¤", style = MaterialTheme.typography.titleMedium)
                 }
-                Text("${wizardStep + 1}/5 ë‹¨ê³„")
+                Text("${wizardStep + 1}/5 ´Ü°è")
 
                 when (wizardStep) {
                     0 -> {
-                        Text("ì–´ë–¤ ê·¼ë¬´ íŒ¨í„´ì„ ì‚¬ìš©í•˜ì‹œë‚˜ìš”?")
+                        Text("¾î¶² ±Ù¹« ÆĞÅÏÀ» »ç¿ëÇÏ½Ã³ª¿ä?")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            CategoryButton("2êµëŒ€", selectedCategory == ShiftCategory.TWO_SHIFT) {
+                            CategoryButton("2±³´ë", selectedCategory == ShiftCategory.TWO_SHIFT) {
                                 onSelectedCategoryChange(ShiftCategory.TWO_SHIFT)
                                 selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.TWO_SHIFT }
                                     ?: templatesForCategory(ShiftCategory.TWO_SHIFT).firstOrNull()
                             }
-                            CategoryButton("3êµëŒ€", selectedCategory == ShiftCategory.THREE_SHIFT) {
+                            CategoryButton("3±³´ë", selectedCategory == ShiftCategory.THREE_SHIFT) {
                                 onSelectedCategoryChange(ShiftCategory.THREE_SHIFT)
                                 selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.THREE_SHIFT }
                                     ?: templatesForCategory(ShiftCategory.THREE_SHIFT).firstOrNull()
                             }
-                            CategoryButton("ì§ì ‘ ì„¤ì •", selectedCategory == ShiftCategory.CUSTOM) {
+                            CategoryButton("Á÷Á¢ ¼³Á¤", selectedCategory == ShiftCategory.CUSTOM) {
                                 onSelectedCategoryChange(ShiftCategory.CUSTOM)
                                 selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.CUSTOM }
                                     ?: templatesForCategory(ShiftCategory.CUSTOM).firstOrNull()
@@ -153,7 +153,7 @@ fun ShiftPage(
                             }
                         }
 
-                        Text("í…œí”Œë¦¿ ì„ íƒ")
+                        Text("ÅÛÇÃ¸´ ¼±ÅÃ")
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             categoryTemplates.forEach { template ->
                                 val selected = selectedTemplate?.label == template.label
@@ -171,10 +171,10 @@ fun ShiftPage(
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(template.label, style = MaterialTheme.typography.titleSmall)
-                                            Text(template.sequence.joinToString(" â†’ "))
+                                            Text(template.sequence.joinToString(" ¡æ "))
                                         }
                                         Button(onClick = { selectedTemplate = template }, colors = segmentedActionButtonColors(selected)) {
-                                            Text(if (selected) "ì„ íƒë¨" else "ì„ íƒ")
+                                            Text(if (selected) "¼±ÅÃµÊ" else "¼±ÅÃ")
                                         }
                                     }
                                 }
@@ -186,27 +186,27 @@ fun ShiftPage(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text("ì„ íƒ í…œí”Œë¦¿ 30ì¼ ë¯¸ë¦¬ë³´ê¸°", style = MaterialTheme.typography.titleSmall)
+                                Text("¼±ÅÃ ÅÛÇÃ¸´ 30ÀÏ ¹Ì¸®º¸±â", style = MaterialTheme.typography.titleSmall)
                                 if (selectedTemplate == null) {
-                                    Text("í…œí”Œë¦¿ì„ ì„ íƒí•˜ë©´ ë‹¤ìŒ 30ì¼ ê·¼ë¬´ê°€ í‘œì‹œë©ë‹ˆë‹¤.")
+                                    Text("ÅÛÇÃ¸´À» ¼±ÅÃÇÏ¸é ´ÙÀ½ 30ÀÏ ±Ù¹«°¡ Ç¥½ÃµË´Ï´Ù.")
                                 } else {
                                     Text(
-                                        "ê¸°ì¤€ì¼ ${anchorDate}ë¶€í„° 30ì¼",
+                                        "±âÁØÀÏ ${anchorDate}ºÎÅÍ 30ÀÏ",
                                         style = MaterialTheme.typography.bodySmall
                                     )
-                                    WorkPreviewCalendar(previewDays = selectedTemplatePreview30Days)
+                                    ShiftPreviewCalendar(previewDays = selectedTemplatePreview30Days, compact = true)
                                 }
                             }
                         }
                     }
 
                     1 -> {
-                        Text("ê·¼ë¬´ ìœ í˜• í™•ì¸ ë° ì•ŒëŒ ì‹œê°„")
+                        Text("±Ù¹« À¯Çü È®ÀÎ ¹× ¾Ë¶÷ ½Ã°£")
                         NeutralActionButton(
                             onClick = { showStep1AlarmDetails = !showStep1AlarmDetails },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (showStep1AlarmDetails) "ìƒì„¸ ì•ŒëŒ ì„¤ì • ìˆ¨ê¸°ê¸°" else "ìƒì„¸ ì•ŒëŒ ì„¤ì • ë³´ê¸°")
+                            Text(if (showStep1AlarmDetails) "»ó¼¼ ¾Ë¶÷ ¼³Á¤ ¼û±â±â" else "»ó¼¼ ¾Ë¶÷ ¼³Á¤ º¸±â")
                         }
 
                         if (showStep1AlarmDetails) {
@@ -215,7 +215,7 @@ fun ShiftPage(
                                     Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Text(config.type)
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            Text("ì•ŒëŒ ì‚¬ìš©")
+                                            Text("¾Ë¶÷ »ç¿ë")
                                             Switch(
                                                 checked = config.enabled,
                                                 onCheckedChange = { checked -> onToggleConfigEnabled(index, checked) }
@@ -224,14 +224,14 @@ fun ShiftPage(
                                         OutlinedTextField(
                                             value = config.primaryTime,
                                             onValueChange = { onConfigPrimaryChange(index, it.take(5)) },
-                                            label = { Text("1ì°¨ ì•ŒëŒ(HH:mm)") },
+                                            label = { Text("1Â÷ ¾Ë¶÷(HH:mm)") },
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                         OutlinedTextField(
                                             value = config.secondaryTime,
                                             onValueChange = { onConfigSecondaryChange(index, it.take(5)) },
-                                            label = { Text("2ì°¨ ì•ŒëŒ(ì„ íƒ)") },
+                                            label = { Text("2Â÷ ¾Ë¶÷(¼±ÅÃ)") },
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth()
                                         )
@@ -242,8 +242,8 @@ fun ShiftPage(
                     }
 
                     2 -> {
-                        Text("ê¸°ì¤€ì¼ê³¼ ì˜¤ëŠ˜ ìœ„ì¹˜ë¥¼ í™•ì¸í•˜ì„¸ìš”")
-                        DatePickerButton(label = "ê¸°ì¤€ì¼", date = anchorDate, onDatePicked = onAnchorDateChange)
+                        Text("±âÁØÀÏ°ú ¿À´Ã À§Ä¡¸¦ È®ÀÎÇÏ¼¼¿ä")
+                        DatePickerButton(label = "±âÁØÀÏ", date = anchorDate, onDatePicked = onAnchorDateChange)
                         if (rotationSequence.isNotEmpty()) {
                             val sequenceItems = rotationSequence.mapIndexed { index, type -> index to type }
                             sequenceItems.chunked(3).forEach { rowItems ->
@@ -267,26 +267,26 @@ fun ShiftPage(
                     }
 
                     3 -> {
-                        Text("ë‹¤ìŒ ê·¼ë¬´ ë¯¸ë¦¬ë³´ê¸°")
+                        Text("´ÙÀ½ ±Ù¹« ¹Ì¸®º¸±â")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = { previewDays = 7 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 7)) { Text("7ì¼") }
-                            Button(onClick = { previewDays = 14 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 14)) { Text("14ì¼") }
-                            Button(onClick = { previewDays = 30 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 30)) { Text("30ì¼") }
+                            Button(onClick = { previewDays = 7 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 7)) { Text("7ÀÏ") }
+                            Button(onClick = { previewDays = 14 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 14)) { Text("14ÀÏ") }
+                            Button(onClick = { previewDays = 30 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 30)) { Text("30ÀÏ") }
                         }
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 if (previewDaysData.isEmpty()) {
-                                    Text("ë¯¸ë¦¬ë³´ê¸° ì—†ìŒ")
+                                    Text("¹Ì¸®º¸±â ¾øÀ½")
                                 } else {
-                                    WorkPreviewCalendar(previewDays = previewDaysData)
+                                    ShiftPreviewCalendar(previewDays = previewDaysData, compact = true)
                                 }
                             }
                         }
                     }
 
                     else -> {
-                        Text("ì„¤ì •ì„ í™•ì •í•˜ë©´ ìƒˆ íŒ¨í„´ ê¸°ì¤€ìœ¼ë¡œ ìë™ ìƒì„±ì´ ì§„í–‰ë©ë‹ˆë‹¤.")
-                        Text("ê¸°ì¡´ ì•ŒëŒì€ ì¦‰ì‹œ ì‚­ì œë˜ì§€ ì•ŠìŠµë‹ˆë‹¤.")
+                        Text("¼³Á¤À» È®Á¤ÇÏ¸é »õ ÆĞÅÏ ±âÁØÀ¸·Î ÀÚµ¿ »ı¼ºÀÌ ÁøÇàµË´Ï´Ù.")
+                        Text("±âÁ¸ ¾Ë¶÷Àº Áï½Ã »èÁ¦µÇÁö ¾Ê½À´Ï´Ù.")
                         if (!showFirstSetupWizard && autoBuildFeedback.isNotBlank()) {
                             Text(autoBuildFeedback, color = MaterialTheme.colorScheme.primary)
                         }
@@ -297,7 +297,7 @@ fun ShiftPage(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         if (wizardStep > 0) {
                             NeutralActionButton(onClick = { wizardStep -= 1 }, modifier = Modifier.weight(1f)) {
-                                Text("ì´ì „")
+                                Text("ÀÌÀü")
                             }
                         }
 
@@ -308,7 +308,7 @@ fun ShiftPage(
                                         val chosen = selectedTemplate ?: categoryTemplates.firstOrNull()
                                         if (chosen != null) {
                                             onApplyQuickTemplate(chosen)
-                                            if (chosen.category == ShiftCategory.CUSTOM || chosen.label.contains("ì§ì ‘")) {
+                                            if (chosen.category == ShiftCategory.CUSTOM || chosen.label.contains("Á÷Á¢")) {
                                                 showAdvanced = true
                                             }
                                         } else if (selectedCategory != ShiftCategory.CUSTOM) {
@@ -322,14 +322,14 @@ fun ShiftPage(
                                 enabled = wizardStep != 0 || canProceedFromStep0,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("ë‹¤ìŒ")
+                                Text("´ÙÀ½")
                             }
                         } else {
                             PrimaryActionButton(onClick = onCompleteFirstSetup, modifier = Modifier.weight(1f)) {
-                                Text("í™•ì •")
+                                Text("È®Á¤")
                             }
                             NeutralActionButton(onClick = onHideFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                                Text("ë‹«ê¸°")
+                                Text("´İ±â")
                             }
                         }
                     }
@@ -344,25 +344,25 @@ fun ShiftPage(
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Settings, contentDescription = null)
-                Text("ê³ ê¸‰ íŒ¨í„´ í¸ì§‘", style = MaterialTheme.typography.titleMedium)
+                Text("°í±Ş ÆĞÅÏ ÆíÁı", style = MaterialTheme.typography.titleMedium)
             }
 
             OutlinedTextField(
                 value = customWorkTypeInput,
                 onValueChange = { onCustomWorkTypeInputChange(it.take(12)) },
-                label = { Text("ê·¼ë¬´ ìœ í˜• ì´ë¦„") },
+                label = { Text("±Ù¹« À¯Çü ÀÌ¸§") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SecondaryActionButton(onClick = onAddType, modifier = Modifier.weight(1f)) { Text("ìœ í˜• ì¶”ê°€") }
-                NeutralActionButton(onClick = onResetDefaults, modifier = Modifier.weight(1f)) { Text("ê¸°ë³¸ê°’") }
+                SecondaryActionButton(onClick = onAddType, modifier = Modifier.weight(1f)) { Text("À¯Çü Ãß°¡") }
+                NeutralActionButton(onClick = onResetDefaults, modifier = Modifier.weight(1f)) { Text("±âº»°ª") }
             }
 
             if (workTypeConfigs.isNotEmpty()) {
                 val rotationAppendableConfigs = workTypeConfigs
 
-                Text("ë“±ë¡ëœ ê·¼ë¬´ ìœ í˜•")
+                Text("µî·ÏµÈ ±Ù¹« À¯Çü")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     rotationAppendableConfigs.forEach { cfg ->
                         NeutralActionButton(onClick = { onAppendRotationType(cfg.type) }) {
@@ -371,33 +371,33 @@ fun ShiftPage(
                     }
                 }
 
-                Text("ìœ í˜• ê´€ë¦¬")
+                Text("À¯Çü °ü¸®")
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     rotationAppendableConfigs.forEach { cfg ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             SecondaryActionButton(onClick = { onAppendRotationType(cfg.type) }, modifier = Modifier.weight(1f)) {
-                                Text("${cfg.type} ì¶”ê°€")
+                                Text("${cfg.type} Ãß°¡")
                             }
                             DangerActionButton(onClick = { onDeleteConfigType(cfg.type) }, modifier = Modifier.weight(1f)) {
-                                Text("${cfg.type} ì‚­ì œ")
+                                Text("${cfg.type} »èÁ¦")
                             }
                         }
                     }
                 }
             }
 
-            Text("ë¡œí…Œì´ì…˜")
+            Text("·ÎÅ×ÀÌ¼Ç")
             Text(
-                if (rotationSequence.isEmpty()) "[ + ] ë²„íŠ¼ìœ¼ë¡œ ë¡œí…Œì´ì…˜ì„ ì±„ìš°ì„¸ìš”."
+                if (rotationSequence.isEmpty()) "[ + ] ¹öÆ°À¸·Î ·ÎÅ×ÀÌ¼ÇÀ» Ã¤¿ì¼¼¿ä."
                 else rotationSequence.mapIndexed { i, type -> "${i + 1}.$type" }.joinToString("  ->  ")
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) { Text("ë§ˆì§€ë§‰ ì‚­ì œ") }
-                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) { Text("ë¡œí…Œì´ì…˜ ë¹„ìš°ê¸°") }
+                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) { Text("¸¶Áö¸· »èÁ¦") }
+                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) { Text("·ÎÅ×ÀÌ¼Ç ºñ¿ì±â") }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Text("ë¬´í•œ ë°˜ë³µ")
+                Text("¹«ÇÑ ¹İº¹")
                 Switch(checked = infiniteRotationEnabled, onCheckedChange = onInfiniteRotationEnabledChange)
                 Text(if (infiniteRotationEnabled) "ON" else "OFF")
                 Spacer(modifier = Modifier.width(4.dp))
@@ -405,10 +405,10 @@ fun ShiftPage(
 
             if (showFirstSetupWizard) {
                 val progressLabel = when {
-                    wizardStep <= 1 -> "3ë‹¨ê³„(ê¸°ì¤€ì¼)ë¡œ ì§„í–‰"
-                    wizardStep == 2 -> "4ë‹¨ê³„(ë¯¸ë¦¬ë³´ê¸°)ë¡œ ì§„í–‰"
-                    wizardStep == 3 -> "5ë‹¨ê³„(í™•ì •)ë¡œ ì§„í–‰"
-                    else -> "ì„¤ì • í™•ì •"
+                    wizardStep <= 1 -> "3´Ü°è(±âÁØÀÏ)·Î ÁøÇà"
+                    wizardStep == 2 -> "4´Ü°è(¹Ì¸®º¸±â)·Î ÁøÇà"
+                    wizardStep == 3 -> "5´Ü°è(È®Á¤)·Î ÁøÇà"
+                    else -> "¼³Á¤ È®Á¤"
                 }
                 PrimaryActionButton(
                     onClick = {
@@ -430,7 +430,7 @@ fun ShiftPage(
                 }
             } else {
                 PrimaryActionButton(onClick = onAutoBuild, modifier = Modifier.fillMaxWidth()) {
-                    Text("ìë™ ìƒì„±")
+                    Text("ÀÚµ¿ »ı¼º")
                 }
             }
 
@@ -452,145 +452,4 @@ private fun RowScope.CategoryButton(
     }
 }
 
-
-@Composable
-private fun WorkPreviewCalendar(previewDays: List<Pair<LocalDate, String>>) {
-    if (previewDays.isEmpty()) {
-        Text("ë¯¸ë¦¬ë³´ê¸° ì—†ìŒ")
-        return
-    }
-
-    val previewMap = previewDays.toMap()
-    val startDate = previewDays.first().first
-    val endDate = previewDays.last().first
-    val monthList = mutableListOf<YearMonth>()
-    var cursor = YearMonth.from(startDate)
-    val lastMonth = YearMonth.from(endDate)
-    while (!cursor.isAfter(lastMonth)) {
-        monthList += cursor
-        cursor = cursor.plusMonths(1)
-    }
-
-    monthList.forEach { month ->
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-            Text("${month.year}ë…„ ${month.monthValue}ì›”", style = MaterialTheme.typography.titleSmall)
-            PreviewMonthGrid(month = month, previewMap = previewMap, startDate = startDate, endDate = endDate)
-        }
-    }
-}
-
-@Composable
-private fun PreviewMonthGrid(
-    month: YearMonth,
-    previewMap: Map<LocalDate, String>,
-    startDate: LocalDate,
-    endDate: LocalDate
-) {
-    val dayLabels = listOf("ì›”", "í™”", "ìˆ˜", "ëª©", "ê¸ˆ", "í† ", "ì¼")
-    val firstDay = month.atDay(1)
-    val leading = firstDay.dayOfWeek.value - 1
-    val dates = mutableListOf<LocalDate?>()
-    repeat(leading) { dates += null }
-    for (d in 1..month.lengthOfMonth()) {
-        dates += month.atDay(d)
-    }
-    while (dates.size % 7 != 0) {
-        dates += null
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            dayLabels.forEach { label ->
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(label, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-
-        dates.chunked(7).forEach { week ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                week.forEach { date ->
-                    val type = date?.let { previewMap[it] }
-                    val badge = type?.let(::previewTypeBadge)
-                    val inRange = date != null && !date.isBefore(startDate) && !date.isAfter(endDate)
-                    val bg = when {
-                        badge != null -> previewBadgeBackgroundColor(badge)
-                        inRange -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
-                    }
-                    val fg = if (badge != null) previewBadgeColor(badge) else MaterialTheme.colorScheme.onSurfaceVariant
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(bg, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .border(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .padding(vertical = 5.dp, horizontal = 2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = date?.dayOfMonth?.toString() ?: "",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium
-                            )
-                            if (badge != null) {
-                                Text(
-                                    text = previewBadgeLabel(badge),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = fg,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun previewTypeBadge(type: String): String {
-    return when (normalizeWorkType(type)) {
-        "ì£¼ê°„" -> "ì£¼"
-        "ì•¼ê°„" -> "ì•¼"
-        "ë‹¹ì§" -> "ë‹¹"
-        "ë¹„ë²ˆ" -> "ë¹„"
-        "íœ´ë¬´", "íœ´ì¼", "íœ´ê°€" -> "íœ´"
-        else -> "ê·¼"
-    }
-}
-
-private fun previewBadgeLabel(badge: String): String {
-    return when (badge) {
-        "ì£¼" -> "â–² ì£¼"
-        "ì•¼" -> "â–  ì•¼"
-        "ë‹¹" -> "â—† ë‹¹"
-        "ë¹„" -> "â— ë¹„"
-        "íœ´" -> "â—‹ íœ´"
-        else -> "â€¢ ê·¼"
-    }
-}
-
-private fun previewBadgeBackgroundColor(badge: String): Color {
-    return when (badge) {
-        "ì£¼" -> Color(0xFFD9E8FA)
-        "ì•¼" -> Color(0xFFFFE3C8)
-        "ë‹¹" -> Color(0xFFFFE9D6)
-        "ë¹„" -> Color(0xFFE3E8EE)
-        "íœ´" -> Color(0xFFEEF1F4)
-        else -> Color(0xFFE2F0EA)
-    }
-}
-
-private fun previewBadgeColor(badge: String): Color {
-    return when (badge) {
-        "ì£¼" -> Color(0xFF1E4E8C)
-        "ì•¼" -> Color(0xFF9A5400)
-        "ë‹¹" -> Color(0xFF8A3E00)
-        "ë¹„" -> Color(0xFF4F6375)
-        "íœ´" -> Color(0xFF5B6670)
-        else -> Color(0xFF4D6B5C)
-    }
-}
 
