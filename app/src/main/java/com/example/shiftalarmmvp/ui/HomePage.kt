@@ -223,6 +223,37 @@ fun HomePage(
                         style = MaterialTheme.typography.bodyMedium
                     )
 
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        val quickVacationClear = allVacationApplied
+                        Button(
+                            onClick = {
+                                if (quickVacationClear) onClearVacationDate(chosenDate) else onSetVacationDate(chosenDate)
+                            },
+                            enabled = alarms.isNotEmpty(),
+                            modifier = Modifier.weight(1f),
+                            colors = mutedButtonColors
+                        ) {
+                            Text(if (quickVacationClear) "휴가 해제(원탭)" else "휴가 처리(원탭)")
+                        }
+
+                        val quickSkipClear = allSkipApplied
+                        Button(
+                            onClick = {
+                                if (quickSkipClear) onClearSkipDateForIds(chosenDate, selectedIds)
+                                else onSetSkipDateForIds(chosenDate, selectedIds)
+                            },
+                            enabled = selectedIds.isNotEmpty(),
+                            modifier = Modifier.weight(1f),
+                            colors = mutedButtonColors
+                        ) {
+                            Text(if (quickSkipClear) "스킵 해제(원탭)" else "스킵 처리(원탭)")
+                        }
+                    }
+                    Text(
+                        "자주 쓰는 건 원탭으로 처리하고, 나머지는 예외 처리 열기에서 설정하세요.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
                     Button(
                         onClick = { showDateAdjustControls = !showDateAdjustControls },
                         modifier = Modifier.fillMaxWidth(),
