@@ -280,13 +280,30 @@ fun ShiftPage(
                                             }
                                         }
                                     }
-                                    OutlinedTextField(
-                                        value = selectedConfig.secondaryTime,
-                                        onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
-                                        label = { Text("2차 알람(선택)") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
+                                    val secondaryEnabled = selectedConfig.secondaryTime.isNotBlank()
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                        Text("2차 알람 사용")
+                                        Switch(
+                                            checked = secondaryEnabled,
+                                            onCheckedChange = { checked ->
+                                                if (checked) {
+                                                    val defaultSecond = selectedConfig.secondaryTime.ifBlank { selectedConfig.primaryTime }
+                                                    onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
+                                                } else {
+                                                    onConfigSecondaryChange(selectedConfigIndex, "")
+                                                }
+                                            }
+                                        )
+                                    }
+                                    if (secondaryEnabled) {
+                                        OutlinedTextField(
+                                            value = selectedConfig.secondaryTime,
+                                            onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
+                                            label = { Text("2차 알람(선택)") },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
                                 }
                             }
                         }
