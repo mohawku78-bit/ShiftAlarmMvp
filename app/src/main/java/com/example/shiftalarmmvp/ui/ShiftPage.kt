@@ -73,6 +73,14 @@ fun ShiftPage(
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
     val previewLines = if (previewDays == 14) preview14 else preview
     val canProceedFromStep0 = selectedTemplate != null || categoryTemplates.isNotEmpty()
+    val selectedTemplatePreview30 = selectedTemplate?.let {
+        buildWorkPreview(
+            sequence = it.sequence,
+            todayIndex = 0,
+            days = 30,
+            anchor = anchorDate
+        )
+    }.orEmpty()
 
     LaunchedEffect(selectedCategory, categoryTemplates) {
         val current = selectedTemplate
@@ -156,6 +164,26 @@ fun ShiftPage(
                                         Button(onClick = { selectedTemplate = template }, colors = segmentedActionButtonColors(selected)) {
                                             Text(if (selected) "선택됨" else "선택")
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("선택 템플릿 30일 미리보기", style = MaterialTheme.typography.titleSmall)
+                                if (selectedTemplate == null) {
+                                    Text("템플릿을 선택하면 다음 30일 근무가 표시됩니다.")
+                                } else {
+                                    Text(
+                                        "기준일 ${anchorDate}부터 30일",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    selectedTemplatePreview30.forEach { line ->
+                                        Text(line, style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                             }
