@@ -334,13 +334,19 @@ fun EditorPage(
                 val notificationReady = canPostNotifications
                 val allSetupReady = exactReady && batteryReady && notificationReady
                 val next3Preview = next10Preview.take(3)
+                val reliabilitySummary = when {
+                    !exactReady || !notificationReady -> "현재 상태: 권한 보완 필요"
+                    !batteryReady -> "현재 상태: 동작 가능(지연 가능)"
+                    else -> "현재 상태: 정상"
+                }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("신뢰성 상태", style = MaterialTheme.typography.titleSmall)
-                        Text(if (exactReady) "정확 알람 권한: 켜짐" else "정확 알람 권한: 꺼짐")
-                        Text(if (batteryReady) "배터리 최적화: 예외 또는 미적용" else "배터리 최적화: 켜짐(지연 가능)")
-                        Text(if (notificationReady) "알림 권한: 완료" else "알림 권한: 필요")
+                        Text("알람 신뢰도 점검", style = MaterialTheme.typography.titleSmall)
+                        Text(reliabilitySummary, style = MaterialTheme.typography.bodySmall)
+                        Text(if (exactReady) "정확 알람: 준비됨" else "정확 알람: 권한 필요")
+                        Text(if (batteryReady) "배터리 최적화: 예외 적용" else "배터리 최적화: 제한 중(지연 가능)")
+                        Text(if (notificationReady) "알림 권한: 허용됨" else "알림 권한: 허용 필요")
 
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             if (!exactReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

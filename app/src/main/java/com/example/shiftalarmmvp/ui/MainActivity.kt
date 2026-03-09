@@ -1422,19 +1422,19 @@ private fun AlarmReliabilityChip(
 ) {
     val ui = when (status) {
         AlarmReliabilityStatus.OK -> ReliabilityChipUi(
-            label = "정상",
+            label = "알람 정상",
             containerColor = Color.White.copy(alpha = 0.14f),
             textColor = Color.White.copy(alpha = 0.82f),
             clickable = false
         )
         AlarmReliabilityStatus.WARNING -> ReliabilityChipUi(
-            label = "⚠ 점검",
+            label = "점검 필요",
             containerColor = Color(0xFFFFD89E),
             textColor = Color(0xFF4A3000),
             clickable = true
         )
         AlarmReliabilityStatus.ISSUE -> ReliabilityChipUi(
-            label = "⚠ 권한",
+            label = "권한 필요",
             containerColor = Color(0xFFFF6B6B),
             textColor = Color.White,
             clickable = true
