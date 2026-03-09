@@ -68,6 +68,7 @@ fun ShiftPage(
     var selectedTemplate by remember(showFirstSetupWizard, selectedCategory) { mutableStateOf<QuickShiftTemplate?>(null) }
     var previewDays by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(7) }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
+    var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
     val previewLines = if (previewDays == 14) preview14 else preview
@@ -163,31 +164,40 @@ fun ShiftPage(
 
                     1 -> {
                         Text("근무 유형 확인 및 알람 시간")
-                        workTypeConfigs.forEachIndexed { index, config ->
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(config.type)
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                        Text("알람 사용")
-                                        Switch(
-                                            checked = config.enabled,
-                                            onCheckedChange = { checked -> onToggleConfigEnabled(index, checked) }
+                        NeutralActionButton(
+                            onClick = { showStep1AlarmDetails = !showStep1AlarmDetails },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (showStep1AlarmDetails) "상세 알람 설정 숨기기" else "상세 알람 설정 보기")
+                        }
+
+                        if (showStep1AlarmDetails) {
+                            workTypeConfigs.forEachIndexed { index, config ->
+                                Card(modifier = Modifier.fillMaxWidth()) {
+                                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(config.type)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            Text("알람 사용")
+                                            Switch(
+                                                checked = config.enabled,
+                                                onCheckedChange = { checked -> onToggleConfigEnabled(index, checked) }
+                                            )
+                                        }
+                                        OutlinedTextField(
+                                            value = config.primaryTime,
+                                            onValueChange = { onConfigPrimaryChange(index, it.take(5)) },
+                                            label = { Text("1차 알람(HH:mm)") },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        OutlinedTextField(
+                                            value = config.secondaryTime,
+                                            onValueChange = { onConfigSecondaryChange(index, it.take(5)) },
+                                            label = { Text("2차 알람(선택)") },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
-                                    OutlinedTextField(
-                                        value = config.primaryTime,
-                                        onValueChange = { onConfigPrimaryChange(index, it.take(5)) },
-                                        label = { Text("1차 알람(HH:mm)") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    OutlinedTextField(
-                                        value = config.secondaryTime,
-                                        onValueChange = { onConfigSecondaryChange(index, it.take(5)) },
-                                        label = { Text("2차 알람(선택)") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
                                 }
                             }
                         }
@@ -392,6 +402,8 @@ private fun RowScope.CategoryButton(
         Text(label)
     }
 }
+
+
 
 
 
