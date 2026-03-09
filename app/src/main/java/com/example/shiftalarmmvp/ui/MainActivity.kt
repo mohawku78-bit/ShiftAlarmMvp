@@ -436,6 +436,7 @@ private fun AlarmScreen(
     val exactReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExact
     val batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimization
     val notificationReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || canPostNotifications
+    val isDebugBuild = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
     val reliabilityStatus = when {
         !exactReady || !notificationReady -> AlarmReliabilityStatus.ISSUE
         !batteryReady -> AlarmReliabilityStatus.WARNING
@@ -721,13 +722,14 @@ private fun AlarmScreen(
                     ) {
                         AlarmReliabilityChip(
                             status = reliabilityStatus,
+                            allowOkClick = isDebugBuild,
                             onOpenReliabilityCenter = {
                                 editorForcedStep = 3
                                 currentPage = AlarmPage.EDITOR
                                 scope.launch { scrollState.animateScrollTo(0) }
                             }
                         )
-                        if ((context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                        if (isDebugBuild) {
                             Card(
                                 modifier = Modifier.clickable {
                                     editorForcedStep = 3
@@ -1418,6 +1420,7 @@ private enum class AlarmReliabilityStatus {
 @Composable
 private fun AlarmReliabilityChip(
     status: AlarmReliabilityStatus,
+    allowOkClick: Boolean,
     onOpenReliabilityCenter: () -> Unit
 ) {
     val ui = when (status) {
@@ -1425,7 +1428,7 @@ private fun AlarmReliabilityChip(
             label = "알람 정상",
             containerColor = Color.White.copy(alpha = 0.14f),
             textColor = Color.White.copy(alpha = 0.82f),
-            clickable = true
+            clickable = allowOkClick
         )
         AlarmReliabilityStatus.WARNING -> ReliabilityChipUi(
             label = "점검 필요",
