@@ -1,7 +1,7 @@
 ﻿package com.example.shiftalarmmvp.ui
 
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import android.widget.NumberPicker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,12 +11,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
@@ -42,22 +48,156 @@ fun TimePickerButton(
     modifier: Modifier = Modifier,
     label: String = "시간 선택"
 ) {
-    val context = LocalContext.current
+    var showPicker by remember { mutableStateOf(false) }
     SecondaryActionButton(
-        onClick = {
-            TimePickerDialog(
-                context,
-                { _, hour, minute -> onTimePicked(LocalTime.of(hour, minute)) },
-                time.hour,
-                time.minute,
-                true
-            ).show()
-        },
+        onClick = { showPicker = true },
         modifier = modifier
     ) {
         Text("$label ${time.format(DateTimeFormatter.ofPattern("HH:mm"))}")
     }
+    if (showPicker) {
+        SmartTimePickerDialog(
+            initialTime = time,
+            onDismiss = { showPicker = false },
+            onConfirm = { picked ->
+                onTimePicked(picked)
+                showPicker = false
+            }
+        )
+    }
 }
+
+@Composable
+private fun SmartTimePickerDialog(
+    initialTime: LocalTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalTime) -> Unit
+) {
+    var draftTime by remember(initialTime) { mutableStateOf(initialTime) }
+    var inputMode by remember { mutableStateOf(false) }
+    var hourInput by remember(draftTime) { mutableStateOf(String.format("%02d", draftTime.hour)) }
+    var minuteInput by remember(draftTime) { mutableStateOf(String.format("%02d", draftTime.minute)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("시간 선택") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = { inputMode = false },
+                        modifier = Modifier.weight(1f),
+                        colors = segmentedActionButtonColors(!inputMode)
+                    ) {
+                        Text("휠 조절")
+                    }
+                    Button(
+                        onClick = { inputMode = true },
+                        modifier = Modifier.weight(1f),
+                        colors = segmentedActionButtonColors(inputMode)
+                    ) {
+                        Text("숫자 입력")
+                    }
+                }
+
+                if (inputMode) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = hourInput,
+                            onValueChange = { value ->
+                                val next = value.filter { it.isDigit() }.take(2)
+                                hourInput = next
+                                val hour = next.toIntOrNull()
+                                val minute = minuteInput.toIntOrNull()
+                                if (hour != null && hour in 0..23 && minute != null && minute in 0..59) {
+                                    draftTime = LocalTime.of(hour, minute)
+                                }
+                            },
+                            label = { Text("시") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = minuteInput,
+                            onValueChange = { value ->
+                                val next = value.filter { it.isDigit() }.take(2)
+                                minuteInput = next
+                                val hour = hourInput.toIntOrNull()
+                                val minute = next.toIntOrNull()
+                                if (hour != null && hour in 0..23 && minute != null && minute in 0..59) {
+                                    draftTime = LocalTime.of(hour, minute)
+                                }
+                            },
+                            label = { Text("분") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AndroidView(
+                            modifier = Modifier.weight(1f),
+                            factory = { context ->
+                                NumberPicker(context).apply {
+                                    minValue = 0
+                                    maxValue = 23
+                                    wrapSelectorWheel = true
+                                    setFormatter { String.format("%02d", it) }
+                                    setOnValueChangedListener { _, _, newVal ->
+                                        draftTime = LocalTime.of(newVal, draftTime.minute)
+                                    }
+                                }
+                            },
+                            update = { picker ->
+                                if (picker.value != draftTime.hour) picker.value = draftTime.hour
+                            }
+                        )
+                        AndroidView(
+                            modifier = Modifier.weight(1f),
+                            factory = { context ->
+                                NumberPicker(context).apply {
+                                    minValue = 0
+                                    maxValue = 59
+                                    wrapSelectorWheel = true
+                                    setFormatter { String.format("%02d", it) }
+                                    setOnValueChangedListener { _, _, newVal ->
+                                        draftTime = LocalTime.of(draftTime.hour, newVal)
+                                    }
+                                }
+                            },
+                            update = { picker ->
+                                if (picker.value != draftTime.minute) picker.value = draftTime.minute
+                            }
+                        )
+                    }
+                }
+
+                Text("선택 시간: ${draftTime.format(DateTimeFormatter.ofPattern("HH:mm"))}")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(draftTime) }) { Text("확인") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소") }
+        }
+    )
+}
+
 @Composable
 fun DatePickerButton(label: String, date: LocalDate, onDatePicked: (LocalDate) -> Unit) {
     val context = LocalContext.current
@@ -244,6 +384,7 @@ private fun StatusChip(text: String, bg: Color, fg: Color) {
         Text(text = text, color = fg, style = MaterialTheme.typography.labelMedium)
     }
 }
+
 
 
 
