@@ -224,6 +224,34 @@ fun HomePage(
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        val tomorrow = today.plusDays(1)
+                        Button(
+                            onClick = {
+                                selectedDate = today
+                                vacationStart = today
+                                vacationEnd = today
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = if (chosenDate == today) selectedModeButtonColors else mutedButtonColors
+                        ) {
+                            Text("오늘")
+                        }
+                        Button(
+                            onClick = {
+                                selectedDate = tomorrow
+                                vacationStart = tomorrow
+                                vacationEnd = tomorrow
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = if (chosenDate == tomorrow) selectedModeButtonColors else mutedButtonColors
+                        ) {
+                            Text("내일")
+                        }
+                    }
+
+                    Text("원탭 예외 처리", style = MaterialTheme.typography.titleSmall)
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         val quickVacationClear = allVacationApplied
                         Button(
                             onClick = {
@@ -231,9 +259,9 @@ fun HomePage(
                             },
                             enabled = alarms.isNotEmpty(),
                             modifier = Modifier.weight(1f),
-                            colors = mutedButtonColors
+                            colors = if (quickVacationClear) secondaryButtonColors else selectedModeButtonColors
                         ) {
-                            Text(if (quickVacationClear) "휴가 해제(원탭)" else "휴가 처리(원탭)")
+                            Text(if (quickVacationClear) "휴가 해제" else "휴가 적용")
                         }
 
                         val quickSkipClear = allSkipApplied
@@ -244,16 +272,15 @@ fun HomePage(
                             },
                             enabled = selectedIds.isNotEmpty(),
                             modifier = Modifier.weight(1f),
-                            colors = mutedButtonColors
+                            colors = if (quickSkipClear) secondaryButtonColors else selectedModeButtonColors
                         ) {
-                            Text(if (quickSkipClear) "스킵 해제(원탭)" else "스킵 처리(원탭)")
+                            Text(if (quickSkipClear) "스킵 해제" else "스킵 적용")
                         }
                     }
                     Text(
-                        "자주 쓰는 건 원탭으로 처리하고, 나머지는 예외 처리 열기에서 설정하세요.",
+                        "세부 설정은 아래 예외 처리 열기에서 조정하세요.",
                         style = MaterialTheme.typography.bodySmall
                     )
-
                     Button(
                         onClick = { showDateAdjustControls = !showDateAdjustControls },
                         modifier = Modifier.fillMaxWidth(),
@@ -461,8 +488,4 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
 private fun inferShiftTagFromLabel(label: String): String {
     return shiftTypeToBadge(extractWorkTypeFromLabel(label))
 }
-
-
-
-
 
