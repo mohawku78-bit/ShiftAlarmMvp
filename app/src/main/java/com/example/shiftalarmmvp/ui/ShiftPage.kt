@@ -29,6 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import java.time.YearMonth
 
 @Composable
 fun ShiftPage(
@@ -69,16 +76,23 @@ fun ShiftPage(
     var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
-    val previewLines = buildWorkPreview(rotationSequence, todayRotationIndex, previewDays, anchorDate)
-    val canProceedFromStep0 = selectedTemplate != null || categoryTemplates.isNotEmpty()
-    val selectedTemplatePreview30 = selectedTemplate?.let {
-        buildWorkPreview(
-            sequence = it.sequence,
-            todayIndex = 0,
-            days = 30,
-            anchor = anchorDate
-        )
+    val selectedTemplatePreview30Days = selectedTemplate?.let { template ->
+        val sequence = template.sequence
+        if (sequence.isEmpty()) emptyList() else {
+            (0 until 30).map { offset ->
+                anchorDate.plusDays(offset.toLong()) to sequence[offset % sequence.size]
+            }
+        }
     }.orEmpty()
+    val previewDaysData = if (rotationSequence.isEmpty()) {
+        emptyList()
+    } else {
+        val startIndex = todayRotationIndex.coerceIn(0, rotationSequence.size - 1)
+        (0 until previewDays).map { offset ->
+            anchorDate.plusDays(offset.toLong()) to rotationSequence[(startIndex + offset) % rotationSequence.size]
+        }
+    }
+    val canProceedFromStep0 = selectedTemplate != null || categoryTemplates.isNotEmpty()
 
     LaunchedEffect(selectedCategory, categoryTemplates) {
         val current = selectedTemplate
@@ -180,9 +194,7 @@ fun ShiftPage(
                                         "기준일 ${anchorDate}부터 30일",
                                         style = MaterialTheme.typography.bodySmall
                                     )
-                                    selectedTemplatePreview30.forEach { line ->
-                                        Text(line, style = MaterialTheme.typography.bodySmall)
-                                    }
+                                    WorkPreviewCalendar(previewDays = selectedTemplatePreview30Days)
                                 }
                             }
                         }
@@ -263,34 +275,10 @@ fun ShiftPage(
                         }
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                if (previewLines.isEmpty()) {
+                                if (previewDaysData.isEmpty()) {
                                     Text("미리보기 없음")
                                 } else {
-                                    val previewItems = previewLines.map { line ->
-                                        val parts = line.trim().split(Regex("\\s+"), limit = 2)
-                                        parts.getOrElse(0) { "" } to parts.getOrElse(1) { "" }
-                                    }
-                                    previewItems.chunked(7).forEach { rowItems ->
-                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                                            rowItems.forEach { (dateLabel, typeLabel) ->
-                                                Card(
-                                                    modifier = Modifier.weight(1f),
-                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                                                ) {
-                                                    Column(
-                                                        modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
-                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                                                    ) {
-                                                        Text(dateLabel, style = MaterialTheme.typography.labelSmall)
-                                                        Text(typeLabel, style = MaterialTheme.typography.bodySmall)
-                                                    }
-                                                }
-                                            }
-                                            repeat(7 - rowItems.size) {
-                                                Spacer(modifier = Modifier.weight(1f))
-                                            }
-                                        }
-                                    }
+                                    WorkPreviewCalendar(previewDays = previewDaysData)
                                 }
                             }
                         }
@@ -464,3 +452,119 @@ private fun RowScope.CategoryButton(
     }
 }
 
+
+@Composable
+private fun WorkPreviewCalendar(previewDays: List<Pair<LocalDate, String>>) {
+    if (previewDays.isEmpty()) {
+        Text("미리보기 없음")
+        return
+    }
+
+    val previewMap = previewDays.toMap()
+    val startDate = previewDays.first().first
+    val endDate = previewDays.last().first
+    val monthList = mutableListOf<YearMonth>()
+    var cursor = YearMonth.from(startDate)
+    val lastMonth = YearMonth.from(endDate)
+    while (!cursor.isAfter(lastMonth)) {
+        monthList += cursor
+        cursor = cursor.plusMonths(1)
+    }
+
+    monthList.forEach { month ->
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            Text("${month.year}년 ${month.monthValue}월", style = MaterialTheme.typography.titleSmall)
+            PreviewMonthGrid(month = month, previewMap = previewMap, startDate = startDate, endDate = endDate)
+        }
+    }
+}
+
+@Composable
+private fun PreviewMonthGrid(
+    month: YearMonth,
+    previewMap: Map<LocalDate, String>,
+    startDate: LocalDate,
+    endDate: LocalDate
+) {
+    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일")
+    val firstDay = month.atDay(1)
+    val leading = firstDay.dayOfWeek.value - 1
+    val dates = mutableListOf<LocalDate?>()
+    repeat(leading) { dates += null }
+    for (d in 1..month.lengthOfMonth()) {
+        dates += month.atDay(d)
+    }
+    while (dates.size % 7 != 0) {
+        dates += null
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            dayLabels.forEach { label ->
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text(label, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+
+        dates.chunked(7).forEach { week ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                week.forEach { date ->
+                    val type = date?.let { previewMap[it] }
+                    val inRange = date != null && !date.isBefore(startDate) && !date.isAfter(endDate)
+                    val bg = when {
+                        type != null -> previewTypeBackground(type)
+                        inRange -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
+                    }
+                    val fg = if (type != null) previewTypeForeground(type) else MaterialTheme.colorScheme.onSurfaceVariant
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(bg, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .border(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .padding(vertical = 6.dp, horizontal = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = date?.dayOfMonth?.toString() ?: "",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (type != null) {
+                                Text(
+                                    text = previewTypeLabel(type),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = fg,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun previewTypeLabel(type: String): String {
+    return when (normalizeWorkType(type)) {
+        "주간" -> "주"
+        "야간" -> "야"
+        "당직" -> "당"
+        "비번" -> "비"
+        "휴무", "휴일", "휴가" -> "휴"
+        else -> "근"
+    }
+}
+
+private fun previewTypeBackground(type: String): Color {
+    return workTypeColor(type).copy(alpha = 0.18f)
+}
+
+private fun previewTypeForeground(type: String): Color {
+    return workTypeColor(type)
+}
