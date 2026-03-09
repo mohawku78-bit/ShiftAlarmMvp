@@ -76,7 +76,10 @@ fun ShiftPage(
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
 
-    val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
+    val representativeTemplates = quickTemplates.filter {
+        it.label in setOf("주간/당직/비번", "주/야/비", "당직/비번", "격일", "주5일")
+    }.ifEmpty { quickTemplates.take(4) }
+    val categoryTemplates: List<QuickShiftTemplate> = if (selectedCategory == ShiftCategory.CUSTOM) emptyList() else representativeTemplates
     val selectedTemplatePreviewMonth = selectedTemplate?.let { template ->
         val sequence = template.sequence
         if (sequence.isEmpty()) emptyList() else {
@@ -89,6 +92,17 @@ fun ShiftPage(
             }
         }
     }.orEmpty()
+    val directPreviewMonth = if (rotationSequence.isEmpty()) {
+        emptyList()
+    } else {
+        val previewMonth = YearMonth.from(anchorDate)
+        (1..previewMonth.lengthOfMonth()).map { day ->
+            val date = previewMonth.atDay(day)
+            val offset = (date.toEpochDay() - anchorDate.toEpochDay()).toInt()
+            val index = Math.floorMod(offset, rotationSequence.size)
+            date to rotationSequence[index]
+        }
+    }
     val previewDaysData = if (rotationSequence.isEmpty()) {
         emptyList()
     } else {
@@ -97,7 +111,11 @@ fun ShiftPage(
             anchorDate.plusDays(offset.toLong()) to rotationSequence[(startIndex + offset) % rotationSequence.size]
         }
     }
-    val canProceedFromStep0 = selectedTemplate != null || categoryTemplates.isNotEmpty()
+    val canProceedFromStep0 = if (selectedCategory == ShiftCategory.CUSTOM) {
+        rotationSequence.isNotEmpty()
+    } else {
+        selectedTemplate != null || categoryTemplates.isNotEmpty()
+    }
 
     LaunchedEffect(selectedCategory, categoryTemplates) {
         val current = selectedTemplate
@@ -152,73 +170,119 @@ fun ShiftPage(
 
                 when (wizardStep) {
                     0 -> {
-                        Text("어떤 근무 패턴을 사용하시나요?")
+                        Text("대표근무를 고르거나 직접 패턴을 입력하세요.")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            CategoryButton("2교대", selectedCategory == ShiftCategory.TWO_SHIFT) {
-                                onSelectedCategoryChange(ShiftCategory.TWO_SHIFT)
-                                selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.TWO_SHIFT }
-                                    ?: templatesForCategory(ShiftCategory.TWO_SHIFT).firstOrNull()
-                            }
-                            CategoryButton("3교대", selectedCategory == ShiftCategory.THREE_SHIFT) {
+                            CategoryButton("대표근무", selectedCategory != ShiftCategory.CUSTOM) {
                                 onSelectedCategoryChange(ShiftCategory.THREE_SHIFT)
-                                selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.THREE_SHIFT }
-                                    ?: templatesForCategory(ShiftCategory.THREE_SHIFT).firstOrNull()
+                                if (selectedTemplate == null || categoryTemplates.none { it.label == selectedTemplate?.label }) {
+                                    selectedTemplate = categoryTemplates.firstOrNull()
+                                }
                             }
                             CategoryButton("직접 설정", selectedCategory == ShiftCategory.CUSTOM) {
                                 onSelectedCategoryChange(ShiftCategory.CUSTOM)
-                                selectedTemplate = quickTemplates.firstOrNull { it.category == ShiftCategory.CUSTOM }
-                                    ?: templatesForCategory(ShiftCategory.CUSTOM).firstOrNull()
-                                // Keep wizard focused; advanced stays hidden during setup.
+                                selectedTemplate = null
                             }
                         }
 
-                        Text("템플릿 선택")
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            categoryTemplates.forEach { template ->
-                                val selected = selectedTemplate?.label == template.label
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                                    )
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                        if (selectedCategory != ShiftCategory.CUSTOM) {
+                            Text("대표근무 선택")
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                categoryTemplates.forEach { template ->
+                                    val selected = selectedTemplate?.label == template.label
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                        )
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(template.label, style = MaterialTheme.typography.titleSmall)
-                                            Text(template.sequence.joinToString(" → "))
-                                        }
-                                        Button(onClick = { selectedTemplate = template }, colors = segmentedActionButtonColors(selected)) {
-                                            Text(if (selected) "선택됨" else "선택")
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(template.label, style = MaterialTheme.typography.titleSmall)
+                                                Text(template.sequence.joinToString(" → "))
+                                            }
+                                            Button(onClick = { selectedTemplate = template }, colors = segmentedActionButtonColors(selected)) {
+                                                Text(if (selected) "선택됨" else "선택")
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text("\uC120\uD0DD \uD15C\uD50C\uB9BF \uC6D4\uAC04 \uBBF8\uB9AC\uBCF4\uAE30", style = MaterialTheme.typography.titleSmall)
-                                if (selectedTemplate == null) {
-                                    Text("\uD15C\uD50C\uB9BF\uC744 \uC120\uD0DD\uD558\uBA74 \uAE30\uC900\uC77C \uAE30\uC900 \uD55C \uB2EC \uADFC\uBB34\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")
-                                } else {
-                                    Text(
-                                        "\uAE30\uC900\uC77C ${anchorDate} / \uD55C \uB2EC \uBBF8\uB9AC\uBCF4\uAE30",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    WorkPreviewCalendar(previewDays = selectedTemplatePreviewMonth)
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text("선택 템플릿 월간 미리보기", style = MaterialTheme.typography.titleSmall)
+                                    if (selectedTemplate == null) {
+                                        Text("템플릿을 선택하면 기준일 기준 한 달 근무가 표시됩니다.")
+                                    } else {
+                                        Text(
+                                            "기준일 ${anchorDate} / 한 달 미리보기",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        WorkPreviewCalendar(previewDays = selectedTemplatePreviewMonth)
+                                    }
+                                }
+                            }
+                        } else {
+                            Text("직접 패턴 입력")
+                            val appendableTypes = workTypeConfigs
+                                .map { normalizeWorkType(it.type) }
+                                .filter { it.isNotBlank() }
+                                .distinct()
+                                .ifEmpty { listOf("주간", "당직", "비번", "휴무") }
+
+                            appendableTypes.chunked(4).forEach { rowItems ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    rowItems.forEach { type ->
+                                        NeutralActionButton(
+                                            onClick = { onAppendRotationType(type) },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(type)
+                                        }
+                                    }
+                                    repeat(4 - rowItems.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+
+                            Text("입력 순서")
+                            Text(
+                                if (rotationSequence.isEmpty()) "[ + ] 버튼으로 순서를 만드세요."
+                                else rotationSequence.mapIndexed { i, type -> "${i + 1}.$type" }.joinToString("  ->  ")
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) { Text("한 칸 삭제") }
+                                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) { Text("전체 비우기") }
+                            }
+
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text("직접 입력 월간 미리보기", style = MaterialTheme.typography.titleSmall)
+                                    if (rotationSequence.isEmpty()) {
+                                        Text("패턴을 입력하면 기준일 기준 한 달 근무가 표시됩니다.")
+                                    } else {
+                                        Text(
+                                            "기준일 ${anchorDate} / 한 달 미리보기",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        WorkPreviewCalendar(previewDays = directPreviewMonth)
+                                    }
                                 }
                             }
                         }
                     }
-
                     1 -> {
                         Text("근무 유형 확인 및 알람 시간")
                         Text(
@@ -508,16 +572,16 @@ fun ShiftPage(
                             PrimaryActionButton(
                                 onClick = {
                                     if (wizardStep == 0) {
-                                        val chosen = selectedTemplate ?: categoryTemplates.firstOrNull()
-                                        if (chosen != null) {
-                                            onApplyQuickTemplate(chosen)
-                                            if (chosen.category == ShiftCategory.CUSTOM || chosen.label.contains("직접")) {
-                                                // Keep wizard focused; advanced stays hidden during setup.
+                                        if (selectedCategory == ShiftCategory.CUSTOM) {
+                                            if (rotationSequence.isEmpty()) {
+                                                return@PrimaryActionButton
                                             }
-                                        } else if (selectedCategory != ShiftCategory.CUSTOM) {
-                                            return@PrimaryActionButton
                                         } else {
-                                            return@PrimaryActionButton
+                                            val chosen = selectedTemplate ?: categoryTemplates.firstOrNull()
+                                            if (chosen == null) {
+                                                return@PrimaryActionButton
+                                            }
+                                            onApplyQuickTemplate(chosen)
                                         }
                                     }
                                     wizardStep += 1

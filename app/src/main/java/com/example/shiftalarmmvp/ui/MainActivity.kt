@@ -967,7 +967,7 @@ private fun AlarmScreen(
                     persistSelectedCategory(ShiftCategory.THREE_SHIFT)
                     autoBuildFeedback = "기본 패턴 적용됨"
                 },
-                quickTemplates = templatesForCategory(selectedShiftCategory),
+                quickTemplates = QUICK_SHIFT_TEMPLATES,
                 onApplyQuickTemplate = { template ->
                     val normalized = template.sequence.map(::normalizeWorkType).filter { it.isNotBlank() }
                     val configTypes = (normalized + listOf("휴무")).distinct()
@@ -1293,4 +1293,5 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
 
