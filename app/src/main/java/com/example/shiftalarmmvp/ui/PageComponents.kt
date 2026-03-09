@@ -144,6 +144,7 @@ fun AlarmItem(
     ).filterNotNull().joinToString(" / ")
 
     var showDetails by remember(alarm.id) { mutableStateOf(false) }
+    var showActions by remember(alarm.id) { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -201,20 +202,28 @@ fun AlarmItem(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SecondaryActionButton(onClick = onToggleTodaySkip, modifier = Modifier.weight(1f)) {
-                    Text(if (skippedToday) "오늘 스킵 취소" else "오늘 스킵")
-                }
-                SecondaryActionButton(onClick = onToggleTomorrowAdd, modifier = Modifier.weight(1f)) {
-                    Text(if (tomorrowAdded) "내일 추가 취소" else "내일 추가")
+                PrimaryActionButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("편집") }
+                NeutralActionButton(onClick = { showActions = !showActions }, modifier = Modifier.weight(1f)) {
+                    Text(if (showActions) "더보기 닫기" else "더보기")
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                NeutralActionButton(onClick = { showDetails = !showDetails }, modifier = Modifier.weight(1f)) {
-                    Text(if (showDetails) "상세 닫기" else "상세 보기")
+
+            if (showActions) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    SecondaryActionButton(onClick = onToggleTodaySkip, modifier = Modifier.weight(1f)) {
+                        Text(if (skippedToday) "오늘 스킵 취소" else "오늘 스킵")
+                    }
+                    SecondaryActionButton(onClick = onToggleTomorrowAdd, modifier = Modifier.weight(1f)) {
+                        Text(if (tomorrowAdded) "내일 추가 취소" else "내일 추가")
+                    }
                 }
-                NeutralActionButton(onClick = onDuplicate, modifier = Modifier.weight(1f)) { Text("복제") }
-                PrimaryActionButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("편집") }
-                DangerActionButton(onClick = onDelete, modifier = Modifier.weight(1f)) { Text("삭제") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    NeutralActionButton(onClick = { showDetails = !showDetails }, modifier = Modifier.weight(1f)) {
+                        Text(if (showDetails) "상세 닫기" else "상세 보기")
+                    }
+                    NeutralActionButton(onClick = onDuplicate, modifier = Modifier.weight(1f)) { Text("복제") }
+                }
+                DangerActionButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) { Text("삭제") }
             }
         }
     }
@@ -230,4 +239,7 @@ private fun StatusChip(text: String, bg: Color, fg: Color) {
         Text(text = text, color = fg, style = MaterialTheme.typography.labelMedium)
     }
 }
+
+
+
 
