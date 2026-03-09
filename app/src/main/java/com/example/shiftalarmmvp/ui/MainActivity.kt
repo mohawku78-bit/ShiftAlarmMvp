@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -464,6 +465,62 @@ private fun AlarmScreen(
         AlarmTimeCalculator.nextTriggers(previewRule, 10, LocalDateTime.now())
     }
 
+    fun scheduleSelfTest(showToast: Boolean = false) {
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+        val triggerAtMillis = System.currentTimeMillis() + 2 * 60 * 1000L
+        val testIntent = Intent(context, AlarmReceiver::class.java)
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
+            .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "2분 테스트 알람" else "${selectedLabel} 테스트")
+            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
+            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
+            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
+            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, selectedSnoozeMinutes)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            999_999,
+            testIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExact -> {
+                alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
+            else -> {
+                alarmManager?.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
+        }
+        val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), ZoneId.systemDefault())
+        selfTestMessage = "2분 테스트 예약됨: ${triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))}"
+        if (showToast) {
+            Toast.makeText(context, selfTestMessage, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun cancelSelfTest(showToast: Boolean = false) {
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            999_999,
+            Intent(context, AlarmReceiver::class.java),
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        selfTestMessage = if (pendingIntent != null) {
+            alarmManager?.cancel(pendingIntent)
+            pendingIntent.cancel()
+            "2분 테스트 예약을 취소했습니다."
+        } else {
+            "취소할 테스트 예약이 없습니다."
+        }
+        if (showToast) {
+            Toast.makeText(context, selfTestMessage, Toast.LENGTH_SHORT).show()
+        }
+    }
     fun runAutoBuildFromShiftConfig(requireInfinite: Boolean): Boolean {
         if (rotationSequence.isEmpty()) {
             autoBuildFeedback = "로테이션을 먼저 입력하세요."
@@ -685,6 +742,17 @@ private fun AlarmScreen(
                                 color = Color.White
                             )
                         }
+                        Card(
+                            modifier = Modifier.clickable { scheduleSelfTest(showToast = true) },
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2F6EF1))
+                        ) {
+                            Text(
+                                text = "2분 테스트",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -864,55 +932,8 @@ private fun AlarmScreen(
                     }
                 },
                 onStopTestSound = { AlarmRingingService.stop(context, 999_999L) },
-                onScheduleSelfTest = {
-                    val alarmManager = context.getSystemService(AlarmManager::class.java)
-                    val triggerAtMillis = System.currentTimeMillis() + 2 * 60 * 1000L
-                    val testIntent = Intent(context, AlarmReceiver::class.java)
-                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
-                        .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "2분 테스트 알람" else "${selectedLabel} 테스트")
-                        .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
-                        .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
-                        .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
-                        .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, selectedSnoozeMinutes)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
-                    val pendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        999_999,
-                        testIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    when {
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExact -> {
-                            alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                        }
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
-                            alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                        }
-                        else -> {
-                            alarmManager?.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                        }
-                    }
-                    val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), ZoneId.systemDefault())
-                    selfTestMessage = "2분 테스트 예약됨: ${triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))}"
-                },
-                onCancelSelfTest = {
-                    val alarmManager = context.getSystemService(AlarmManager::class.java)
-                    val pendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        999_999,
-                        Intent(context, AlarmReceiver::class.java),
-                        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    if (pendingIntent != null) {
-                        alarmManager?.cancel(pendingIntent)
-                        pendingIntent.cancel()
-                        selfTestMessage = "2분 테스트 예약을 취소했습니다."
-                    } else {
-                        selfTestMessage = "취소할 테스트 예약이 없습니다."
-                    }
-                },
+                onScheduleSelfTest = { scheduleSelfTest() },
+                onCancelSelfTest = { cancelSelfTest() },
                 selfTestMessage = selfTestMessage,
                 selectedTime = selectedTime,
                 onSelectedTimeChange = { selectedTime = it },
