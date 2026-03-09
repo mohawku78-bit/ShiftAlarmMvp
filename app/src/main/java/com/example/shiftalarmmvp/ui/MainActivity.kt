@@ -589,7 +589,7 @@ private fun AlarmScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
         AnimatedVisibility(
-            visible = currentPage == AlarmPage.TODAY || currentPage == AlarmPage.PATTERN,
+            visible = currentPage == AlarmPage.TODAY,
             enter = EnterTransition.None,
             exit = ExitTransition.None
         ) {
