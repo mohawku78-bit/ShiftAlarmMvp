@@ -72,7 +72,6 @@ fun ShiftPage(
 ) {
     var wizardStep by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
     var selectedTemplate by remember(showFirstSetupWizard, selectedCategory) { mutableStateOf<QuickShiftTemplate?>(null) }
-    var previewDays by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(7) }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var showStep1Advanced by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
     var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
@@ -81,37 +80,6 @@ fun ShiftPage(
         it.label in setOf("주간/당직/비번", "주/야/비", "당직/비번", "격일", "주5일")
     }.ifEmpty { quickTemplates.take(4) }
     val categoryTemplates: List<QuickShiftTemplate> = if (selectedCategory == ShiftCategory.CUSTOM) emptyList() else representativeTemplates
-    val selectedTemplatePreviewMonth = selectedTemplate?.let { template ->
-        val sequence = template.sequence
-        if (sequence.isEmpty()) emptyList() else {
-            val previewMonth = YearMonth.from(anchorDate)
-            (1..previewMonth.lengthOfMonth()).map { day ->
-                val date = previewMonth.atDay(day)
-                val offset = (date.toEpochDay() - anchorDate.toEpochDay()).toInt()
-                val index = Math.floorMod(offset, sequence.size)
-                date to sequence[index]
-            }
-        }
-    }.orEmpty()
-    val directPreviewMonth = if (rotationSequence.isEmpty()) {
-        emptyList()
-    } else {
-        val previewMonth = YearMonth.from(anchorDate)
-        (1..previewMonth.lengthOfMonth()).map { day ->
-            val date = previewMonth.atDay(day)
-            val offset = (date.toEpochDay() - anchorDate.toEpochDay()).toInt()
-            val index = Math.floorMod(offset, rotationSequence.size)
-            date to rotationSequence[index]
-        }
-    }
-    val previewDaysData = if (rotationSequence.isEmpty()) {
-        emptyList()
-    } else {
-        val startIndex = todayRotationIndex.coerceIn(0, rotationSequence.size - 1)
-        (0 until previewDays).map { offset ->
-            anchorDate.plusDays(offset.toLong()) to rotationSequence[(startIndex + offset) % rotationSequence.size]
-        }
-    }
     val canProceedFromStep0 = if (selectedCategory == ShiftCategory.CUSTOM) {
         rotationSequence.isNotEmpty()
     } else {
@@ -223,23 +191,7 @@ fun ShiftPage(
                                 }
                             }
 
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text("선택 템플릿 월간 미리보기", style = MaterialTheme.typography.titleSmall)
-                                    if (selectedTemplate == null) {
-                                        Text("템플릿을 선택하면 기준일 기준 한 달 근무가 표시됩니다.")
-                                    } else {
-                                        Text(
-                                            "기준일 ${anchorDate} / 한 달 미리보기",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                        WorkPreviewCalendar(previewDays = selectedTemplatePreviewMonth)
-                                    }
-                                }
-                            }
+                            Text("월간 미리보기는 고급 설정에서 확인할 수 있어요.", style = MaterialTheme.typography.bodySmall)
                         } else {
                             Text("직접 패턴 입력")
                             val appendableTypes = workTypeConfigs
@@ -274,23 +226,7 @@ fun ShiftPage(
                                 DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) { Text("전체 비우기") }
                             }
 
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text("직접 입력 월간 미리보기", style = MaterialTheme.typography.titleSmall)
-                                    if (rotationSequence.isEmpty()) {
-                                        Text("패턴을 입력하면 기준일 기준 한 달 근무가 표시됩니다.")
-                                    } else {
-                                        Text(
-                                            "기준일 ${anchorDate} / 한 달 미리보기",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                        WorkPreviewCalendar(previewDays = directPreviewMonth)
-                                    }
-                                }
-                            }
+                            Text("월간 미리보기는 고급 설정에서 확인할 수 있어요.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     1 -> {
@@ -500,24 +436,6 @@ fun ShiftPage(
                                     repeat(3 - rowItems.size) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
-                                }
-                            }
-                        }
-                    }
-
-                    3 -> {
-                        Text("다음 근무 미리보기")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = { previewDays = 7 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 7)) { Text("7일") }
-                            Button(onClick = { previewDays = 14 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 14)) { Text("14일") }
-                            Button(onClick = { previewDays = 30 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 30)) { Text("30일") }
-                        }
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                if (previewDaysData.isEmpty()) {
-                                    Text("미리보기 없음")
-                                } else {
-                                    WorkPreviewCalendar(previewDays = previewDaysData)
                                 }
                             }
                         }
