@@ -179,7 +179,8 @@ fun buildWorkPreview(
 fun workTypeColor(type: String): Color {
     return when (normalizeWorkType(type)) {
         "주간" -> Color(0xFF1565C0)
-        "당직", "야간" -> Color(0xFFC62828)
+        "야간" -> Color(0xFFC62828)
+        "당직" -> Color(0xFFEF6C00)
         "비번", "휴무", "휴가", "휴일" -> Color(0xFF616161)
         else -> Color(0xFF2E7D32)
     }
@@ -188,7 +189,8 @@ fun workTypeColor(type: String): Color {
 fun workTypeColorName(type: String): String {
     return when (normalizeWorkType(type)) {
         "주간" -> "파랑"
-        "당직", "야간" -> "빨강"
+        "야간" -> "빨강"
+        "당직" -> "주황"
         "비번", "휴무", "휴가", "휴일" -> "회색"
         else -> "초록"
     }
