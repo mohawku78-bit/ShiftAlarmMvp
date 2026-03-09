@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -228,7 +228,7 @@ fun ShiftPage(
                     else -> {
                         Text("설정을 확정하면 새 패턴 기준으로 자동 생성이 진행됩니다.")
                         Text("기존 알람은 즉시 삭제되지 않습니다.")
-                        if (autoBuildFeedback.isNotBlank()) {
+                        if (!showFirstSetupWizard && autoBuildFeedback.isNotBlank()) {
                             Text(autoBuildFeedback, color = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -301,8 +301,7 @@ fun ShiftPage(
             }
 
             if (workTypeConfigs.isNotEmpty()) {
-                val rotationAppendableConfigs = workTypeConfigs.filterNot { it.type.contains("휴가") }
-                val vacationConfigs = workTypeConfigs.filter { it.type.contains("휴가") }
+                val rotationAppendableConfigs = workTypeConfigs
 
                 Text("등록된 근무 유형")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -324,23 +323,6 @@ fun ShiftPage(
                                 Text("${cfg.type} 삭제")
                             }
                         }
-                    }
-                    vacationConfigs.forEach { cfg ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            NeutralActionButton(onClick = { }, enabled = false, modifier = Modifier.weight(1f)) {
-                                Text("${cfg.type}는 예외에서 처리")
-                            }
-                            DangerActionButton(onClick = { onDeleteConfigType(cfg.type) }, modifier = Modifier.weight(1f)) {
-                                Text("${cfg.type} 삭제")
-                            }
-                        }
-                    }
-                }
-
-                Text("알람 시간은 맞춤 설정 2단계에서 조정하세요.")
-                if (!showFirstSetupWizard) {
-                    NeutralActionButton(onClick = onReopenFirstSetupWizard, modifier = Modifier.fillMaxWidth()) {
-                        Text("알람 시간 다시 설정")
                     }
                 }
             }
@@ -387,15 +369,13 @@ fun ShiftPage(
                 ) {
                     Text(progressLabel)
                 }
-                Text("현재 단계: ${wizardStep + 1}/5")
-                Text("직접구성은 3~5단계(기준일/미리보기/확정)까지 진행해야 완료됩니다.")
             } else {
                 PrimaryActionButton(onClick = onAutoBuild, modifier = Modifier.fillMaxWidth()) {
                     Text("자동 생성")
                 }
             }
 
-            if (autoBuildFeedback.isNotBlank()) {
+            if (!showFirstSetupWizard && autoBuildFeedback.isNotBlank()) {
                 Text(autoBuildFeedback, color = MaterialTheme.colorScheme.primary)
             }
         }
@@ -412,6 +392,8 @@ private fun RowScope.CategoryButton(
         Text(label)
     }
 }
+
+
 
 
 

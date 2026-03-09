@@ -78,7 +78,7 @@ val QUICK_SHIFT_TEMPLATES: List<QuickShiftTemplate> = listOf(
     QuickShiftTemplate(label = "주간/당직/비번", sequence = listOf("주간", "당직", "비번"), category = ShiftCategory.THREE_SHIFT),
     QuickShiftTemplate(label = "주/야/비", sequence = listOf("주간", "야간", "비번"), category = ShiftCategory.THREE_SHIFT),
     QuickShiftTemplate(label = "주주야야비비", sequence = listOf("주간", "주간", "야간", "야간", "비번", "비번"), category = ShiftCategory.THREE_SHIFT),
-    QuickShiftTemplate(label = "3교대 직접 구성", sequence = listOf("주간", "당직", "비번"), category = ShiftCategory.THREE_SHIFT),
+    QuickShiftTemplate(label = "3교대 직접 구성", sequence = listOf("주간", "당직", "비번", "휴무"), category = ShiftCategory.THREE_SHIFT),
 
     QuickShiftTemplate(label = "직접 설정", sequence = listOf("주간", "당직", "비번"), category = ShiftCategory.CUSTOM)
 )
@@ -354,3 +354,4 @@ fun formatTimeUntil(target: LocalDateTime, now: LocalDateTime = LocalDateTime.no
 
     return parts.joinToString(" ")
 }
+

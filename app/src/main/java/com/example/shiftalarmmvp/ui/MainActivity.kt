@@ -282,9 +282,9 @@ private fun AlarmScreen(
     }
 
     var customWorkTypeInput by remember { mutableStateOf("") }
-    var rotationSequence by remember { mutableStateOf(listOf("주간", "당직", "비번")) }
+    var rotationSequence by remember { mutableStateOf(listOf("주간", "당직", "비번", "휴무")) }
     var todayRotationIndex by remember { mutableIntStateOf(0) }
-    var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct() + listOf("휴무", "휴가", "휴일"))) }
+    var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct() + listOf("휴무"))) }
     var infiniteRotationEnabled by remember { mutableStateOf(true) }
     var autoBuildFeedback by remember { mutableStateOf("") }
     val presetStore = remember(context) { RotationPresetStore(context) }
@@ -946,9 +946,9 @@ private fun AlarmScreen(
                     autoBuildFeedback = "근무 유형 '$name' 추가 완료"
                 },
                 onResetDefaults = {
-                    val defaults = defaultWorkTypeConfigs(STANDARD_WORK_TYPES)
+                    val defaults = defaultWorkTypeConfigs(listOf("주간", "당직", "비번", "휴무"))
                     workTypeConfigs = defaults
-                    rotationSequence = listOf("주간", "당직", "비번")
+                    rotationSequence = listOf("주간", "당직", "비번", "휴무")
                     todayRotationIndex = 0
                     persistSelectedCategory(ShiftCategory.THREE_SHIFT)
                     autoBuildFeedback = "기본 패턴 적용됨"
@@ -956,7 +956,7 @@ private fun AlarmScreen(
                 quickTemplates = templatesForCategory(selectedShiftCategory),
                 onApplyQuickTemplate = { template ->
                     val normalized = template.sequence.map(::normalizeWorkType).filter { it.isNotBlank() }
-                    val configTypes = (normalized + listOf("휴무", "휴가", "휴일")).distinct()
+                    val configTypes = (normalized + listOf("휴무")).distinct()
                     workTypeConfigs = defaultWorkTypeConfigs(configTypes)
                     rotationSequence = normalized
                     todayRotationIndex = 0
@@ -1254,3 +1254,5 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
+
