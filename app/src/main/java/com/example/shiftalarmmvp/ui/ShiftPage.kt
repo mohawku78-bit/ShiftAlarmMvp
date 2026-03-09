@@ -115,18 +115,20 @@ fun ShiftPage(
         }
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PrimaryActionButton(onClick = onReopenFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                Text("근무패턴 다시 설정")
-            }
-            NeutralActionButton(onClick = { showAdvanced = !showAdvanced }, enabled = !showFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                Text(if (showAdvanced) "고급 설정 숨기기" else "고급 설정 보기")
+    if (!showFirstSetupWizard) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PrimaryActionButton(onClick = onReopenFirstSetupWizard, modifier = Modifier.weight(1f)) {
+                    Text("근무패턴 다시 설정")
+                }
+                NeutralActionButton(onClick = { showAdvanced = !showAdvanced }, enabled = !showFirstSetupWizard, modifier = Modifier.weight(1f)) {
+                    Text(if (showAdvanced) "고급 설정 숨기기" else "고급 설정 보기")
+                }
             }
         }
     }
