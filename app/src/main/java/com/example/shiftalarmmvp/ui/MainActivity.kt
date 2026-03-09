@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -418,7 +419,15 @@ private fun AlarmScreen(
     }
     val visiblePatterns = weekPatterns.take(intervalWeeks)
     val canSave = visiblePatterns.any { it.isNotEmpty() }
-    val requiresExactPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExact
+    val exactReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExact
+    val batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimization
+    val notificationReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || canPostNotifications
+    val reliabilityStatus = when {
+        !exactReady || !notificationReady -> AlarmReliabilityStatus.ISSUE
+        !batteryReady -> AlarmReliabilityStatus.WARNING
+        else -> AlarmReliabilityStatus.OK
+    }
+    val requiresExactPermission = !exactReady
     val canSaveByPermission = canSave
     val previewRule = AlarmRule(
         id = editingAlarmId ?: 0,
@@ -602,34 +611,47 @@ private fun AlarmScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_brand_badge),
-                        contentDescription = "브랜드 로고",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(40.dp)
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_brand_badge),
+                            contentDescription = "브랜드 로고",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "교대근무",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "알람",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = Color(0xFF6EA0FF)
+                                )
+                            }
                             Text(
-                                text = "교대근무",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "알람",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color(0xFF6EA0FF)
+                                "패턴을 설정하면 자동 반복됩니다.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.86f)
                             )
                         }
-                        Text(
-                            "패턴을 설정하면 자동 반복됩니다.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.86f)
-                        )
                     }
+                    AlarmReliabilityChip(
+                        status = reliabilityStatus,
+                        onOpenReliabilityCenter = {
+                            currentPage = AlarmPage.EDITOR
+                            scope.launch { scrollState.animateScrollTo(0) }
+                        }
+                    )
                 }
             }
         }
@@ -1275,6 +1297,64 @@ private fun AlarmScreen(
 }
 
 }
+private enum class AlarmReliabilityStatus {
+    OK,
+    WARNING,
+    ISSUE
+}
+
+@Composable
+private fun AlarmReliabilityChip(
+    status: AlarmReliabilityStatus,
+    onOpenReliabilityCenter: () -> Unit
+) {
+    val ui = when (status) {
+        AlarmReliabilityStatus.OK -> ReliabilityChipUi(
+            label = "정상",
+            containerColor = Color.White.copy(alpha = 0.14f),
+            textColor = Color.White.copy(alpha = 0.82f),
+            clickable = false
+        )
+        AlarmReliabilityStatus.WARNING -> ReliabilityChipUi(
+            label = "⚠ 점검",
+            containerColor = Color(0xFFFFD89E),
+            textColor = Color(0xFF4A3000),
+            clickable = true
+        )
+        AlarmReliabilityStatus.ISSUE -> ReliabilityChipUi(
+            label = "⚠ 권한",
+            containerColor = Color(0xFFFF6B6B),
+            textColor = Color.White,
+            clickable = true
+        )
+    }
+
+    val chipModifier = if (ui.clickable) {
+        Modifier.clickable(onClick = onOpenReliabilityCenter)
+    } else {
+        Modifier
+    }
+
+    Card(
+        modifier = chipModifier,
+        colors = CardDefaults.cardColors(containerColor = ui.containerColor)
+    ) {
+        Text(
+            text = ui.label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = ui.textColor
+        )
+    }
+}
+
+private data class ReliabilityChipUi(
+    val label: String,
+    val containerColor: Color,
+    val textColor: Color,
+    val clickable: Boolean
+)
+
 private fun maybePersistReadPermission(context: android.content.Context, data: Intent?, uri: Uri) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) return
     val flags = data?.flags ?: 0
