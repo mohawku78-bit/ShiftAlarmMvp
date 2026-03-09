@@ -67,6 +67,7 @@ fun HomePage(
     var vacationEnd by remember { mutableStateOf(LocalDate.now()) }
     var adjustMode by remember { mutableStateOf(DateAdjustMode.VACATION) }
     var selectedShiftType by remember { mutableStateOf<String?>(null) }
+    var showDateAdjustControls by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -169,6 +170,7 @@ fun HomePage(
                         selectedDate = it
                         vacationStart = it
                         vacationEnd = it
+                        showDateAdjustControls = false
                     },
                     badgeForDate = { date -> inferShiftBadgeForDate(date, alarms) },
                     compact = false
@@ -204,7 +206,16 @@ fun HomePage(
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { showDateAdjustControls = !showDateAdjustControls },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = if (showDateAdjustControls) selectedModeButtonColors else mutedButtonColors
+                    ) {
+                        Text(if (showDateAdjustControls) "\uC608\uC678 \uCC98\uB9AC \uB2EB\uAE30" else "\uC608\uC678 \uCC98\uB9AC \uC5F4\uAE30")
+                    }
+
+                    if (showDateAdjustControls) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         Button(
                             onClick = { adjustMode = DateAdjustMode.VACATION },
                             modifier = Modifier.weight(1f),
@@ -343,11 +354,12 @@ fun HomePage(
                             }
                         }
                     }
+                    }
                 }
             }
         }
 
-        if (chosenDate != null) {
+        if (chosenDate != null && showDateAdjustControls) {
             Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("선택 날짜 알람 (${alarmsForSelectedDate.size}개)", style = MaterialTheme.typography.titleSmall)
