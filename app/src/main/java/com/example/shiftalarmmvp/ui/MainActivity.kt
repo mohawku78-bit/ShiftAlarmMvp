@@ -50,6 +50,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 
 
@@ -546,8 +547,8 @@ private fun AlarmScreen(
                         else -> currentPage == page
                     }
                     val icon = when (page) {
-                        AlarmPage.TODAY -> Icons.Filled.Settings
-                        AlarmPage.PATTERN -> Icons.Filled.Settings
+                        AlarmPage.TODAY -> Icons.Filled.Home
+                        AlarmPage.PATTERN -> Icons.Filled.Edit
                         AlarmPage.EXCEPTION -> Icons.Filled.Edit
                         AlarmPage.MANAGE -> Icons.Filled.Settings
                         AlarmPage.EDITOR -> Icons.Filled.Edit
