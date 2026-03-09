@@ -96,6 +96,7 @@ class MainActivity : ComponentActivity() {
     private val scheduler by lazy { AlarmScheduler(this) }
     private var canScheduleExact by mutableStateOf(true)
     private var canPostNotifications by mutableStateOf(true)
+    private var isIgnoringBatteryOptimizationState by mutableStateOf(true)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -107,6 +108,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         refreshExactAlarmPermissionState()
         refreshNotificationPermissionState()
+        refreshBatteryOptimizationState()
         ensureRuntimePermissions()
 
         setContent {
@@ -119,7 +121,7 @@ class MainActivity : ComponentActivity() {
                     onOpenBatterySettings = { openBatteryOptimizationSettings() },
                     onOpenAppDetailSettings = { openAppDetailSettings() },
                     onRequestNotificationPermission = { requestNotificationPermission() },
-                    isIgnoringBatteryOptimization = isIgnoringBatteryOptimization()
+                    isIgnoringBatteryOptimization = isIgnoringBatteryOptimizationState
                 )
             }
         }
@@ -130,6 +132,7 @@ class MainActivity : ComponentActivity() {
         val previous = canScheduleExact
         refreshExactAlarmPermissionState()
         refreshNotificationPermissionState()
+        refreshBatteryOptimizationState()
         if (!previous && canScheduleExact) {
             vm.rescheduleAllEnabled()
         }
@@ -159,6 +162,10 @@ class MainActivity : ComponentActivity() {
             true
         }
     }
+    private fun refreshBatteryOptimizationState() {
+        isIgnoringBatteryOptimizationState = isIgnoringBatteryOptimization()
+    }
+
 
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1373,5 +1380,6 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
 
 
