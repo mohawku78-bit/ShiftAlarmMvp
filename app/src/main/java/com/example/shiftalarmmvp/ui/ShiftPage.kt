@@ -76,11 +76,15 @@ fun ShiftPage(
     var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
-    val selectedTemplatePreview30Days = selectedTemplate?.let { template ->
+    val selectedTemplatePreviewMonth = selectedTemplate?.let { template ->
         val sequence = template.sequence
         if (sequence.isEmpty()) emptyList() else {
-            (0 until 30).map { offset ->
-                anchorDate.plusDays(offset.toLong()) to sequence[offset % sequence.size]
+            val previewMonth = YearMonth.from(anchorDate)
+            (1..previewMonth.lengthOfMonth()).map { day ->
+                val date = previewMonth.atDay(day)
+                val offset = (date.toEpochDay() - anchorDate.toEpochDay()).toInt()
+                val index = Math.floorMod(offset, sequence.size)
+                date to sequence[index]
             }
         }
     }.orEmpty()
@@ -200,15 +204,15 @@ fun ShiftPage(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text("선택 템플릿 30일 미리보기", style = MaterialTheme.typography.titleSmall)
+                                Text("\uC120\uD0DD \uD15C\uD50C\uB9BF \uC6D4\uAC04 \uBBF8\uB9AC\uBCF4\uAE30", style = MaterialTheme.typography.titleSmall)
                                 if (selectedTemplate == null) {
-                                    Text("템플릿을 선택하면 다음 30일 근무가 표시됩니다.")
+                                    Text("\uD15C\uD50C\uB9BF\uC744 \uC120\uD0DD\uD558\uBA74 \uAE30\uC900\uC77C \uAE30\uC900 \uD55C \uB2EC \uADFC\uBB34\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")
                                 } else {
                                     Text(
-                                        "기준일 ${anchorDate}부터 30일",
+                                        "\uAE30\uC900\uC77C ${anchorDate} / \uD55C \uB2EC \uBBF8\uB9AC\uBCF4\uAE30",
                                         style = MaterialTheme.typography.bodySmall
                                     )
-                                    WorkPreviewCalendar(previewDays = selectedTemplatePreview30Days)
+                                    WorkPreviewCalendar(previewDays = selectedTemplatePreviewMonth)
                                 }
                             }
                         }
@@ -651,5 +655,3 @@ private fun previewBadgeColor(badge: String): Color {
         else -> Color(0xFF4D6B5C)
     }
 }
-
-
