@@ -2,7 +2,9 @@
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlarmManager
 import android.app.DatePickerDialog
+import android.app.PendingIntent
 import android.app.TimePickerDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -87,6 +89,8 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -277,6 +281,7 @@ private fun AlarmScreen(
     var importMergeMode by remember { mutableStateOf(true) }
     var currentPage by remember { mutableStateOf(AlarmPage.TODAY) }
     var editorForcedStep by remember { mutableStateOf<Int?>(null) }
+    var selfTestMessage by remember { mutableStateOf("") }
 
     fun persistSelectedCategory(category: ShiftCategory) {
         selectedShiftCategory = category
@@ -839,6 +844,56 @@ private fun AlarmScreen(
                     }
                 },
                 onStopTestSound = { AlarmRingingService.stop(context, 999_999L) },
+                onScheduleSelfTest = {
+                    val alarmManager = context.getSystemService(AlarmManager::class.java)
+                    val triggerAtMillis = System.currentTimeMillis() + 2 * 60 * 1000L
+                    val testIntent = Intent(context, AlarmReceiver::class.java)
+                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
+                        .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "2분 테스트 알람" else "${selectedLabel} 테스트")
+                        .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
+                        .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
+                        .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
+                        .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, selectedSnoozeMinutes)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
+                    val pendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        999_999,
+                        testIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    when {
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExact -> {
+                            alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                        }
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                            alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                        }
+                        else -> {
+                            alarmManager?.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                        }
+                    }
+                    val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), ZoneId.systemDefault())
+                    selfTestMessage = "2분 테스트 예약됨: ${triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))}"
+                },
+                onCancelSelfTest = {
+                    val alarmManager = context.getSystemService(AlarmManager::class.java)
+                    val pendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        999_999,
+                        Intent(context, AlarmReceiver::class.java),
+                        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    if (pendingIntent != null) {
+                        alarmManager?.cancel(pendingIntent)
+                        pendingIntent.cancel()
+                        selfTestMessage = "2분 테스트 예약을 취소했습니다."
+                    } else {
+                        selfTestMessage = "취소할 테스트 예약이 없습니다."
+                    }
+                },
+                selfTestMessage = selfTestMessage,
                 selectedTime = selectedTime,
                 onSelectedTimeChange = { selectedTime = it },
                 anchorDate = anchorDate,
@@ -1387,8 +1442,4 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
-
-
-
-
 

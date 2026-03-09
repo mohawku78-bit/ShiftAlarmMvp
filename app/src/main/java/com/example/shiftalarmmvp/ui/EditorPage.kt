@@ -59,6 +59,9 @@ fun EditorPage(
     onAutoSaveOnDuplicateChange: (Boolean) -> Unit,
     onPlayTestSound: () -> Unit,
     onStopTestSound: () -> Unit,
+    onScheduleSelfTest: () -> Unit,
+    onCancelSelfTest: () -> Unit,
+    selfTestMessage: String,
     selectedTime: LocalTime,
     onSelectedTimeChange: (LocalTime) -> Unit,
     anchorDate: LocalDate,
@@ -360,6 +363,22 @@ fun EditorPage(
                             ) {
                                 Text("설정 완료, 카드 숨기기")
                             }
+                        }
+                    }
+                }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("2분 셀프 테스트", style = MaterialTheme.typography.titleSmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(onClick = onScheduleSelfTest, modifier = Modifier.weight(1f)) {
+                                Text("2분 뒤 테스트")
+                            }
+                            Button(onClick = onCancelSelfTest, modifier = Modifier.weight(1f)) {
+                                Text("테스트 취소")
+                            }
+                        }
+                        if (selfTestMessage.isNotBlank()) {
+                            Text(selfTestMessage, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
