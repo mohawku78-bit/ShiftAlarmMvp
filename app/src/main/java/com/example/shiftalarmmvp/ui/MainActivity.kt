@@ -529,17 +529,6 @@ private fun AlarmScreen(
     val patternTabs = listOf("패턴 설정", "예외 처리")
     var selectedPatternTab by remember { mutableIntStateOf(0) }
 
-    val recentManualChangeLogs = alarmLogs
-        .filter { it.type.name.startsWith("MANUAL_") }
-        .take(5)
-        .map { entry ->
-            val ts = entry.toLocalDateTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
-            val detail = entry.detail.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""
-            "$ts ${formatAlarmLogType(entry.type)}$detail"
-        }
-
-
-
     LaunchedEffect(currentPage) {
         scrollState.scrollTo(0)
     }
@@ -734,8 +723,7 @@ private fun AlarmScreen(
                         pendingUndoMessage = null
                         pendingUndoSnapshot = null
                     }
-                },
-                recentChangeLogs = recentManualChangeLogs
+                }
             )
         }
 

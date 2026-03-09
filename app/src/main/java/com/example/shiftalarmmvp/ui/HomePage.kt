@@ -58,8 +58,7 @@ fun HomePage(
     onClearSkipDateForIds: (LocalDate, Set<Long>) -> Unit,
     onApplyShiftChange: (LocalDate, String) -> Unit,
     undoMessage: String?,
-    onUndoLastChange: () -> Unit,
-    recentChangeLogs: List<String>
+    onUndoLastChange: () -> Unit
 ) {
     var now by remember { mutableStateOf(LocalDateTime.now()) }
     var month by remember { mutableStateOf(YearMonth.now()) }
@@ -324,33 +323,6 @@ fun HomePage(
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("선택 날짜 알람 (${alarmsForSelectedDate.size}개)", style = MaterialTheme.typography.titleSmall)
-                if (chosenDate == null) {
-                    Text("날짜를 먼저 선택하세요.")
-                } else if (alarmsForSelectedDate.isEmpty()) {
-                    Text("이 날짜에는 울릴 알람이 없습니다.")
-                } else {
-                    alarmsForSelectedDate.forEach { alarm ->
-                        val label = alarm.label.ifBlank { "이름 없음" }
-                        Text(String.format("%02d:%02d  %s", alarm.hour, alarm.minute, label))
-                    }
-                }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("변경 로그(최근 5건)", style = MaterialTheme.typography.titleSmall)
-                if (recentChangeLogs.isEmpty()) {
-                    Text("변경 기록이 없습니다.")
-                } else {
-                    recentChangeLogs.forEach { line -> Text(line) }
-                }
-            }
-        }
-
         Card(modifier = Modifier.fillMaxWidth(), colors = summaryCardColors) {
             val nextTriggerText = nextTrigger?.format(DateTimeFormatter.ofPattern("MM-dd HH:mm")) ?: "예정 없음"
             val remainingText = nextTrigger?.let { formatTimeUntil(it, now) } ?: "-"
@@ -383,6 +355,23 @@ fun HomePage(
                 }
             }
         }
+
+        Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("선택 날짜 알람 (${alarmsForSelectedDate.size}개)", style = MaterialTheme.typography.titleSmall)
+                if (chosenDate == null) {
+                    Text("날짜를 먼저 선택하세요.")
+                } else if (alarmsForSelectedDate.isEmpty()) {
+                    Text("이 날짜에는 울릴 알람이 없습니다.")
+                } else {
+                    alarmsForSelectedDate.forEach { alarm ->
+                        val label = alarm.label.ifBlank { "이름 없음" }
+                        Text(String.format("%02d:%02d  %s", alarm.hour, alarm.minute, label))
+                    }
+                }
+            }
+        }
+
     }
 }
 
@@ -548,3 +537,4 @@ private fun badgeColor(badge: String): Color {
         else -> Color(0xFF4D6B5C)
     }
 }
+
