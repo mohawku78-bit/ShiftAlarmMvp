@@ -251,8 +251,9 @@ fun ShiftPage(
                                     }
                                 }
 
+                            var selectedAlarmSlot by rememberSaveable(selectedConfigIndex) { mutableIntStateOf(0) }
                             Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(selectedConfig.type, style = MaterialTheme.typography.titleMedium)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                         Text("알람 사용")
@@ -261,32 +262,15 @@ fun ShiftPage(
                                             onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
                                         )
                                     }
+
                                     val primaryDisplay = parseHm(selectedConfig.primaryTime)
                                         ?: parseHm(defaultPrimaryTime(selectedConfig.type))
                                         ?: LocalTime.of(7, 0)
-                                    Text("1차 알람")
-                                    TimePickerButton(
-                                        time = primaryDisplay,
-                                        onTimePicked = { picked ->
-                                            onConfigPrimaryChange(selectedConfigIndex, String.format("%02d:%02d", picked.hour, picked.minute))
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        label = "시간 선택"
-                                    )
-                                    Text("빠른 선택")
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                        listOf("06:00", "07:00", "08:00", "09:00").forEach { candidate ->
-                                            val selectedQuick = selectedConfig.primaryTime == candidate
-                                            Button(
-                                                onClick = { onConfigPrimaryChange(selectedConfigIndex, candidate) },
-                                                modifier = Modifier.weight(1f),
-                                                colors = segmentedActionButtonColors(selectedQuick)
-                                            ) {
-                                                Text(candidate)
-                                            }
-                                        }
-                                    }
                                     val secondaryEnabled = selectedConfig.secondaryTime.isNotBlank()
+                                    val secondaryDisplay = parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
+                                    val editingSecondary = selectedAlarmSlot == 1 && secondaryEnabled
+                                    val activeTime = if (editingSecondary) secondaryDisplay else primaryDisplay
+
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
@@ -295,8 +279,42 @@ fun ShiftPage(
                                     ) {
                                         Column(
                                             modifier = Modifier.padding(10.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Button(
+                                                    onClick = { selectedAlarmSlot = 0 },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = segmentedActionButtonColors(!editingSecondary)
+                                                ) {
+                                                    Text("1차")
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        selectedAlarmSlot = 1
+                                                        if (!secondaryEnabled) {
+                                                            val defaultSecond = selectedConfig.secondaryTime.ifBlank {
+                                                                selectedConfig.primaryTime.ifBlank {
+                                                                    String.format(
+                                                                        "%02d:%02d",
+                                                                        primaryDisplay.hour,
+                                                                        primaryDisplay.minute
+                                                                    )
+                                                                }
+                                                            }
+                                                            onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
+                                                        }
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = segmentedActionButtonColors(editingSecondary)
+                                                ) {
+                                                    Text("2차")
+                                                }
+                                            }
+
                                             Row(
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 modifier = Modifier.fillMaxWidth()
@@ -316,42 +334,62 @@ fun ShiftPage(
                                                                 }
                                                             }
                                                             onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
+                                                            selectedAlarmSlot = 1
                                                         } else {
                                                             onConfigSecondaryChange(selectedConfigIndex, "")
+                                                            selectedAlarmSlot = 0
                                                         }
                                                     }
                                                 )
                                             }
-                                            if (secondaryEnabled) {
-                                                val secondaryDisplay =
-                                                    parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
-                                                TimePickerButton(
-                                                    time = secondaryDisplay,
-                                                    onTimePicked = { picked ->
-                                                        onConfigSecondaryChange(
-                                                            selectedConfigIndex,
-                                                            String.format("%02d:%02d", picked.hour, picked.minute)
-                                                        )
-                                                    },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    label = "2차 시간 선택"
-                                                )
-                                                Text("빠른 선택")
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    listOf("12:00", "18:00", "21:00", "22:00").forEach { candidate ->
-                                                        val selectedQuick = selectedConfig.secondaryTime == candidate
-                                                        Button(
-                                                            onClick = {
+
+                                            Text(if (editingSecondary) "2차 메인 시간" else "1차 메인 시간")
+                                            Text(
+                                                String.format("%02d:%02d", activeTime.hour, activeTime.minute),
+                                                style = MaterialTheme.typography.headlineMedium
+                                            )
+                                            TimePickerButton(
+                                                time = activeTime,
+                                                onTimePicked = { picked ->
+                                                    val formatted = String.format("%02d:%02d", picked.hour, picked.minute)
+                                                    if (editingSecondary) {
+                                                        onConfigSecondaryChange(selectedConfigIndex, formatted)
+                                                    } else {
+                                                        onConfigPrimaryChange(selectedConfigIndex, formatted)
+                                                    }
+                                                },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                label = "시간 선택"
+                                            )
+
+                                            Text("빠른 선택")
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                val quickCandidates = if (editingSecondary) {
+                                                    listOf("12:00", "18:00", "21:00", "22:00")
+                                                } else {
+                                                    listOf("06:00", "07:00", "08:00", "09:00")
+                                                }
+                                                quickCandidates.forEach { candidate ->
+                                                    val selectedQuick = if (editingSecondary) {
+                                                        selectedConfig.secondaryTime == candidate
+                                                    } else {
+                                                        selectedConfig.primaryTime == candidate
+                                                    }
+                                                    Button(
+                                                        onClick = {
+                                                            if (editingSecondary) {
                                                                 onConfigSecondaryChange(selectedConfigIndex, candidate)
-                                                            },
-                                                            modifier = Modifier.weight(1f),
-                                                            colors = segmentedActionButtonColors(selectedQuick)
-                                                        ) {
-                                                            Text(candidate)
-                                                        }
+                                                            } else {
+                                                                onConfigPrimaryChange(selectedConfigIndex, candidate)
+                                                            }
+                                                        },
+                                                        modifier = Modifier.weight(1f),
+                                                        colors = segmentedActionButtonColors(selectedQuick)
+                                                    ) {
+                                                        Text(candidate)
                                                     }
                                                 }
                                             }
