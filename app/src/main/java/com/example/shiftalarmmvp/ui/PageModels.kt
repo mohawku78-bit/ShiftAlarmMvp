@@ -34,17 +34,45 @@ enum class ShiftCategory {
     THREE_SHIFT,
     CUSTOM
 }
-
 data class QuickShiftTemplate(
     val label: String,
     val sequence: List<String>,
     val category: ShiftCategory
 )
 
+val STANDARD_WORK_TYPES: List<String> = listOf("당직", "비번", "주간", "야간", "휴무", "휴가", "휴일")
+
+private val WORK_TYPE_ALIAS_MAP: Map<String, String> = mapOf(
+    "주" to "주간",
+    "야" to "야간",
+    "당" to "당직",
+    "비" to "비번",
+    "휴" to "휴무",
+    "공휴일" to "휴일",
+    "근무" to "당직",
+    "석간" to "야간",
+    "석" to "야간"
+)
+
+private val WORK_TYPE_MATCH_ORDER: List<String> =
+    (STANDARD_WORK_TYPES + WORK_TYPE_ALIAS_MAP.keys)
+        .distinct()
+        .sortedByDescending { it.length }
+
+fun normalizeWorkType(raw: String): String {
+    val text = raw.trim()
+    if (text.isBlank()) return ""
+    val firstToken = text.substringBefore(" ").trim()
+    val matched = WORK_TYPE_MATCH_ORDER.firstOrNull { firstToken.startsWith(it) } ?: firstToken
+    return WORK_TYPE_ALIAS_MAP[matched] ?: matched
+}
+
+fun extractWorkTypeFromLabel(label: String): String = normalizeWorkType(label)
+
 val QUICK_SHIFT_TEMPLATES: List<QuickShiftTemplate> = listOf(
     QuickShiftTemplate(label = "주간/야간", sequence = listOf("주간", "야간"), category = ShiftCategory.TWO_SHIFT),
     QuickShiftTemplate(label = "당직/비번", sequence = listOf("당직", "비번"), category = ShiftCategory.TWO_SHIFT),
-    QuickShiftTemplate(label = "격일", sequence = listOf("근무", "휴무"), category = ShiftCategory.TWO_SHIFT),
+    QuickShiftTemplate(label = "격일", sequence = listOf("당직", "휴무"), category = ShiftCategory.TWO_SHIFT),
     QuickShiftTemplate(label = "2교대 직접 구성", sequence = listOf("주간", "야간"), category = ShiftCategory.TWO_SHIFT),
 
     QuickShiftTemplate(label = "주간/당직/비번", sequence = listOf("주간", "당직", "비번"), category = ShiftCategory.THREE_SHIFT),
@@ -70,7 +98,7 @@ fun inferPresetCategory(preset: RotationPreset): ShiftCategory {
 
 
 fun defaultWorkTypeConfigs(types: List<String>): List<WorkTypeAlarmConfig> {
-    return types.distinct().map { type ->
+    return types.map(::normalizeWorkType).filter { it.isNotBlank() }.distinct().map { type ->
         val defaultEnabled = when {
             type.contains("휴가") -> true
             type.contains("비") || type.contains("휴") -> false
@@ -86,13 +114,12 @@ fun defaultWorkTypeConfigs(types: List<String>): List<WorkTypeAlarmConfig> {
 }
 
 fun defaultPrimaryTime(type: String): String {
-    return when {
-        type.contains("주") -> "06:30"
-        type.contains("석") -> "14:30"
-        type.contains("야") -> "20:30"
-        type.contains("당") -> "08:30"
-        type.contains("휴가") -> "09:30"
-        type.contains("휴") -> "08:00"
+    return when (normalizeWorkType(type)) {
+        "주간" -> "06:30"
+        "야간" -> "20:30"
+        "당직" -> "08:30"
+        "휴가" -> "09:30"
+        "휴무", "휴일", "비번" -> "08:00"
         else -> "07:00"
     }
 }
@@ -150,21 +177,19 @@ fun buildWorkPreview(
 }
 
 fun workTypeColor(type: String): Color {
-    return when {
-        type.contains("주") -> Color(0xFF1565C0)
-        type.contains("당") || type.contains("야") -> Color(0xFFC62828)
-        type.contains("비") || type.contains("휴") -> Color(0xFF616161)
-        type.contains("석") -> Color(0xFFEF6C00)
+    return when (normalizeWorkType(type)) {
+        "주간" -> Color(0xFF1565C0)
+        "당직", "야간" -> Color(0xFFC62828)
+        "비번", "휴무", "휴가", "휴일" -> Color(0xFF616161)
         else -> Color(0xFF2E7D32)
     }
 }
 
 fun workTypeColorName(type: String): String {
-    return when {
-        type.contains("주") -> "파랑"
-        type.contains("당") || type.contains("야") -> "빨강"
-        type.contains("비") || type.contains("휴") -> "회색"
-        type.contains("석") -> "주황"
+    return when (normalizeWorkType(type)) {
+        "주간" -> "파랑"
+        "당직", "야간" -> "빨강"
+        "비번", "휴무", "휴가", "휴일" -> "회색"
         else -> "초록"
     }
 }
@@ -329,6 +354,3 @@ fun formatTimeUntil(target: LocalDateTime, now: LocalDateTime = LocalDateTime.no
 
     return parts.joinToString(" ")
 }
-
-
-

@@ -199,7 +199,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun applyShiftTypeForDateRange(start: LocalDate, end: LocalDate, targetType: String) {
-        val normalized = targetType.trim()
+        val normalized = normalizeWorkType(targetType)
         if (normalized.isBlank()) return
 
         viewModelScope.launch {
@@ -317,7 +317,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun applyShiftTypeForDate(date: LocalDate, targetType: String) {
-        val normalized = targetType.trim()
+        val normalized = normalizeWorkType(targetType)
         if (normalized.isBlank()) return
 
         viewModelScope.launch {
@@ -356,12 +356,6 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun extractWorkTypeFromLabel(label: String): String {
-        val text = label.trim()
-        if (text.isBlank()) return ""
-        val ordered = listOf("주간", "야간", "당직", "비번", "휴가", "휴무", "석간", "주", "야", "당", "비", "휴", "석", "근무")
-        return ordered.firstOrNull { text.startsWith(it) } ?: text.substringBefore(" ").trim()
-    }
 
     private fun buildDateRange(start: LocalDate, end: LocalDate): Set<LocalDate> {
         val from = minOf(start, end)
@@ -406,9 +400,3 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
-
-
-
-
-
-

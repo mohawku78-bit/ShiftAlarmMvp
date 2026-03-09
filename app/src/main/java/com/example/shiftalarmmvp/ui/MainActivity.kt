@@ -284,7 +284,7 @@ private fun AlarmScreen(
     var customWorkTypeInput by remember { mutableStateOf("") }
     var rotationSequence by remember { mutableStateOf(listOf("주간", "당직", "비번")) }
     var todayRotationIndex by remember { mutableIntStateOf(0) }
-    var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct())) }
+    var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct() + listOf("휴무", "휴가", "휴일"))) }
     var infiniteRotationEnabled by remember { mutableStateOf(true) }
     var autoBuildFeedback by remember { mutableStateOf("") }
     val presetStore = remember(context) { RotationPresetStore(context) }
@@ -927,12 +927,12 @@ private fun AlarmScreen(
                 customWorkTypeInput = customWorkTypeInput,
                 onCustomWorkTypeInputChange = { customWorkTypeInput = it },
                 onAddType = {
-                    val name = customWorkTypeInput.trim()
+                    val name = normalizeWorkType(customWorkTypeInput)
                     if (name.isBlank()) {
                         autoBuildFeedback = "근무 유형 이름을 입력하세요."
                         return@ShiftPage
                     }
-                    if (workTypeConfigs.any { it.type == name }) {
+                    if (workTypeConfigs.any { normalizeWorkType(it.type) == name }) {
                         autoBuildFeedback = "이미 있는 근무 유형입니다."
                         return@ShiftPage
                     }
@@ -946,7 +946,7 @@ private fun AlarmScreen(
                     autoBuildFeedback = "근무 유형 '$name' 추가 완료"
                 },
                 onResetDefaults = {
-                    val defaults = defaultWorkTypeConfigs(listOf("주간", "당직", "비번", "휴가"))
+                    val defaults = defaultWorkTypeConfigs(STANDARD_WORK_TYPES)
                     workTypeConfigs = defaults
                     rotationSequence = listOf("주간", "당직", "비번")
                     todayRotationIndex = 0
@@ -955,10 +955,10 @@ private fun AlarmScreen(
                 },
                 quickTemplates = templatesForCategory(selectedShiftCategory),
                 onApplyQuickTemplate = { template ->
-                    val normalized = template.sequence.distinct()
-                    val configTypes = if ("휴가" !in normalized) normalized + "휴가" else normalized
+                    val normalized = template.sequence.map(::normalizeWorkType).filter { it.isNotBlank() }
+                    val configTypes = (normalized + listOf("휴무", "휴가", "휴일")).distinct()
                     workTypeConfigs = defaultWorkTypeConfigs(configTypes)
-                    rotationSequence = template.sequence
+                    rotationSequence = normalized
                     todayRotationIndex = 0
                     infiniteRotationEnabled = true
                     persistSelectedCategory(template.category)
@@ -966,7 +966,7 @@ private fun AlarmScreen(
                 },
                 workTypeConfigs = workTypeConfigs,
                 onAppendRotationType = { type ->
-                    rotationSequence = rotationSequence + type
+                    rotationSequence = rotationSequence + normalizeWorkType(type)
                     autoBuildFeedback = "${type} 칸 추가"
                 },
                 rotationSequence = rotationSequence,
@@ -1254,88 +1254,3 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

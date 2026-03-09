@@ -456,13 +456,6 @@ private fun CalendarMonthGrid(
     }
 }
 
-private fun extractWorkTypeFromLabel(label: String): String {
-    val text = label.trim()
-    if (text.isBlank()) return ""
-    val ordered = listOf("주간", "야간", "당직", "비번", "휴가", "휴무", "석간", "주", "야", "당", "비", "휴", "석", "근무")
-    return ordered.firstOrNull { text.startsWith(it) } ?: text.substringBefore(" ").trim()
-}
-
 private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): String {
     val dayTags = alarms.asSequence()
         .filter { AlarmTimeCalculator.isScheduledOnDate(it, date) }
@@ -472,10 +465,9 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
     if (dayTags.isEmpty()) return "휴"
 
     return when {
-        "주" in dayTags && ("야" in dayTags || "당" in dayTags) -> "주/야"
-        "야" in dayTags || "당" in dayTags -> "야"
+        "주" in dayTags && "야" in dayTags -> "주/야"
+        "야" in dayTags -> "야"
         "주" in dayTags -> "주"
-        "석" in dayTags -> "석"
         "휴" in dayTags -> "휴"
         "비" in dayTags -> "비"
         else -> "근"
@@ -483,12 +475,11 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
 }
 
 private fun inferShiftTagFromLabel(label: String): String {
-    return when {
-        label.contains("야") || label.contains("당") -> "야"
-        label.contains("주") -> "주"
-        label.contains("석") -> "석"
-        label.contains("휴가") || label.contains("휴무") || label.contains("휴") -> "휴"
-        label.contains("비") -> "비"
+    return when (extractWorkTypeFromLabel(label)) {
+        "주간" -> "주"
+        "야간", "당직" -> "야"
+        "휴가", "휴무", "휴일" -> "휴"
+        "비번" -> "비"
         else -> "근"
     }
 }
@@ -529,6 +520,3 @@ private fun badgeColor(badge: String): Color {
         else -> Color(0xFF4D6B5C)
     }
 }
-
-
-
