@@ -90,6 +90,7 @@ fun HomePage(
     val anySkipApplied = chosenDate != null && alarmsForSelectedDate.any { chosenDate in it.skipDateEpochDays }
     val allSkipApplied = alarmsForSelectedDate.isNotEmpty() && chosenDate != null && alarmsForSelectedDate.all { chosenDate in it.skipDateEpochDays }
     val vacationAppliedCount = if (chosenDate == null) 0 else alarms.count { chosenDate in it.skipDateEpochDays }
+    val skipAppliedCount = if (chosenDate == null) 0 else alarmsForSelectedDate.count { chosenDate in it.skipDateEpochDays }
     val vacationExcludedAlarms = if (chosenDate == null) {
         emptyList()
     } else {
@@ -261,7 +262,7 @@ fun HomePage(
                             modifier = Modifier.weight(1f),
                             colors = if (quickVacationClear) secondaryButtonColors else selectedModeButtonColors
                         ) {
-                            Text(if (quickVacationClear) "휴가 해제" else "휴가 적용")
+                            Text(if (quickVacationClear) "휴가 해제 ($vacationAppliedCount/${alarms.size})" else "휴가 적용 ($vacationAppliedCount/${alarms.size})")
                         }
 
                         val quickSkipClear = allSkipApplied
@@ -274,7 +275,7 @@ fun HomePage(
                             modifier = Modifier.weight(1f),
                             colors = if (quickSkipClear) secondaryButtonColors else selectedModeButtonColors
                         ) {
-                            Text(if (quickSkipClear) "스킵 해제" else "스킵 적용")
+                            Text(if (quickSkipClear) "스킵 해제 ($skipAppliedCount/${selectedIds.size})" else "스킵 적용 ($skipAppliedCount/${selectedIds.size})")
                         }
                     }
                     Text(
