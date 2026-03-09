@@ -924,13 +924,15 @@ private fun AlarmScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                TabRow(selectedTabIndex = selectedPatternTab) {
-                    patternTabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedPatternTab == index,
-                            onClick = { selectedPatternTab = index },
-                            text = { Text(title) }
-                        )
+                if (patternTabs.size > 1) {
+                    TabRow(selectedTabIndex = selectedPatternTab) {
+                        patternTabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedPatternTab == index,
+                                onClick = { selectedPatternTab = index },
+                                text = { Text(title) }
+                            )
+                        }
                     }
                 }
                 if (selectedPatternTab == 0) {
