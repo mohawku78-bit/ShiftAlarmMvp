@@ -68,6 +68,7 @@ fun HomePage(
     var adjustMode by remember { mutableStateOf(DateAdjustMode.VACATION) }
     var selectedShiftType by remember { mutableStateOf<String?>(null) }
     var showDateAdjustControls by remember { mutableStateOf(false) }
+    var showLegend by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -150,16 +151,25 @@ fun HomePage(
                     Text(month.format(DateTimeFormatter.ofPattern("yyyy년 M월")), style = MaterialTheme.typography.titleMedium)
                     Button(onClick = { month = month.plusMonths(1) }, colors = mutedButtonColors) { Text("다음") }
                 }
-
-                Row(
+                Button(
+                    onClick = { showLegend = !showLegend },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    colors = if (showLegend) selectedModeButtonColors else mutedButtonColors
                 ) {
-                    ShiftLegendChip("주간", Color(0xFFD9E8FA), Color(0xFF1E4E8C))
-                    ShiftLegendChip("야간", Color(0xFFFFE3C8), Color(0xFF9A5400))
-                    ShiftLegendChip("당직", Color(0xFFFFE9D6), Color(0xFF8A3E00))
-                    ShiftLegendChip("비번", Color(0xFFE3E8EE), Color(0xFF4F6375))
-                    ShiftLegendChip("휴무", Color(0xFFEEF1F4), Color(0xFF5B6670))
+                    Text(if (showLegend) "\uBC94\uB840 \uC228\uAE30\uAE30" else "\uBC94\uB840 \uBCF4\uAE30")
+                }
+
+                if (showLegend) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ShiftLegendChip("주간", Color(0xFFD9E8FA), Color(0xFF1E4E8C))
+                        ShiftLegendChip("야간", Color(0xFFFFE3C8), Color(0xFF9A5400))
+                        ShiftLegendChip("당직", Color(0xFFFFE9D6), Color(0xFF8A3E00))
+                        ShiftLegendChip("비번", Color(0xFFE3E8EE), Color(0xFF4F6375))
+                        ShiftLegendChip("휴무", Color(0xFFEEF1F4), Color(0xFF5B6670))
+                    }
                 }
 
                 ShiftCalendarMonthGrid(
