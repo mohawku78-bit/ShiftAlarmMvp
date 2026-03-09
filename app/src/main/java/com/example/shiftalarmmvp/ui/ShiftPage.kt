@@ -271,6 +271,50 @@ fun ShiftPage(
                                     val editingSecondary = selectedAlarmSlot == 1 && secondaryEnabled
                                     val activeTime = if (editingSecondary) secondaryDisplay else primaryDisplay
 
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Card(
+                                            modifier = Modifier.weight(1f),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                            )
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(8.dp),
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Text("1차", style = MaterialTheme.typography.labelMedium)
+                                                Text(
+                                                    String.format("%02d:%02d", primaryDisplay.hour, primaryDisplay.minute),
+                                                    style = MaterialTheme.typography.titleMedium
+                                                )
+                                            }
+                                        }
+                                        Card(
+                                            modifier = Modifier.weight(1f),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                                            )
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(8.dp),
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Text("2차", style = MaterialTheme.typography.labelMedium)
+                                                Text(
+                                                    if (secondaryEnabled) {
+                                                        String.format("%02d:%02d", secondaryDisplay.hour, secondaryDisplay.minute)
+                                                    } else {
+                                                        "OFF"
+                                                    },
+                                                    style = MaterialTheme.typography.titleMedium
+                                                )
+                                            }
+                                        }
+                                    }
+
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
@@ -319,7 +363,7 @@ fun ShiftPage(
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                Text("2차 알람 사용")
+                                                Text(if (secondaryEnabled) "2차 알람 ON" else "2차 알람 OFF")
                                                 Switch(
                                                     checked = secondaryEnabled,
                                                     onCheckedChange = { checked ->
