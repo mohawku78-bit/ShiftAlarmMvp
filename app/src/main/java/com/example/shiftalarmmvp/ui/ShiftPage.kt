@@ -74,6 +74,7 @@ fun ShiftPage(
     var previewDays by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(7) }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(true) }
+    var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
     val selectedTemplatePreview30Days = selectedTemplate?.let { template ->
@@ -105,6 +106,14 @@ fun ShiftPage(
 
     LaunchedEffect(showFirstSetupWizard) {
         if (showFirstSetupWizard) showAdvanced = false
+    }
+
+    LaunchedEffect(workTypeConfigs.size) {
+        selectedStep1TypeIndex = if (workTypeConfigs.isEmpty()) {
+            0
+        } else {
+            selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
+        }
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -214,27 +223,52 @@ fun ShiftPage(
                         }
 
                         if (showStep1AlarmDetails) {
-                            workTypeConfigs.forEachIndexed { index, config ->
+                            if (workTypeConfigs.isEmpty()) {
+                                Text("\uB4F1\uB85D\uB41C \uADFC\uBB34 \uC720\uD615\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")
+                            } else {
+                                val selectedConfigIndex = selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
+                                val selectedConfig = workTypeConfigs[selectedConfigIndex]
+                                Text("\uADFC\uBB34 \uC720\uD615 \uC120\uD0DD")
+                                workTypeConfigs.mapIndexed { index, config -> index to config.type }
+                                    .chunked(4)
+                                    .forEach { rowItems ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            rowItems.forEach { (index, type) ->
+                                                val selected = selectedConfigIndex == index
+                                                Button(
+                                                    onClick = { selectedStep1TypeIndex = index },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = segmentedActionButtonColors(selected)
+                                                ) {
+                                                    Text(type)
+                                                }
+                                            }
+                                            repeat(4 - rowItems.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(config.type)
+                                        Text(selectedConfig.type, style = MaterialTheme.typography.titleMedium)
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                             Text("알람 사용")
                                             Switch(
-                                                checked = config.enabled,
-                                                onCheckedChange = { checked -> onToggleConfigEnabled(index, checked) }
+                                                checked = selectedConfig.enabled,
+                                                onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
                                             )
                                         }
                                         OutlinedTextField(
-                                            value = config.primaryTime,
-                                            onValueChange = { onConfigPrimaryChange(index, it.take(5)) },
+                                            value = selectedConfig.primaryTime,
+                                            onValueChange = { onConfigPrimaryChange(selectedConfigIndex, it.take(5)) },
                                             label = { Text("1차 알람(HH:mm)") },
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                         OutlinedTextField(
-                                            value = config.secondaryTime,
-                                            onValueChange = { onConfigSecondaryChange(index, it.take(5)) },
+                                            value = selectedConfig.secondaryTime,
+                                            onValueChange = { onConfigSecondaryChange(selectedConfigIndex, it.take(5)) },
                                             label = { Text("2차 알람(선택)") },
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth()
