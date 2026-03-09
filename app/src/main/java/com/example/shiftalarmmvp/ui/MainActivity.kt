@@ -1425,7 +1425,7 @@ private fun AlarmReliabilityChip(
             label = "알람 정상",
             containerColor = Color.White.copy(alpha = 0.14f),
             textColor = Color.White.copy(alpha = 0.82f),
-            clickable = false
+            clickable = true
         )
         AlarmReliabilityStatus.WARNING -> ReliabilityChipUi(
             label = "점검 필요",
