@@ -347,17 +347,17 @@ fun HomePage(
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("선택 날짜 알람 (${alarmsForSelectedDate.size}개)", style = MaterialTheme.typography.titleSmall)
-                if (chosenDate == null) {
-                    Text("날짜를 먼저 선택하세요.")
-                } else if (alarmsForSelectedDate.isEmpty()) {
-                    Text("이 날짜에는 울릴 알람이 없습니다.")
-                } else {
-                    alarmsForSelectedDate.forEach { alarm ->
-                        val label = alarm.label.ifBlank { "이름 없음" }
-                        Text(String.format("%02d:%02d  %s", alarm.hour, alarm.minute, label))
+        if (chosenDate != null) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("선택 날짜 알람 (${alarmsForSelectedDate.size}개)", style = MaterialTheme.typography.titleSmall)
+                    if (alarmsForSelectedDate.isEmpty()) {
+                        Text("이 날짜에는 울릴 알람이 없습니다.")
+                    } else {
+                        alarmsForSelectedDate.forEach { alarm ->
+                            val label = alarm.label.ifBlank { "이름 없음" }
+                            Text(String.format("%02d:%02d  %s", alarm.hour, alarm.minute, label))
+                        }
                     }
                 }
             }
