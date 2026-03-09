@@ -56,13 +56,11 @@ fun ShiftPage(
     onCompleteFirstSetup: () -> Unit,
     onHideFirstSetupWizard: () -> Unit,
     onReopenFirstSetupWizard: () -> Unit,
-    preview: List<String>,
     autoBuildFeedback: String,
     selectedCategory: ShiftCategory,
     onSelectedCategoryChange: (ShiftCategory) -> Unit,
     anchorDate: LocalDate,
     onAnchorDateChange: (LocalDate) -> Unit,
-    preview14: List<String>
 ) {
     var wizardStep by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
     var selectedTemplate by remember(showFirstSetupWizard, selectedCategory) { mutableStateOf<QuickShiftTemplate?>(null) }
@@ -71,7 +69,7 @@ fun ShiftPage(
     var showStep1AlarmDetails by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
 
     val categoryTemplates = quickTemplates.ifEmpty { templatesForCategory(selectedCategory) }
-    val previewLines = if (previewDays == 14) preview14 else preview
+    val previewLines = buildWorkPreview(rotationSequence, todayRotationIndex, previewDays, anchorDate)
     val canProceedFromStep0 = selectedTemplate != null || categoryTemplates.isNotEmpty()
     val selectedTemplatePreview30 = selectedTemplate?.let {
         buildWorkPreview(
@@ -261,13 +259,38 @@ fun ShiftPage(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             Button(onClick = { previewDays = 7 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 7)) { Text("7일") }
                             Button(onClick = { previewDays = 14 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 14)) { Text("14일") }
+                            Button(onClick = { previewDays = 30 }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(previewDays == 30)) { Text("30일") }
                         }
                         Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 if (previewLines.isEmpty()) {
                                     Text("미리보기 없음")
                                 } else {
-                                    previewLines.forEach { line -> Text(line) }
+                                    val previewItems = previewLines.map { line ->
+                                        val parts = line.trim().split(Regex("\\s+"), limit = 2)
+                                        parts.getOrElse(0) { "" } to parts.getOrElse(1) { "" }
+                                    }
+                                    previewItems.chunked(7).forEach { rowItems ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                            rowItems.forEach { (dateLabel, typeLabel) ->
+                                                Card(
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Text(dateLabel, style = MaterialTheme.typography.labelSmall)
+                                                        Text(typeLabel, style = MaterialTheme.typography.bodySmall)
+                                                    }
+                                                }
+                                            }
+                                            repeat(7 - rowItems.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -440,19 +463,4 @@ private fun RowScope.CategoryButton(
         Text(label)
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

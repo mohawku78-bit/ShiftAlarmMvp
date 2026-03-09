@@ -1034,13 +1034,11 @@ private fun AlarmScreen(
                     setupPrefs.edit().putBoolean("shift_quick_setup_hidden", true).apply()
                 },
                 onReopenFirstSetupWizard = { reopenPatternSetup() },
-                preview = buildWorkPreview(rotationSequence, todayRotationIndex, 7, LocalDate.now()),
                 autoBuildFeedback = autoBuildFeedback,
                 selectedCategory = selectedShiftCategory,
                 onSelectedCategoryChange = { persistSelectedCategory(it) },
                 anchorDate = anchorDate,
                 onAnchorDateChange = { anchorDate = it },
-                preview14 = buildWorkPreview(rotationSequence, todayRotationIndex, 14, LocalDate.now())
                     )
                 } else {
                     ExceptionPage(
