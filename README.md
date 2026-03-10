@@ -117,6 +117,28 @@
   3. 모든 후보 실패 시 사용자에게 토스트로 실패 안내 표시
 - 검증:
   - `:app:compileDebugKotlin` 성공
+
+### 2026-03-10 UI 버전 표기 + 배터리 진입 3차 조정
+- 홈 상단 `교대근무알람` 타이틀 옆에 임시 버전 표기 `v001` 추가.
+- `배터리 설정` 버튼 클릭 시 즉시 토스트(`배터리 설정 화면을 여는 중...`)를 표시해 클릭 반응을 사용자에게 먼저 전달.
+- 배터리 설정 진입 시도 순서 조정:
+  1. `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`
+  2. (`예외 미적용 시`) `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
+  3. 제조사 전용 인텐트 목록
+  4. 앱 상세 설정(`ACTION_APPLICATION_DETAILS_SETTINGS`) 폴백
+- 배터리 설정 인텐트 성공/실패를 Logcat 태그 `ShiftAlarmBattery`로 기록하도록 추가.
+- 검증:
+  - `:app:compileDebugKotlin` 성공
+
+### 2026-03-10 배터리 진입 안정화(최종)
+- 홈 상단 타이틀에 임시 버전 표기 `v001` 추가.
+- `배터리 설정` 클릭 시 동작 경로를 안정화:
+  1. 제조사 전용 배터리 설정 인텐트 시도
+  2. 실패 시 앱 상세 설정(`ACTION_APPLICATION_DETAILS_SETTINGS`)으로 즉시 폴백
+- 클릭 즉시 토스트(`배터리 설정 화면을 여는 중...`)를 표시하도록 변경.
+- 배터리 설정 진입 성공/실패 로그를 Logcat 태그 `ShiftAlarmBattery`로 기록.
+- 검증:
+  - `:app:compileDebugKotlin` 성공
 ### 작업 기록 규칙 (계속 유지)
 - 앞으로 코드 수정 시 README `최근 변경 기록`에 계속 누적 기록한다.
 - 기록 형식:

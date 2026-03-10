@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -96,6 +97,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val HOME_BANNER_VERSION = "001"
+private const val BATTERY_SETTINGS_LOG_TAG = "ShiftAlarmBattery"
 
 class MainActivity : ComponentActivity() {
     private val vm: AlarmViewModel by viewModels()
@@ -198,24 +202,18 @@ class MainActivity : ComponentActivity() {
         val appPackage = packageName
         val packageUri = Uri.parse("package:$appPackage")
         val appLabel = applicationInfo.loadLabel(packageManager).toString()
+        Log.i(BATTERY_SETTINGS_LOG_TAG, "battery settings button tapped")
+        Toast.makeText(this, "배터리 설정 화면을 여는 중...", Toast.LENGTH_SHORT).show()
 
         val candidates = mutableListOf<Intent>()
         candidates += vendorBatteryIntents(appPackage, appLabel)
-
-        if (!isIgnoringBatteryOptimization()) {
-            candidates += Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = packageUri
-            }
-        }
-
-        candidates += Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         candidates += Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = packageUri
         }
 
         val opened = tryStartActivityIntent(candidates)
         if (!opened) {
-            Toast.makeText(this, "배터리 설정 화면을 열 수 없습니다. 앱 정보에서 수동으로 설정해 주세요.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "설정 화면을 열 수 없습니다. 직접 설정 앱에서 앱 정보를 열어 배터리 제한을 해제해 주세요.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -281,10 +279,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun tryStartActivityIntent(intent: Intent): Boolean {
-        return runCatching {
-            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            true
-        }.getOrDefault(false)
+        val action = intent.action ?: "(none)"
+        val component = intent.component?.flattenToShortString() ?: "(none)"
+        val data = intent.dataString ?: "(none)"
+        return runCatching { startActivity(intent) }
+            .onSuccess {
+                Log.i(BATTERY_SETTINGS_LOG_TAG, "opened action=$action component=$component data=$data")
+            }
+            .onFailure { error ->
+                Log.w(BATTERY_SETTINGS_LOG_TAG, "failed action=$action component=$component data=$data", error)
+            }
+            .isSuccess
     }
 
     private fun tryStartActivityIntent(intents: List<Intent>): Boolean {
@@ -806,6 +811,12 @@ private fun AlarmScreen(
                                     text = "알람",
                                     style = MaterialTheme.typography.titleLarge,
                                     color = Color(0xFF6EA0FF)
+                                )
+                                Text(
+                                    text = "v$HOME_BANNER_VERSION",
+                                    modifier = Modifier.padding(start = 6.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.72f)
                                 )
                             }
                             Text(
