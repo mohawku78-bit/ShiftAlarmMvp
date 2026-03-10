@@ -190,24 +190,33 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openBatteryOptimizationSettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            Toast.makeText(this, "이 기기는 배터리 최적화 예외 설정이 필요하지 않습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         val appPackage = packageName
         val packageUri = Uri.parse("package:$appPackage")
         val appLabel = applicationInfo.loadLabel(packageManager).toString()
 
-        if (tryStartActivityIntent(vendorBatteryIntents(appPackage, appLabel))) return
+        val candidates = mutableListOf<Intent>()
+        candidates += vendorBatteryIntents(appPackage, appLabel)
 
         if (!isIgnoringBatteryOptimization()) {
-            val directRequestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+            candidates += Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                 data = packageUri
             }
-            if (tryStartActivityIntent(directRequestIntent)) return
         }
 
-        if (tryStartActivityIntent(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))) return
+        candidates += Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        candidates += Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = packageUri
+        }
 
-        openAppDetailSettings()
+        val opened = tryStartActivityIntent(candidates)
+        if (!opened) {
+            Toast.makeText(this, "배터리 설정 화면을 열 수 없습니다. 앱 정보에서 수동으로 설정해 주세요.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun vendorBatteryIntents(appPackage: String, appLabel: String): List<Intent> {
@@ -272,8 +281,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun tryStartActivityIntent(intent: Intent): Boolean {
-        if (intent.resolveActivity(packageManager) == null) return false
-        return runCatching { startActivity(intent) }.isSuccess
+        return runCatching {
+            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        }.getOrDefault(false)
     }
 
     private fun tryStartActivityIntent(intents: List<Intent>): Boolean {
@@ -1576,7 +1587,4 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
-
-
-
 
