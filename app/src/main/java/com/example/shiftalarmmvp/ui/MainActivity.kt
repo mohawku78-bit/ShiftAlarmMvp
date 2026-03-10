@@ -93,6 +93,7 @@ import java.time.LocalTime
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -189,11 +190,98 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openBatteryOptimizationSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+
+        val appPackage = packageName
+        val packageUri = Uri.parse("package:$appPackage")
+        val appLabel = applicationInfo.loadLabel(packageManager).toString()
+
+        if (tryStartActivityIntent(vendorBatteryIntents(appPackage, appLabel))) return
+
+        if (!isIgnoringBatteryOptimization()) {
+            val directRequestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = packageUri
+            }
+            if (tryStartActivityIntent(directRequestIntent)) return
+        }
+
+        if (tryStartActivityIntent(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))) return
+
+        openAppDetailSettings()
+    }
+
+    private fun vendorBatteryIntents(appPackage: String, appLabel: String): List<Intent> {
+        val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
+        return when {
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> listOf(
+                Intent().setClassName(
+                    "com.miui.powerkeeper",
+                    "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"
+                ).putExtra("package_name", appPackage)
+                    .putExtra("package_label", appLabel),
+                Intent("miui.intent.action.APP_PERM_EDITOR").setClassName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.permissions.PermissionsEditorActivity"
+                ).putExtra("extra_pkgname", appPackage)
+            )
+            manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus") -> listOf(
+                Intent().setClassName(
+                    "com.coloros.oppoguardelf",
+                    "com.coloros.powermanager.fuelgaue.PowerUsageModelActivity"
+                ).putExtra("packageName", appPackage)
+                    .putExtra("pkgName", appPackage),
+                Intent().setClassName(
+                    "com.oplus.battery",
+                    "com.oplus.powermanager.fuelgaue.PowerUsageModelActivity"
+                ).putExtra("packageName", appPackage)
+                    .putExtra("pkgName", appPackage)
+            )
+            manufacturer.contains("vivo") || manufacturer.contains("iqoo") -> listOf(
+                Intent().setClassName(
+                    "com.vivo.permissionmanager",
+                    "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
+                ).putExtra("packagename", appPackage),
+                Intent().setClassName(
+                    "com.iqoo.secure",
+                    "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager"
+                ).putExtra("packagename", appPackage)
+            )
+            manufacturer.contains("huawei") || manufacturer.contains("honor") -> listOf(
+                Intent().setClassName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.systemmanager.optimize.process.ProtectActivity"
+                ),
+                Intent().setClassName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+                )
+            )
+            manufacturer.contains("samsung") -> listOf(
+                Intent("com.samsung.android.sm.ACTION_BATTERY").putExtra("package_name", appPackage),
+                Intent().setClassName(
+                    "com.samsung.android.lool",
+                    "com.samsung.android.sm.ui.battery.BatteryActivity"
+                ),
+                Intent().setClassName(
+                    "com.samsung.android.sm",
+                    "com.samsung.android.sm.app.dashboard.SmartManagerDashBoardActivity"
+                )
+            )
+            else -> emptyList()
         }
     }
 
+    private fun tryStartActivityIntent(intent: Intent): Boolean {
+        if (intent.resolveActivity(packageManager) == null) return false
+        return runCatching { startActivity(intent) }.isSuccess
+    }
+
+    private fun tryStartActivityIntent(intents: List<Intent>): Boolean {
+        for (intent in intents) {
+            if (tryStartActivityIntent(intent)) return true
+        }
+        return false
+    }
     private fun openAppDetailSettings() {
         startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -1488,4 +1576,7 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
+
+
 
