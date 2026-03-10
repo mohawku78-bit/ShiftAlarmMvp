@@ -97,3 +97,20 @@
 - UI dump에서 `점검 필요`, `테스트 열기`, `2분 테스트` 텍스트 노출 확인
 - `2분 테스트` 탭 후 130초 대기 검증에서 `AlarmAlertActivity` 포커스 전환 확인(실제 트리거)
 
+
+### 2026-03-10 추가 반영
+- `da89567` - 홈 신뢰도 테스트 컨트롤/제조사별 배터리 설정 딥링크 로직 반영
+- 배터리 설정 버튼 동작:
+  1. 제조사 전용 설정 화면 우선 진입 시도 (Xiaomi/Redmi/Poco, Oppo/Realme/OnePlus, Vivo/iQOO, Huawei/Honor, Samsung)
+  2. 실패 시 `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`(가능할 때) 시도
+  3. 실패 시 `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`
+  4. 최종 폴백으로 앱 상세 설정(`ACTION_APPLICATION_DETAILS_SETTINGS`) 진입
+- `ced8c0e` - `2분 테스트` 실제 트리거 검증 로그 문서화
+- 리베이스 충돌 정리 후 `main` 푸시 완료 (`25955f3..ced8c0e`)
+
+### 작업 기록 규칙 (계속 유지)
+- 앞으로 코드 수정 시 README `최근 변경 기록`에 계속 누적 기록한다.
+- 기록 형식:
+  1. 커밋 해시 + 한 줄 요약
+  2. 핵심 변경 동작(사용자 관점)
+  3. 검증 결과(빌드/실기기/에뮬레이터)
