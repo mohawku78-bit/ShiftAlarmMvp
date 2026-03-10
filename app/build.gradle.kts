@@ -1,4 +1,12 @@
-﻿plugins {
+import java.time.LocalDate
+
+val buildDate = LocalDate.now().toString()
+val gitHash = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { it.trim() }.orElse("nogit").get().ifBlank { "nogit" }
+
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
@@ -14,6 +22,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
+        buildConfigField("String", "BUILD_REF", "\"$gitHash\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,6 +50,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

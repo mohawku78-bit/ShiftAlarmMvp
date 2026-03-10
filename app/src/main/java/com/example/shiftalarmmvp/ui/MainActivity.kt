@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.Manifest
 import android.app.Activity
@@ -84,6 +84,8 @@ import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
+import com.example.shiftalarmmvp.recovery.RescheduleRecoveryState
+import com.example.shiftalarmmvp.recovery.RescheduleRecoveryStore
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
 import com.example.shiftalarmmvp.service.AlarmRingingService
@@ -98,27 +100,34 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HOME_BANNER_VERSION = "001"
+private const val HOME_BANNER_VERSION = "011"
 private const val BATTERY_SETTINGS_LOG_TAG = "ShiftAlarmBattery"
 
 class MainActivity : ComponentActivity() {
+    private enum class ReliabilityFollowUpTarget {
+        EXACT_ALARM,
+        BATTERY_OPTIMIZATION,
+        NOTIFICATION_PERMISSION
+    }
     private val vm: AlarmViewModel by viewModels()
     private val scheduler by lazy { AlarmScheduler(this) }
     private var canScheduleExact by mutableStateOf(true)
     private var canPostNotifications by mutableStateOf(true)
     private var isIgnoringBatteryOptimizationState by mutableStateOf(true)
+    private val recoveryStore by lazy { RescheduleRecoveryStore(this) }
+    private var rescheduleRecoveryState by mutableStateOf<RescheduleRecoveryState?>(null)
+    private var pendingReliabilityFollowUpTarget by mutableStateOf<ReliabilityFollowUpTarget?>(null)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         canPostNotifications = granted
+        consumeReliabilityFollowUpFeedbackIfNeeded(fromPermissionCallback = true)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        refreshExactAlarmPermissionState()
-        refreshNotificationPermissionState()
-        refreshBatteryOptimizationState()
+        refreshReliabilitySignals()
         ensureRuntimePermissions()
 
         setContent {
@@ -131,7 +140,9 @@ class MainActivity : ComponentActivity() {
                     onOpenBatterySettings = { openBatteryOptimizationSettings() },
                     onOpenAppDetailSettings = { openAppDetailSettings() },
                     onRequestNotificationPermission = { requestNotificationPermission() },
-                    isIgnoringBatteryOptimization = isIgnoringBatteryOptimizationState
+                    onRefreshReliabilityStatus = { refreshReliabilitySignals(showToast = true) },
+                    isIgnoringBatteryOptimization = isIgnoringBatteryOptimizationState,
+                    recoveryStatus = rescheduleRecoveryState
                 )
             }
         }
@@ -140,11 +151,19 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         val previous = canScheduleExact
+        refreshReliabilitySignals()
+        consumeReliabilityFollowUpFeedbackIfNeeded()
+        if (!previous && canScheduleExact) {
+            vm.rescheduleAllEnabled()
+        }
+    }
+    private fun refreshReliabilitySignals(showToast: Boolean = false) {
         refreshExactAlarmPermissionState()
         refreshNotificationPermissionState()
         refreshBatteryOptimizationState()
-        if (!previous && canScheduleExact) {
-            vm.rescheduleAllEnabled()
+        refreshRecoveryState()
+        if (showToast) {
+            Toast.makeText(this, "점검 상태를 다시 확인했습니다.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -176,15 +195,21 @@ class MainActivity : ComponentActivity() {
         isIgnoringBatteryOptimizationState = isIgnoringBatteryOptimization()
     }
 
+    private fun refreshRecoveryState() {
+        rescheduleRecoveryState = recoveryStore.load()
+    }
+
 
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pendingReliabilityFollowUpTarget = ReliabilityFollowUpTarget.NOTIFICATION_PERMISSION
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
     private fun openExactAlarmSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            pendingReliabilityFollowUpTarget = ReliabilityFollowUpTarget.EXACT_ALARM
             startActivity(
                 Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                     data = Uri.parse("package:$packageName")
@@ -199,6 +224,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        pendingReliabilityFollowUpTarget = ReliabilityFollowUpTarget.BATTERY_OPTIMIZATION
         val appPackage = packageName
         val packageUri = Uri.parse("package:$appPackage")
         val appLabel = applicationInfo.loadLabel(packageManager).toString()
@@ -213,10 +239,39 @@ class MainActivity : ComponentActivity() {
 
         val opened = tryStartActivityIntent(candidates)
         if (!opened) {
+            pendingReliabilityFollowUpTarget = null
             Toast.makeText(this, "설정 화면을 열 수 없습니다. 직접 설정 앱에서 앱 정보를 열어 배터리 제한을 해제해 주세요.", Toast.LENGTH_LONG).show()
         }
     }
 
+
+    private fun consumeReliabilityFollowUpFeedbackIfNeeded(fromPermissionCallback: Boolean = false) {
+        val target = pendingReliabilityFollowUpTarget ?: return
+        if (fromPermissionCallback && target != ReliabilityFollowUpTarget.NOTIFICATION_PERMISSION) return
+
+        val (label, resolved) = when (target) {
+            ReliabilityFollowUpTarget.EXACT_ALARM -> {
+                val ok = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExact
+                "정확 알람 권한" to ok
+            }
+            ReliabilityFollowUpTarget.BATTERY_OPTIMIZATION -> {
+                val ok = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimizationState
+                "배터리 최적화 예외" to ok
+            }
+            ReliabilityFollowUpTarget.NOTIFICATION_PERMISSION -> {
+                val ok = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || canPostNotifications
+                "알림 권한" to ok
+            }
+        }
+
+        val message = if (resolved) {
+            "$label 해결됨"
+        } else {
+            "$label 아직 필요"
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        pendingReliabilityFollowUpTarget = null
+    }
     private fun vendorBatteryIntents(appPackage: String, appLabel: String): List<Intent> {
         val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
         return when {
@@ -325,12 +380,25 @@ private fun AlarmScreen(
     onOpenBatterySettings: () -> Unit,
     onOpenAppDetailSettings: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
-    isIgnoringBatteryOptimization: Boolean
+    onRefreshReliabilityStatus: () -> Unit,
+    isIgnoringBatteryOptimization: Boolean,
+    recoveryStatus: RescheduleRecoveryState?
 ) {
     val alarms by vm.alarms.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    val recoveryStatusLabel = recoveryStatus?.outcomeText()
+    val recoveryStatusColor = when (recoveryStatus?.outcome) {
+        RescheduleRecoveryState.Outcome.FULL_RECOVERY -> Color(0xFF4CD37B)
+        RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> Color(0xFFFFC061)
+        RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> Color.White.copy(alpha = 0.78f)
+        null -> Color.Transparent
+    }
+    val recoveryDetailText = recoveryStatus?.let {
+        "자동 복구 ${it.occurredAtText()} · ${it.reasonText()} · ${it.countText()}"
+    }
+    val showRecoveryFixCta = recoveryStatus?.outcome == RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY
 
     val setupPrefs = remember(context) {
         context.getSharedPreferences("first_setup_wizard", android.content.Context.MODE_PRIVATE)
@@ -401,6 +469,12 @@ private fun AlarmScreen(
             .putBoolean("shift_quick_setup_hidden", false)
             .apply()
         currentPage = AlarmPage.PATTERN
+    }
+
+    fun openReliabilityCenter() {
+        editorForcedStep = 3
+        currentPage = AlarmPage.EDITOR
+        scope.launch { scrollState.animateScrollTo(0) }
     }
 
     var customWorkTypeInput by remember { mutableStateOf("") }
@@ -824,6 +898,41 @@ private fun AlarmScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.86f)
                             )
+                            recoveryStatusLabel?.let { label ->
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = recoveryStatusColor.copy(alpha = 0.24f))
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = recoveryStatusColor
+                                        )
+                                    }
+                                    recoveryDetailText?.let { detail ->
+                                        Text(
+                                            text = detail,
+                                            maxLines = 1,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White.copy(alpha = 0.78f)
+                                        )
+                                    }
+                                    if (showRecoveryFixCta) {
+                                        Card(
+                                            modifier = Modifier.clickable { openReliabilityCenter() },
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC061).copy(alpha = 0.20f))
+                                        ) {
+                                            Text(
+                                                text = "문제 해결",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color(0xFFFFC061)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     Column(
@@ -833,19 +942,22 @@ private fun AlarmScreen(
                         AlarmReliabilityChip(
                             status = reliabilityStatus,
                             allowOkClick = isDebugBuild,
-                            onOpenReliabilityCenter = {
-                                editorForcedStep = 3
-                                currentPage = AlarmPage.EDITOR
-                                scope.launch { scrollState.animateScrollTo(0) }
-                            }
+                            onOpenReliabilityCenter = { openReliabilityCenter() }
                         )
+                        Card(
+                            modifier = Modifier.clickable { onRefreshReliabilityStatus() },
+                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
+                        ) {
+                            Text(
+                                text = "재점검",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
+                        }
                         if (isDebugBuild) {
                             Card(
-                                modifier = Modifier.clickable {
-                                    editorForcedStep = 3
-                                    currentPage = AlarmPage.EDITOR
-                                    scope.launch { scrollState.animateScrollTo(0) }
-                                },
+                                modifier = Modifier.clickable { openReliabilityCenter() },
                                 colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
                             ) {
                                 Text(

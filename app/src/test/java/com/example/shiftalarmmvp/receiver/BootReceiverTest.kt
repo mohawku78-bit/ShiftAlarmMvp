@@ -12,8 +12,8 @@ class BootReceiverTest {
     }
 
     @Test
-    fun `time set is treated as reschedule action`() {
-        assertTrue(shouldRescheduleOnAction("android.intent.action.TIME_SET"))
+    fun `time changed is treated as reschedule action`() {
+        assertTrue(shouldRescheduleOnAction(Intent.ACTION_TIME_CHANGED))
     }
 
     @Test
@@ -24,6 +24,11 @@ class BootReceiverTest {
     @Test
     fun `timezone changed is treated as reschedule action`() {
         assertTrue(shouldRescheduleOnAction(Intent.ACTION_TIMEZONE_CHANGED))
+    }
+
+    @Test
+    fun `package replaced is treated as reschedule action`() {
+        assertTrue(shouldRescheduleOnAction(Intent.ACTION_MY_PACKAGE_REPLACED))
     }
 
     @Test

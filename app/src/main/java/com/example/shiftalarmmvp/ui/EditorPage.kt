@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.os.Build
 import android.widget.NumberPicker
@@ -339,24 +339,44 @@ fun EditorPage(
                     !batteryReady -> "현재 상태: 동작 가능(지연 가능)"
                     else -> "현재 상태: 정상"
                 }
+                val highlightedIssueLabel = when {
+                    !exactReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> "정확 알람 권한"
+                    !batteryReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> "배터리 최적화 예외"
+                    !notificationReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> "알림 권한"
+                    else -> null
+                }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("알람 신뢰도 점검", style = MaterialTheme.typography.titleSmall)
                         Text(reliabilitySummary, style = MaterialTheme.typography.bodySmall)
+                        highlightedIssueLabel?.let { issue ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("우선 조치", style = MaterialTheme.typography.labelLarge)
+                                    Text("$issue 먼저 해결하면 신뢰도를 빠르게 올릴 수 있습니다.", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
                         Text(if (exactReady) "정확 알람: 준비됨" else "정확 알람: 권한 필요")
                         Text(if (batteryReady) "배터리 최적화: 예외 적용" else "배터리 최적화: 제한 중(지연 가능)")
                         Text(if (notificationReady) "알림 권한: 허용됨" else "알림 권한: 허용 필요")
 
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             if (!exactReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                Button(onClick = onOpenExactAlarmSettings, modifier = Modifier.fillMaxWidth()) { Text("정확 알람 설정") }
+                                val title = if (highlightedIssueLabel == "정확 알람 권한") "우선 조치: 정확 알람 설정" else "정확 알람 설정"
+                                Button(onClick = onOpenExactAlarmSettings, modifier = Modifier.fillMaxWidth()) { Text(title) }
                             }
                             if (!batteryReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                Button(onClick = onOpenBatterySettings, modifier = Modifier.fillMaxWidth()) { Text("배터리 설정") }
+                                val title = if (highlightedIssueLabel == "배터리 최적화 예외") "우선 조치: 배터리 설정" else "배터리 설정"
+                                Button(onClick = onOpenBatterySettings, modifier = Modifier.fillMaxWidth()) { Text(title) }
                             }
                             if (!notificationReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                Button(onClick = onRequestNotificationPermission, modifier = Modifier.fillMaxWidth()) { Text("알림 권한 허용") }
+                                val title = if (highlightedIssueLabel == "알림 권한") "우선 조치: 알림 권한 허용" else "알림 권한 허용"
+                                Button(onClick = onRequestNotificationPermission, modifier = Modifier.fillMaxWidth()) { Text(title) }
                             }
                             Button(onClick = onRescheduleAllEnabled, modifier = Modifier.fillMaxWidth()) { Text("알람 재예약") }
                             Button(onClick = onOpenAppDetailSettings, modifier = Modifier.fillMaxWidth()) { Text("앱 정보") }
