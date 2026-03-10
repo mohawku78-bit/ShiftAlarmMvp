@@ -1,5 +1,6 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -75,6 +76,10 @@ fun ShiftPage(
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var showStep1Advanced by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
     var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
+
+    BackHandler(enabled = showFirstSetupWizard && wizardStep > 0) {
+        wizardStep -= 1
+    }
 
     val representativeTemplates = quickTemplates.filter {
         it.label in setOf("주간/당직/비번", "주/야/비", "당직/비번", "격일", "주5일")
@@ -755,5 +760,6 @@ private fun previewBadgeColor(badge: String): Color {
         else -> Color(0xFF4D6B5C)
     }
 }
+
 
 

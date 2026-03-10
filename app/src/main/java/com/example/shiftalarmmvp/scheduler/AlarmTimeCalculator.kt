@@ -1,6 +1,7 @@
-package com.example.shiftalarmmvp.scheduler
+﻿package com.example.shiftalarmmvp.scheduler
 
 import com.example.shiftalarmmvp.data.AlarmRule
+import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -12,7 +13,8 @@ object AlarmTimeCalculator {
     fun nextTrigger(rule: AlarmRule, now: LocalDateTime = LocalDateTime.now()): LocalDateTime? {
         if (!rule.enabled) return null
 
-        for (offset in 0..120) {
+        val searchWindowDays = searchWindowDays(rule, now.toLocalDate())
+        for (offset in 0..searchWindowDays) {
             val date = now.toLocalDate().plusDays(offset.toLong())
             if (!isScheduledOnDate(rule, date)) continue
 
@@ -46,11 +48,20 @@ object AlarmTimeCalculator {
     }
 
     private fun weekSlot(date: LocalDate, anchorDate: LocalDate, intervalWeeks: Int): Int? {
-        val interval = intervalWeeks.coerceIn(1, 6)
+        val interval = normalizeIntervalWeeks(intervalWeeks)
         val anchorWeekStart = anchorDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val dateWeekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weeksBetween = ChronoUnit.WEEKS.between(anchorWeekStart, dateWeekStart)
         if (weeksBetween < 0) return null
         return (weeksBetween % interval.toLong()).toInt()
+    }
+
+    private fun searchWindowDays(rule: AlarmRule, startDate: LocalDate): Int {
+        val cycleDays = normalizeIntervalWeeks(rule.intervalWeeks) * 7
+        val upcomingAddDateOffset = rule.addDateEpochDays
+            .filter { !it.isBefore(startDate) }
+            .minOfOrNull { ChronoUnit.DAYS.between(startDate, it).toInt() + 1 }
+            ?: 0
+        return maxOf(120, cycleDays, upcomingAddDateOffset)
     }
 }

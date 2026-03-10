@@ -1,6 +1,8 @@
 package com.example.shiftalarmmvp.ui
 
 import androidx.compose.ui.graphics.Color
+import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
+import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -141,7 +143,7 @@ fun buildWorkTemplateRotation(
     val seq = sequence.ifEmpty { listOf("주간") }
     val period = seq.size.coerceAtLeast(1)
     val start = todayIndex.coerceIn(0, period - 1)
-    val intervalWeeks = (lcm(period, 7) / 7).coerceIn(1, 6)
+    val intervalWeeks = normalizeIntervalWeeks(lcm(period, 7) / 7)
     return BuiltWorkRotation(intervalWeeks = intervalWeeks, sequence = seq, todayIndex = start)
 }
 
@@ -150,7 +152,7 @@ fun buildWeeklyPatternForType(
     targetType: String,
     anchor: LocalDate = LocalDate.now()
 ): List<Set<DayOfWeek>> {
-    val interval = rotation.intervalWeeks.coerceIn(1, 6)
+    val interval = normalizeIntervalWeeks(rotation.intervalWeeks)
     val weeks = MutableList(interval) { mutableSetOf<DayOfWeek>() }
     val period = rotation.sequence.size.coerceAtLeast(1)
     val normalizedTarget = normalizeWorkType(targetType)
@@ -303,8 +305,8 @@ private fun hasConsecutiveOff(cycle: List<Boolean>, need: Int): Boolean {
 }
 
 private fun buildPresetCycle(preset: RotationPreset): List<Boolean> {
-    val weeks = preset.intervalWeeks.coerceIn(1, 6)
-    val patterns = (0 until weeks).map { preset.weekPatterns.getOrNull(it).orEmpty() }
+    val weeks = normalizeIntervalWeeks(preset.intervalWeeks)
+    val patterns = normalizeWeekPatterns(weeks, preset.weekPatterns)
     val totalDays = weeks * 7
 
     return (0 until totalDays).map { offset ->

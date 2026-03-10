@@ -2,6 +2,8 @@
 
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
+import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
+import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -26,10 +28,7 @@ data class AlarmEditorDraft(
 )
 
 fun AlarmRule.normalizedWeeklyPattern(): List<Set<DayOfWeek>> {
-    val interval = intervalWeeks.coerceIn(1, 6)
-    return (0 until interval).map { index ->
-        weeklyPattern.getOrNull(index).orEmpty()
-    }
+    return normalizeWeekPatterns(intervalWeeks, weeklyPattern)
 }
 
 fun AlarmRule.duplicateLabel(): String {
@@ -47,14 +46,15 @@ fun AlarmRule.toEditorDraft(
     weekPatterns: List<Set<DayOfWeek>> = normalizedWeeklyPattern(),
     exceptionDate: LocalDate = LocalDate.now()
 ): AlarmEditorDraft {
+    val normalizedInterval = normalizeIntervalWeeks(intervalWeeks)
     return AlarmEditorDraft(
         editingAlarmId = editingAlarmId,
         editingEnabled = editingEnabled,
         selectedTime = LocalTime.of(hour, minute),
         selectedLabel = selectedLabel,
-        intervalWeeks = intervalWeeks.coerceIn(2, 6),
+        intervalWeeks = normalizedInterval,
         anchorDate = anchorDate,
-        weekPatterns = weekPatterns,
+        weekPatterns = normalizeWeekPatterns(normalizedInterval, weekPatterns),
         selectedSoundType = soundType,
         selectedCustomSoundUri = customSoundUri,
         selectedVolume = volumePercent.toFloat(),

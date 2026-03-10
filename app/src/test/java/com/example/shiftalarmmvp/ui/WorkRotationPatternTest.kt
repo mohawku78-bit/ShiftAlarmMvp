@@ -42,7 +42,7 @@ class WorkRotationPatternTest {
     @Test
     fun `dang-bi daily sequence stays alternating across week boundaries`() {
         val sequence = listOf("당직", "비번")
-        val anchor = LocalDate.of(2026, 3, 10) // Tue
+        val anchor = LocalDate.of(2026, 3, 10)
         val rotation = buildWorkTemplateRotation(sequence, todayIndex = 0)
 
         val dangRule = buildRule(
@@ -71,7 +71,7 @@ class WorkRotationPatternTest {
     @Test
     fun `ju-dang-bi keeps exact phase even when anchor is not monday`() {
         val sequence = listOf("주간", "당직", "비번")
-        val anchor = LocalDate.of(2026, 3, 10) // Tue
+        val anchor = LocalDate.of(2026, 3, 10)
         val rotation = buildWorkTemplateRotation(sequence, todayIndex = 0)
 
         val rulesByType = sequence.associateWith { type ->
@@ -97,10 +97,11 @@ class WorkRotationPatternTest {
             assertEquals("phase mismatch on $date", expected, matched.first())
         }
     }
+
     @Test
     fun `ju-dang-bi-hu-dang-bi keeps exact phase for full 6-week cycle`() {
         val sequence = listOf("주간", "당직", "비번", "휴무", "당직", "비번")
-        val anchor = LocalDate.of(2026, 3, 10) // Tue
+        val anchor = LocalDate.of(2026, 3, 10)
         val rotation = buildWorkTemplateRotation(sequence, todayIndex = 0)
 
         assertEquals("interval weeks should match 6-day cycle", 6, rotation.intervalWeeks)
@@ -115,7 +116,7 @@ class WorkRotationPatternTest {
             )
         }
 
-        repeat(84) { offset -> // 14 weeks = two full 42-day cycles
+        repeat(84) { offset ->
             val date = anchor.plusDays(offset.toLong())
             val matched = rulesByType.filterValues { rule ->
                 AlarmTimeCalculator.isScheduledOnDate(rule, date)
@@ -127,5 +128,35 @@ class WorkRotationPatternTest {
             assertEquals("phase mismatch on $date", expected, matched.first())
         }
     }
-}
 
+    @Test
+    fun `long custom rotation keeps full interval instead of truncating at six weeks`() {
+        val sequence = listOf(
+            "주간", "당직", "비번", "휴무", "주간", "비번", "당직",
+            "휴무", "주간", "야간", "비번", "휴무", "당직"
+        )
+        val anchor = LocalDate.of(2026, 3, 10)
+        val rotation = buildWorkTemplateRotation(sequence, todayIndex = 0)
+
+        assertEquals("interval weeks should match 13-day cycle", 13, rotation.intervalWeeks)
+
+        val rulesByType = sequence.distinct().associateWith { type ->
+            buildRule(
+                label = type,
+                pattern = buildWeeklyPatternForType(rotation, type, anchor),
+                intervalWeeks = rotation.intervalWeeks,
+                anchorDate = anchor
+            )
+        }
+
+        repeat(rotation.intervalWeeks * 7 * 2) { offset ->
+            val date = anchor.plusDays(offset.toLong())
+            val matched = rulesByType.filterValues { rule ->
+                AlarmTimeCalculator.isScheduledOnDate(rule, date)
+            }.keys
+
+            assertEquals("exactly one type must match on $date", 1, matched.size)
+            assertEquals("phase mismatch on $date", sequence[offset % sequence.size], matched.first())
+        }
+    }
+}

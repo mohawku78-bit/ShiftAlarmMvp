@@ -1,5 +1,7 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
+import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
+import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import java.time.DayOfWeek
 import java.time.LocalDate
 import org.json.JSONArray
@@ -121,7 +123,7 @@ class RotationPresetStore(context: android.content.Context) {
                     val obj = array.optJSONObject(index) ?: return@repeat
                     val name = obj.optString("name", "").trim()
                     if (name.isBlank()) return@repeat
-                    val interval = obj.optInt("intervalWeeks", 2).coerceIn(2, 6)
+                    val interval = normalizeIntervalWeeks(obj.optInt("intervalWeeks", 2))
                     val anchor = LocalDate.ofEpochDay(obj.optLong("anchorEpochDay", LocalDate.now().toEpochDay()))
                     val patterns = parsePatterns(obj.optJSONArray("patterns"), interval)
                     val isDefault = obj.optBoolean("isDefault", false)
@@ -150,22 +152,23 @@ class RotationPresetStore(context: android.content.Context) {
         val normalized = normalizeList(items)
         val array = JSONArray()
         normalized.forEach { preset ->
+            val interval = normalizeIntervalWeeks(preset.intervalWeeks)
+            val patterns = normalizeWeekPatterns(interval, preset.weekPatterns)
             val obj = JSONObject()
                 .put("name", preset.name)
-                .put("intervalWeeks", preset.intervalWeeks.coerceIn(2, 6))
+                .put("intervalWeeks", interval)
                 .put("anchorEpochDay", preset.anchorDate.toEpochDay())
                 .put("infiniteRotationEnabled", preset.infiniteRotationEnabled)
                 .put("isDefault", preset.isDefault)
-            val patterns = JSONArray()
-            (0 until preset.intervalWeeks.coerceIn(2, 6)).forEach { index ->
+            val patternArray = JSONArray()
+            patterns.forEach { weekPattern ->
                 val dayArray = JSONArray()
-                preset.weekPatterns.getOrNull(index)
-                    .orEmpty()
+                weekPattern
                     .sortedBy { it.value }
                     .forEach { day -> dayArray.put(day.name) }
-                patterns.put(dayArray)
+                patternArray.put(dayArray)
             }
-            obj.put("patterns", patterns)
+            obj.put("patterns", patternArray)
             array.put(obj)
         }
         return array.toString()
@@ -199,11 +202,11 @@ class RotationPresetStore(context: android.content.Context) {
     }
 
     private fun normalizePreset(preset: RotationPreset): RotationPreset {
-        val interval = preset.intervalWeeks.coerceIn(2, 6)
+        val interval = normalizeIntervalWeeks(preset.intervalWeeks)
         return preset.copy(
             name = preset.name.trim(),
             intervalWeeks = interval,
-            weekPatterns = (0 until interval).map { preset.weekPatterns.getOrNull(it).orEmpty() }
+            weekPatterns = normalizeWeekPatterns(interval, preset.weekPatterns)
         )
     }
 

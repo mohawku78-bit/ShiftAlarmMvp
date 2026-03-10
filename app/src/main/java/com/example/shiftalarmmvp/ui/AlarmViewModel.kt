@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.shiftalarmmvp.data.AlarmDatabase
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
+import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
+import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import com.example.shiftalarmmvp.data.toDomain
 import com.example.shiftalarmmvp.data.toEntity
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
@@ -42,8 +44,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         addDateEpochDays: Set<LocalDate>
     ) {
         viewModelScope.launch {
-            val interval = intervalWeeks.coerceIn(1, 6)
-            val normalizedPattern = (0 until interval).map { index -> weeklyPattern.getOrNull(index).orEmpty() }
+            val interval = normalizeIntervalWeeks(intervalWeeks)
+            val normalizedPattern = normalizeWeekPatterns(interval, weeklyPattern)
             val alarm = AlarmRule(
                 id = 0,
                 label = label.trim(),
@@ -87,8 +89,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         addDateEpochDays: Set<LocalDate>
     ) {
         viewModelScope.launch {
-            val interval = intervalWeeks.coerceIn(1, 6)
-            val normalizedPattern = (0 until interval).map { index -> weeklyPattern.getOrNull(index).orEmpty() }
+            val interval = normalizeIntervalWeeks(intervalWeeks)
+            val normalizedPattern = normalizeWeekPatterns(interval, weeklyPattern)
             val updated = AlarmRule(
                 id = id,
                 label = label.trim(),

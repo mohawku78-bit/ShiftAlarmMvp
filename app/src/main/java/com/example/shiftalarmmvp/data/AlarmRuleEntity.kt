@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.data
+﻿package com.example.shiftalarmmvp.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -76,12 +76,22 @@ private fun serializeDateSet(dates: Set<LocalDate>): String {
         .joinToString(",")
 }
 
+fun normalizeIntervalWeeks(intervalWeeks: Int): Int {
+    return intervalWeeks.coerceAtLeast(1)
+}
+
+fun normalizeWeekPatterns(
+    intervalWeeks: Int,
+    weekPatterns: List<Set<DayOfWeek>>
+): List<Set<DayOfWeek>> {
+    val interval = normalizeIntervalWeeks(intervalWeeks)
+    return List(interval) { index -> weekPatterns.getOrNull(index).orEmpty() }
+}
+
 fun AlarmRuleEntity.toDomain(): AlarmRule {
-    val interval = intervalWeeks.coerceIn(1, 6)
+    val interval = normalizeIntervalWeeks(intervalWeeks)
     val slots = weeklyPatternCsv.split("|")
-    val pattern = (0 until interval).map { index ->
-        parseWeekdays(slots.getOrNull(index).orEmpty())
-    }
+    val pattern = normalizeWeekPatterns(interval, slots.map(::parseWeekdays))
 
     val safeSoundType = runCatching { AlarmSoundType.valueOf(soundType) }.getOrDefault(AlarmSoundType.ALARM)
 
@@ -106,10 +116,8 @@ fun AlarmRuleEntity.toDomain(): AlarmRule {
 }
 
 fun AlarmRule.toEntity(): AlarmRuleEntity {
-    val interval = intervalWeeks.coerceIn(1, 6)
-    val normalized = (0 until interval).map { index ->
-        weeklyPattern.getOrNull(index).orEmpty()
-    }
+    val interval = normalizeIntervalWeeks(intervalWeeks)
+    val normalized = normalizeWeekPatterns(interval, weeklyPattern)
 
     return AlarmRuleEntity(
         id = id,
@@ -130,4 +138,3 @@ fun AlarmRule.toEntity(): AlarmRuleEntity {
         enabled = enabled
     )
 }
-

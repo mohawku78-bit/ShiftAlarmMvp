@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.Manifest
 import android.app.Activity
@@ -93,6 +93,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
+import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
+import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.HomeReliabilityAction
 import com.example.shiftalarmmvp.recovery.HomeReliabilityPolicy
@@ -570,6 +572,13 @@ private fun AlarmScreen(
         )
     }
 
+    fun applyIntervalWeeks(targetInterval: Int, patterns: List<Set<DayOfWeek>> = weekPatterns) {
+        val normalizedInterval = normalizeIntervalWeeks(targetInterval)
+        intervalWeeks = normalizedInterval
+        weekPatterns = normalizeWeekPatterns(normalizedInterval, patterns)
+        activeWeekIndex = activeWeekIndex.coerceIn(0, normalizedInterval - 1)
+    }
+
     var selectedSoundType by remember { mutableStateOf(AlarmSoundType.ALARM) }
     var selectedCustomSoundUri by remember { mutableStateOf<String?>(null) }
     var customSoundMessage by remember { mutableStateOf("") }
@@ -695,10 +704,9 @@ private fun AlarmScreen(
         editingEnabled = draft.editingEnabled
         selectedTime = draft.selectedTime
         selectedLabel = draft.selectedLabel
-        intervalWeeks = draft.intervalWeeks
         activeWeekIndex = 0
+        applyIntervalWeeks(draft.intervalWeeks, draft.weekPatterns)
         anchorDate = draft.anchorDate
-        weekPatterns = draft.weekPatterns
         selectedSoundType = draft.selectedSoundType
         selectedCustomSoundUri = draft.selectedCustomSoundUri
         selectedVolume = draft.selectedVolume
@@ -804,7 +812,7 @@ private fun AlarmScreen(
             }
         }
     }
-    val visiblePatterns = weekPatterns.take(intervalWeeks)
+    val visiblePatterns = normalizeWeekPatterns(intervalWeeks, weekPatterns)
     val canSave = visiblePatterns.any { it.isNotEmpty() }
     val exactReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExact
     val batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimization
@@ -1499,13 +1507,7 @@ private fun AlarmScreen(
                 onStopTestSound = { AlarmRingingService.stop(context, 999_999L) },
                 onScheduleSelfTest = { scheduleSelfTest() },
                 onCancelSelfTest = { cancelSelfTest() },
-                onMarkSelfTestPassed = { markSelfTestFeedback(SelfTestStatus.Feedback.PASSED, showToast = true) },
-                onMarkSelfTestUncertain = { markSelfTestFeedback(SelfTestStatus.Feedback.UNCERTAIN, showToast = true) },
-                onMarkSelfTestFailed = { markSelfTestFeedback(SelfTestStatus.Feedback.FAILED, showToast = true) },
                 selfTestMessage = selfTestMessage,
-                selfTestStatusSummary = selfTestStatusSummary,
-                selfTestEvent = selfTestStatusState?.lastEvent,
-                recoveryFirstActionGuide = recoveryFirstActionGuide,
                 selectedTime = selectedTime,
                 onSelectedTimeChange = { selectedTime = it },
                 anchorDate = anchorDate,
@@ -1554,11 +1556,11 @@ private fun AlarmScreen(
                 onShowNext10Change = { showNext10 = it },
                 next10Preview = next10Preview,
                 intervalWeeks = intervalWeeks,
-                onIntervalWeeksChange = { intervalWeeks = it },
+                onIntervalWeeksChange = { applyIntervalWeeks(it) },
                 activeWeekIndex = activeWeekIndex,
                 onActiveWeekIndexChange = { activeWeekIndex = it },
-                weekPatterns = weekPatterns,
-                onWeekPatternsChange = { weekPatterns = it },
+                weekPatterns = normalizeWeekPatterns(intervalWeeks, weekPatterns),
+                onWeekPatternsChange = { weekPatterns = normalizeWeekPatterns(intervalWeeks, it) },
                 infiniteRotationEnabled = infiniteRotationEnabled,
                 onInfiniteRotationEnabledChange = { infiniteRotationEnabled = it },
                 canSaveByPermission = canSaveByPermission,
@@ -1782,7 +1784,7 @@ private fun AlarmScreen(
                 presetNameInput = presetNameInput,
                 onPresetNameInputChange = { presetNameInput = it },
                 onSaveCurrent = {
-                    val normalized = weekPatterns.take(intervalWeeks.coerceIn(1, 6))
+                    val normalized = normalizeWeekPatterns(intervalWeeks, weekPatterns)
                     val name = presetNameInput.trim().ifBlank {
                         "프리셋 ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}"
                     }
@@ -1823,13 +1825,10 @@ private fun AlarmScreen(
                 presetFeedbackMessage = presetFeedbackMessage,
                 savedPresets = savedPresets.sortedBy { if (inferPresetCategory(it) == selectedShiftCategory) 0 else 1 },
                 onApplyPreset = { preset ->
-                    val presetInterval = preset.intervalWeeks.coerceIn(2, 6)
-                    intervalWeeks = presetInterval
+                    val presetInterval = normalizeIntervalWeeks(preset.intervalWeeks)
                     activeWeekIndex = 0
                     anchorDate = preset.anchorDate
-                    weekPatterns = (0 until presetInterval).map { index ->
-                        preset.weekPatterns.getOrNull(index).orEmpty()
-                    }
+                    applyIntervalWeeks(presetInterval, preset.weekPatterns)
                     presetNameInput = preset.name
                     infiniteRotationEnabled = preset.infiniteRotationEnabled
                 },
@@ -1890,7 +1889,7 @@ private fun AlarmScreen(
                             hour = alarm.hour,
                             minute = alarm.minute,
                             weeklyPattern = copiedPattern,
-                            intervalWeeks = alarm.intervalWeeks.coerceIn(2, 6),
+                            intervalWeeks = normalizeIntervalWeeks(alarm.intervalWeeks),
                             anchorDate = alarm.anchorDate,
                             soundType = alarm.soundType,
                             customSoundUri = alarm.customSoundUri,

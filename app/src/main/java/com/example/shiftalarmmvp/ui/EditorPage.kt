@@ -1,6 +1,7 @@
 package com.example.shiftalarmmvp.ui
 
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import android.widget.NumberPicker
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -108,6 +109,10 @@ fun EditorPage(
     var step by rememberSaveable(editingAlarmId) { mutableIntStateOf(0) }
     var currentNow by remember { mutableStateOf(LocalDateTime.now()) }
     val lastStep = EDITOR_STEPS.lastIndex
+
+    BackHandler(enabled = step > 0) {
+        step -= 1
+    }
 
     LaunchedEffect(initialStep, lastStep) {
         initialStep?.let { forced ->

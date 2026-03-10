@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.scheduler
+﻿package com.example.shiftalarmmvp.scheduler
 
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
@@ -101,6 +101,24 @@ class AlarmTimeCalculatorTest {
         )
 
         assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `long interval keeps searching until full cycle completes`() {
+        val intervalWeeks = 20
+        val patterns = List(intervalWeeks) { index ->
+            if (index == intervalWeeks - 1) setOf(DayOfWeek.SUNDAY) else emptySet()
+        }
+        val rule = buildRule(
+            anchorDate = LocalDate.of(2026, 3, 2),
+            intervalWeeks = intervalWeeks,
+            patterns = patterns
+        )
+
+        val now = LocalDateTime.of(2026, 3, 2, 8, 0)
+        val actual = AlarmTimeCalculator.nextTrigger(rule, now)
+
+        assertEquals(LocalDateTime.of(2026, 7, 19, 7, 0), actual)
     }
 
     @Test
