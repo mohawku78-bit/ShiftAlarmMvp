@@ -108,16 +108,27 @@ fun EditorPage(
 ) {
     var step by rememberSaveable(editingAlarmId) { mutableIntStateOf(0) }
     var currentNow by remember { mutableStateOf(LocalDateTime.now()) }
+    var intervalInput by rememberSaveable(editingAlarmId) { mutableStateOf(intervalWeeks.toString()) }
     val lastStep = EDITOR_STEPS.lastIndex
 
     BackHandler(enabled = step > 0) {
         step -= 1
     }
 
+    fun updateIntervalWeeks(target: Int) {
+        val normalized = target.coerceAtLeast(1)
+        onIntervalWeeksChange(normalized)
+        if (activeWeekIndex >= normalized) onActiveWeekIndexChange(normalized - 1)
+    }
+
     LaunchedEffect(initialStep, lastStep) {
         initialStep?.let { forced ->
             step = forced.coerceIn(0, lastStep)
         }
+    }
+
+    LaunchedEffect(intervalWeeks) {
+        intervalInput = intervalWeeks.toString()
     }
 
     LaunchedEffect(Unit) {
@@ -189,20 +200,32 @@ fun EditorPage(
                 DatePickerButton(label = "로테이션 기준일", date = anchorDate, onDatePicked = onAnchorDateChange)
 
                 Text("로테이션 주기")
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    listOf(2, 3, 4).forEach { value ->
-                        Row {
-                            RadioButton(
-                                selected = intervalWeeks == value,
-                                onClick = {
-                                    onIntervalWeeksChange(value)
-                                    if (activeWeekIndex >= value) onActiveWeekIndexChange(value - 1)
-                                }
-                            )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                ) {
+                    listOf(1, 2, 3, 4, 6, 8, 12).forEach { value ->
+                        Button(
+                            onClick = { updateIntervalWeeks(value) },
+                            colors = segmentedActionButtonColors(intervalWeeks == value)
+                        ) {
                             Text("${value}주")
                         }
                     }
                 }
+                OutlinedTextField(
+                    value = intervalInput,
+                    onValueChange = { value ->
+                        val digits = value.filter { it.isDigit() }.take(3)
+                        intervalInput = digits
+                        digits.toIntOrNull()?.takeIf { it > 0 }?.let { updateIntervalWeeks(it) }
+                    },
+                    label = { Text("직접 주차 입력") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("현재 주기: ${intervalWeeks}주")
 
                 Text("편집할 주차")
                 Row(
