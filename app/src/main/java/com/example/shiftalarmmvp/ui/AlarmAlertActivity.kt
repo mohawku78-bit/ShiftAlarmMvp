@@ -1,6 +1,9 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,6 +24,20 @@ import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.service.AlarmRingingService
 
 class AlarmAlertActivity : ComponentActivity() {
+    private var currentAlarmId: Long = -1L
+    private var dismissReceiverRegistered = false
+
+    private val dismissReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != AlarmRingingService.ACTION_DISMISS_ALERT) return
+
+            val dismissAlarmId = intent.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, -1L)
+            if (dismissAlarmId == -1L || dismissAlarmId == currentAlarmId) {
+                finish()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -30,6 +47,7 @@ class AlarmAlertActivity : ComponentActivity() {
         }
 
         val alarmId = intent?.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, -1L) ?: -1L
+        currentAlarmId = alarmId
         val label = intent?.getStringExtra(AlarmReceiver.EXTRA_LABEL).orEmpty()
         val soundType = intent?.getStringExtra(AlarmReceiver.EXTRA_SOUND_TYPE)
         val customSoundUri = intent?.getStringExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI)
@@ -38,10 +56,11 @@ class AlarmAlertActivity : ComponentActivity() {
         val snoozeMinutes = intent?.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 5) ?: 5
         val snoozeMaxCount = intent?.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0) ?: 0
         val currentSnoozeCount = intent?.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0) ?: 0
+        val isSelfTestAlarm = alarmId == 999_999L
 
         val hasLimit = snoozeMaxCount > 0
-        val canSnooze = !hasLimit || currentSnoozeCount < snoozeMaxCount
-        val canOneMore = hasLimit && currentSnoozeCount == snoozeMaxCount
+        val canSnooze = !isSelfTestAlarm && (!hasLimit || currentSnoozeCount < snoozeMaxCount)
+        val canOneMore = !isSelfTestAlarm && hasLimit && currentSnoozeCount == snoozeMaxCount
         val actionEnabled = canSnooze || canOneMore
 
         if (alarmId > 0) {
@@ -74,6 +93,7 @@ class AlarmAlertActivity : ComponentActivity() {
                     Text("ID: $alarmId", modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
 
                     val hintText = when {
+                        isSelfTestAlarm -> "2분 테스트 알람이 울렸다면 '끄기'를 눌러 완료하세요."
                         canSnooze && hasLimit -> getString(
                             R.string.notification_snooze_count,
                             snoozeMinutes,
@@ -91,51 +111,53 @@ class AlarmAlertActivity : ComponentActivity() {
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    Button(
-                        onClick = {
-                            when {
-                                canSnooze -> {
-                                    AlarmRingingService.snooze(
-                                        this@AlarmAlertActivity,
-                                        alarmId,
-                                        label = label,
-                                        snoozeMinutes = snoozeMinutes,
-                                        snoozeMaxCount = snoozeMaxCount,
-                                        currentSnoozeCount = currentSnoozeCount,
-                                        soundType = soundType,
-                                        customSoundUri = customSoundUri,
-                                        volumePercent = volumePercent,
-                                        vibrationEnabled = vibrationEnabled
-                                    )
-                                }
+                    if (!isSelfTestAlarm) {
+                        Button(
+                            onClick = {
+                                when {
+                                    canSnooze -> {
+                                        AlarmRingingService.snooze(
+                                            this@AlarmAlertActivity,
+                                            alarmId,
+                                            label = label,
+                                            snoozeMinutes = snoozeMinutes,
+                                            snoozeMaxCount = snoozeMaxCount,
+                                            currentSnoozeCount = currentSnoozeCount,
+                                            soundType = soundType,
+                                            customSoundUri = customSoundUri,
+                                            volumePercent = volumePercent,
+                                            vibrationEnabled = vibrationEnabled
+                                        )
+                                    }
 
-                                canOneMore -> {
-                                    AlarmRingingService.oneMore(
-                                        this@AlarmAlertActivity,
-                                        alarmId,
-                                        label = label,
-                                        snoozeMinutes = snoozeMinutes,
-                                        snoozeMaxCount = snoozeMaxCount,
-                                        currentSnoozeCount = currentSnoozeCount,
-                                        soundType = soundType,
-                                        customSoundUri = customSoundUri,
-                                        volumePercent = volumePercent,
-                                        vibrationEnabled = vibrationEnabled
-                                    )
+                                    canOneMore -> {
+                                        AlarmRingingService.oneMore(
+                                            this@AlarmAlertActivity,
+                                            alarmId,
+                                            label = label,
+                                            snoozeMinutes = snoozeMinutes,
+                                            snoozeMaxCount = snoozeMaxCount,
+                                            currentSnoozeCount = currentSnoozeCount,
+                                            soundType = soundType,
+                                            customSoundUri = customSoundUri,
+                                            volumePercent = volumePercent,
+                                            vibrationEnabled = vibrationEnabled
+                                        )
+                                    }
                                 }
-                            }
-                            finish()
-                        },
-                        enabled = actionEnabled,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = when {
-                                canSnooze -> getString(R.string.notification_retry, snoozeMinutes)
-                                canOneMore -> getString(R.string.notification_one_more)
-                                else -> getString(R.string.notification_snooze_finished)
-                            }
-                        )
+                                finish()
+                            },
+                            enabled = actionEnabled,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = when {
+                                    canSnooze -> getString(R.string.notification_retry, snoozeMinutes)
+                                    canOneMore -> getString(R.string.notification_one_more)
+                                    else -> getString(R.string.notification_snooze_finished)
+                                }
+                            )
+                        }
                     }
 
                     Button(
@@ -152,6 +174,36 @@ class AlarmAlertActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        registerDismissReceiverIfNeeded()
+    }
+
+    override fun onStop() {
+        unregisterDismissReceiverIfNeeded()
+        super.onStop()
+    }
+
+    private fun registerDismissReceiverIfNeeded() {
+        if (dismissReceiverRegistered) return
+
+        val filter = IntentFilter(AlarmRingingService.ACTION_DISMISS_ALERT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(dismissReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(dismissReceiver, filter)
+        }
+        dismissReceiverRegistered = true
+    }
+
+    private fun unregisterDismissReceiverIfNeeded() {
+        if (!dismissReceiverRegistered) return
+
+        runCatching { unregisterReceiver(dismissReceiver) }
+        dismissReceiverRegistered = false
     }
 
     private fun ensureRingingServiceStarted(

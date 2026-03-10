@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +39,6 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-
 @Composable
 fun TimePickerButton(
     time: LocalTime,
@@ -48,6 +48,7 @@ fun TimePickerButton(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var inputMode by remember { mutableStateOf(false) }
+    val latestTime by rememberUpdatedState(time)
     var hourInput by remember(time) { mutableStateOf(String.format("%02d", time.hour)) }
     var minuteInput by remember(time) { mutableStateOf(String.format("%02d", time.minute)) }
 
@@ -145,7 +146,10 @@ fun TimePickerButton(
                                         wrapSelectorWheel = true
                                         setFormatter { String.format("%02d", it) }
                                         setOnValueChangedListener { _, _, newVal ->
-                                            onTimePicked(LocalTime.of(newVal, time.minute))
+                                            val current = latestTime
+                                            if (newVal != current.hour) {
+                                                onTimePicked(LocalTime.of(newVal, current.minute))
+                                            }
                                         }
                                     }
                                 },
@@ -162,7 +166,10 @@ fun TimePickerButton(
                                         wrapSelectorWheel = true
                                         setFormatter { String.format("%02d", it) }
                                         setOnValueChangedListener { _, _, newVal ->
-                                            onTimePicked(LocalTime.of(time.hour, newVal))
+                                            val current = latestTime
+                                            if (newVal != current.minute) {
+                                                onTimePicked(LocalTime.of(current.hour, newVal))
+                                            }
                                         }
                                     }
                                 },

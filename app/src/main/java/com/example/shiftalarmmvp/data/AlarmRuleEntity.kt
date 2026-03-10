@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.data
+package com.example.shiftalarmmvp.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -77,7 +77,7 @@ private fun serializeDateSet(dates: Set<LocalDate>): String {
 }
 
 fun AlarmRuleEntity.toDomain(): AlarmRule {
-    val interval = intervalWeeks.coerceIn(1, 4)
+    val interval = intervalWeeks.coerceIn(1, 6)
     val slots = weeklyPatternCsv.split("|")
     val pattern = (0 until interval).map { index ->
         parseWeekdays(slots.getOrNull(index).orEmpty())
@@ -106,7 +106,7 @@ fun AlarmRuleEntity.toDomain(): AlarmRule {
 }
 
 fun AlarmRule.toEntity(): AlarmRuleEntity {
-    val interval = intervalWeeks.coerceIn(1, 4)
+    val interval = intervalWeeks.coerceIn(1, 6)
     val normalized = (0 until interval).map { index ->
         weeklyPattern.getOrNull(index).orEmpty()
     }

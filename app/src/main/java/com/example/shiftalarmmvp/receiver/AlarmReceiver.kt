@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.receiver
+package com.example.shiftalarmmvp.receiver
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -7,6 +7,7 @@ import android.os.Build
 import com.example.shiftalarmmvp.data.AlarmDatabase
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.data.toDomain
+import com.example.shiftalarmmvp.recovery.SelfTestStatusStore
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.service.AlarmRingingService
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
@@ -64,6 +65,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     )
                     AlarmScheduler(context).schedule(alarm)
                 } else if (alarmId == 999_999L) {
+                    SelfTestStatusStore(context).recordTriggered()
                     val resolvedMinutes = if (incomingSnoozeMinutes == Int.MIN_VALUE || incomingSnoozeMinutes <= 0) 5 else incomingSnoozeMinutes
                     val resolvedMax = if (snoozeMaxFromIntent == Int.MIN_VALUE) 0 else snoozeMaxFromIntent.coerceIn(0, 99)
                     startRingingService(
@@ -144,9 +146,3 @@ class AlarmReceiver : BroadcastReceiver() {
         const val EXTRA_SNOOZE_CURRENT_COUNT = "extra_snooze_current_count"
     }
 }
-
-
-
-
-
-

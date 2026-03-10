@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.scheduler
+package com.example.shiftalarmmvp.scheduler
 
 import com.example.shiftalarmmvp.data.AlarmRule
 import java.time.DayOfWeek
@@ -46,7 +46,7 @@ object AlarmTimeCalculator {
     }
 
     private fun weekSlot(date: LocalDate, anchorDate: LocalDate, intervalWeeks: Int): Int? {
-        val interval = intervalWeeks.coerceIn(1, 3)
+        val interval = intervalWeeks.coerceIn(1, 6)
         val anchorWeekStart = anchorDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val dateWeekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weeksBetween = ChronoUnit.WEEKS.between(anchorWeekStart, dateWeekStart)

@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.ui.graphics.Color
 import java.time.DayOfWeek
@@ -6,6 +6,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 
 enum class AlarmPage(val label: String) {
     TODAY("오늘"),
@@ -139,7 +141,7 @@ fun buildWorkTemplateRotation(
     val seq = sequence.ifEmpty { listOf("주간") }
     val period = seq.size.coerceAtLeast(1)
     val start = todayIndex.coerceIn(0, period - 1)
-    val intervalWeeks = (lcm(period, 7) / 7).coerceIn(1, 4)
+    val intervalWeeks = (lcm(period, 7) / 7).coerceIn(1, 6)
     return BuiltWorkRotation(intervalWeeks = intervalWeeks, sequence = seq, todayIndex = start)
 }
 
@@ -148,18 +150,26 @@ fun buildWeeklyPatternForType(
     targetType: String,
     anchor: LocalDate = LocalDate.now()
 ): List<Set<DayOfWeek>> {
-    val weeks = MutableList(rotation.intervalWeeks) { mutableSetOf<DayOfWeek>() }
+    val interval = rotation.intervalWeeks.coerceIn(1, 6)
+    val weeks = MutableList(interval) { mutableSetOf<DayOfWeek>() }
     val period = rotation.sequence.size.coerceAtLeast(1)
-    repeat(rotation.intervalWeeks * 7) { offset ->
-        val step = rotation.sequence[(rotation.todayIndex + offset) % period]
-        if (step == targetType) {
+    val normalizedTarget = normalizeWorkType(targetType)
+    val anchorWeekStart = anchor.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+    repeat(interval * 7) { offset ->
+        val step = normalizeWorkType(rotation.sequence[(rotation.todayIndex + offset) % period])
+        if (step == normalizedTarget) {
             val date = anchor.plusDays(offset.toLong())
-            weeks[offset / 7].add(date.dayOfWeek)
+            val dateWeekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val weeksBetween = ChronoUnit.WEEKS.between(anchorWeekStart, dateWeekStart)
+            if (weeksBetween >= 0) {
+                val slot = (weeksBetween % interval.toLong()).toInt()
+                weeks[slot].add(date.dayOfWeek)
+            }
         }
     }
     return weeks.map { it.toSet() }
 }
-
 fun buildWorkPreview(
     sequence: List<String>,
     todayIndex: Int,
@@ -293,7 +303,7 @@ private fun hasConsecutiveOff(cycle: List<Boolean>, need: Int): Boolean {
 }
 
 private fun buildPresetCycle(preset: RotationPreset): List<Boolean> {
-    val weeks = preset.intervalWeeks.coerceIn(1, 4)
+    val weeks = preset.intervalWeeks.coerceIn(1, 6)
     val patterns = (0 until weeks).map { preset.weekPatterns.getOrNull(it).orEmpty() }
     val totalDays = weeks * 7
 
@@ -338,6 +348,7 @@ fun formatAlarmLogType(type: AlarmLogType): String {
         AlarmLogType.MANUAL_SKIP_CLEAR -> "스킵 해제"
         AlarmLogType.MANUAL_SHIFT_CHANGE -> "근무 변경"
         AlarmLogType.MANUAL_UNDO -> "실행 취소"
+        AlarmLogType.MANUAL_RECOVERY_ACTION -> "복구 조치"
     }
 }
 

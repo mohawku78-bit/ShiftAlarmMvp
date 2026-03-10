@@ -63,6 +63,16 @@ data class RescheduleRecoveryState(
         val result = "${outcomeText()} (${countText()})"
         return "자동 복구 ${occurredAtText()} · ${reasonText()} · $result"
     }
+
+    fun homeOneLineSummary(): String {
+        val happenedAt = occurredAtText()
+        val reason = reasonText()
+        return when (outcome) {
+            Outcome.FULL_RECOVERY -> "$happenedAt $reason 후 알람 ${countText()}를 정상 복구했습니다."
+            Outcome.PARTIAL_RECOVERY -> "$happenedAt $reason 후 알람 ${countText()}만 복구되어 재예약이 필요합니다."
+            Outcome.NO_ACTIVE_ALARMS -> "$happenedAt $reason 시점에는 활성 알람이 없어 복구가 필요 없었습니다."
+        }
+    }
 }
 
 class RescheduleRecoveryStore(context: Context) {
@@ -100,7 +110,7 @@ class RescheduleRecoveryStore(context: Context) {
 
 private fun actionToKoreanLabel(action: String): String {
     return when (action) {
-        Intent.ACTION_BOOT_COMPLETED -> "재부팅"
+        Intent.ACTION_BOOT_COMPLETED -> "부팅"
         Intent.ACTION_TIMEZONE_CHANGED -> "시간대 변경"
         Intent.ACTION_TIME_CHANGED -> "시간 변경"
         Intent.ACTION_DATE_CHANGED -> "날짜 변경"

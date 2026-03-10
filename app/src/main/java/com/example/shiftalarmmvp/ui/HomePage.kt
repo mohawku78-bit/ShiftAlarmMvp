@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.shiftalarmmvp.data.AlarmRule
@@ -69,6 +73,7 @@ fun HomePage(
     var selectedShiftType by remember { mutableStateOf<String?>(null) }
     var showDateAdjustControls by remember { mutableStateOf(false) }
     var showLegend by remember { mutableStateOf(false) }
+    val isCompactLayout = LocalConfiguration.current.screenWidthDp <= 380
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -145,12 +150,33 @@ fun HomePage(
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(onClick = { month = month.minusMonths(1) }, colors = mutedButtonColors) { Text("이전") }
-                    Text(month.format(DateTimeFormatter.ofPattern("yyyy년 M월")), style = MaterialTheme.typography.titleMedium)
-                    Button(onClick = { month = month.plusMonths(1) }, colors = mutedButtonColors) { Text("다음") }
+                    Button(
+                        onClick = { month = month.minusMonths(1) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        colors = mutedButtonColors
+                    ) {
+                        Text("이전", maxLines = 1, softWrap = false)
+                    }
+                    Text(
+                        text = month.format(DateTimeFormatter.ofPattern("yyyy년 M월")),
+                        modifier = Modifier.weight(1.4f),
+                        style = if (isCompactLayout) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    Button(
+                        onClick = { month = month.plusMonths(1) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        colors = mutedButtonColors
+                    ) {
+                        Text("다음", maxLines = 1, softWrap = false)
+                    }
                 }
                 Button(
                     onClick = { showLegend = !showLegend },
@@ -184,7 +210,7 @@ fun HomePage(
                         showDateAdjustControls = false
                     },
                     badgeForDate = { date -> inferShiftBadgeForDate(date, alarms) },
-                    compact = false
+                    compact = isCompactLayout
                 )
                 Card(modifier = Modifier.fillMaxWidth(), colors = summaryCardColors) {
                     val nextTriggerText = nextTrigger?.format(DateTimeFormatter.ofPattern("MM-dd HH:mm")) ?: "예정 없음"
@@ -489,4 +515,3 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
 private fun inferShiftTagFromLabel(label: String): String {
     return shiftTypeToBadge(extractWorkTypeFromLabel(label))
 }
-

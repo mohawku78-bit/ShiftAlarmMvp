@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import android.Manifest
 import android.app.Activity
@@ -7,6 +7,9 @@ import android.app.DatePickerDialog
 import android.app.PendingIntent
 import android.app.TimePickerDialog
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.net.Uri
@@ -28,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -69,13 +73,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -84,10 +94,18 @@ import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
+import com.example.shiftalarmmvp.recovery.HomeReliabilityAction
+import com.example.shiftalarmmvp.recovery.HomeReliabilityPolicy
+import com.example.shiftalarmmvp.recovery.HomeReliabilitySignals
+import com.example.shiftalarmmvp.recovery.NightlyReliabilityCheckStatus
+import com.example.shiftalarmmvp.recovery.ReliabilityPolicy
+import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
 import com.example.shiftalarmmvp.recovery.RescheduleRecoveryState
 import com.example.shiftalarmmvp.recovery.RescheduleRecoveryStore
+import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
+import com.example.shiftalarmmvp.scheduler.NightlyReliabilityCheckScheduler
 import com.example.shiftalarmmvp.service.AlarmRingingService
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -100,7 +118,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HOME_BANNER_VERSION = "011"
+private const val HOME_BANNER_VERSION = "060"
 private const val BATTERY_SETTINGS_LOG_TAG = "ShiftAlarmBattery"
 
 class MainActivity : ComponentActivity() {
@@ -114,9 +132,20 @@ class MainActivity : ComponentActivity() {
     private var canScheduleExact by mutableStateOf(true)
     private var canPostNotifications by mutableStateOf(true)
     private var isIgnoringBatteryOptimizationState by mutableStateOf(true)
+    private val reliabilityCoordinator by lazy { ReliabilityStateCoordinator(this) }
     private val recoveryStore by lazy { RescheduleRecoveryStore(this) }
     private var rescheduleRecoveryState by mutableStateOf<RescheduleRecoveryState?>(null)
+    private var selfTestStatus by mutableStateOf<SelfTestStatus?>(null)
+    private var nightlyCheckStatus by mutableStateOf<NightlyReliabilityCheckStatus?>(null)
+    private var openReliabilityCenterRequestToken by mutableIntStateOf(0)
     private var pendingReliabilityFollowUpTarget by mutableStateOf<ReliabilityFollowUpTarget?>(null)
+    private var reliabilityReceiverRegistered = false
+    private val reliabilityStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != AlarmRingingService.ACTION_RELIABILITY_STATE_CHANGED) return
+            refreshReliabilitySignals(recalculateSummary = true)
+        }
+    }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -129,6 +158,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         refreshReliabilitySignals()
         ensureRuntimePermissions()
+        NightlyReliabilityCheckScheduler.schedule(this)
+        consumeLaunchIntent(intent)
 
         setContent {
             ShiftAlarmTheme {
@@ -142,10 +173,29 @@ class MainActivity : ComponentActivity() {
                     onRequestNotificationPermission = { requestNotificationPermission() },
                     onRefreshReliabilityStatus = { refreshReliabilitySignals(showToast = true) },
                     isIgnoringBatteryOptimization = isIgnoringBatteryOptimizationState,
-                    recoveryStatus = rescheduleRecoveryState
+                    recoveryStatus = rescheduleRecoveryState,
+                    selfTestStatus = selfTestStatus,
+                    nightlyCheckStatus = nightlyCheckStatus,
+                    openReliabilityCenterRequestToken = openReliabilityCenterRequestToken
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        consumeLaunchIntent(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        registerReliabilityStateReceiverIfNeeded()
+    }
+
+    override fun onStop() {
+        unregisterReliabilityStateReceiverIfNeeded()
+        super.onStop()
     }
 
     override fun onResume() {
@@ -157,14 +207,47 @@ class MainActivity : ComponentActivity() {
             vm.rescheduleAllEnabled()
         }
     }
-    private fun refreshReliabilitySignals(showToast: Boolean = false) {
+
+    private fun refreshReliabilitySignals(
+        showToast: Boolean = false,
+        recalculateSummary: Boolean = false
+    ) {
         refreshExactAlarmPermissionState()
         refreshNotificationPermissionState()
         refreshBatteryOptimizationState()
         refreshRecoveryState()
-        if (showToast) {
-            Toast.makeText(this, "점검 상태를 다시 확인했습니다.", Toast.LENGTH_SHORT).show()
+
+        val snapshot = if (showToast || recalculateSummary) {
+            reliabilityCoordinator.recalculateAndSnapshot()
+        } else {
+            reliabilityCoordinator.snapshot()
         }
+        applyReliabilitySnapshot(snapshot)
+
+        if (showToast) {
+            val summary = snapshot.nightlyCheckStatus?.summary ?: "점검 정보 없음"
+            Toast.makeText(this, "점검 완료: $summary", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun registerReliabilityStateReceiverIfNeeded() {
+        if (reliabilityReceiverRegistered) return
+
+        val filter = IntentFilter(AlarmRingingService.ACTION_RELIABILITY_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(reliabilityStateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(reliabilityStateReceiver, filter)
+        }
+        reliabilityReceiverRegistered = true
+    }
+
+    private fun unregisterReliabilityStateReceiverIfNeeded() {
+        if (!reliabilityReceiverRegistered) return
+
+        runCatching { unregisterReceiver(reliabilityStateReceiver) }
+        reliabilityReceiverRegistered = false
     }
 
     private fun refreshExactAlarmPermissionState() {
@@ -199,6 +282,16 @@ class MainActivity : ComponentActivity() {
         rescheduleRecoveryState = recoveryStore.load()
     }
 
+    private fun applyReliabilitySnapshot(snapshot: com.example.shiftalarmmvp.recovery.ReliabilityStateSnapshot) {
+        selfTestStatus = snapshot.selfTestStatus
+        nightlyCheckStatus = snapshot.nightlyCheckStatus
+    }
+
+    private fun consumeLaunchIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_RELIABILITY_CENTER, false) != true) return
+        openReliabilityCenterRequestToken += 1
+        intent.removeExtra(EXTRA_OPEN_RELIABILITY_CENTER)
+    }
 
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -369,6 +462,9 @@ class MainActivity : ComponentActivity() {
             true
         }
     }
+    companion object {
+        const val EXTRA_OPEN_RELIABILITY_CENTER = "extra_open_reliability_center"
+    }
 }
 
 @Composable
@@ -382,24 +478,63 @@ private fun AlarmScreen(
     onRequestNotificationPermission: () -> Unit,
     onRefreshReliabilityStatus: () -> Unit,
     isIgnoringBatteryOptimization: Boolean,
-    recoveryStatus: RescheduleRecoveryState?
+    recoveryStatus: RescheduleRecoveryState?,
+    selfTestStatus: SelfTestStatus?,
+    nightlyCheckStatus: NightlyReliabilityCheckStatus?,
+    openReliabilityCenterRequestToken: Int
 ) {
     val alarms by vm.alarms.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val reliabilityCoordinator = remember(context) { ReliabilityStateCoordinator(context) }
+    val selfTestActionHandler = remember(context, reliabilityCoordinator) { SelfTestActionHandler(context, reliabilityCoordinator) }
+    var selfTestStatusState by remember { mutableStateOf(selfTestStatus) }
+    var nightlyCheckStatusState by remember { mutableStateOf(nightlyCheckStatus) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val recoveryStatusLabel = recoveryStatus?.outcomeText()
-    val recoveryStatusColor = when (recoveryStatus?.outcome) {
+    val recoveryFirstActionGuide = recoveryStatus
+        ?.takeIf { it.outcome == RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY }
+        ?.let {
+            when (it.action) {
+                Intent.ACTION_BOOT_COMPLETED -> "부팅 후 알람 복구가 일부 완료되지 않았습니다. 먼저 '알람 재예약'을 눌러 전체 예약을 다시 맞춰 주세요."
+                Intent.ACTION_TIME_CHANGED -> "시간 변경 후 알람 복구가 일부 완료되지 않았습니다. 먼저 '알람 재예약'으로 현재 시각 기준으로 다시 계산해 주세요."
+                Intent.ACTION_TIMEZONE_CHANGED -> "시간대 변경 후 알람 복구가 일부 완료되지 않았습니다. 먼저 '알람 재예약'으로 시간대 반영을 다시 진행해 주세요."
+                Intent.ACTION_DATE_CHANGED -> "날짜 변경 후 알람 복구가 일부 완료되지 않았습니다. 먼저 '알람 재예약'으로 날짜 기준을 갱신해 주세요."
+                Intent.ACTION_MY_PACKAGE_REPLACED -> "앱 업데이트 후 알람 복구가 일부 완료되지 않았습니다. 먼저 '알람 재예약'으로 예약을 복구해 주세요."
+                else -> "상태 변경 후 알람 복구가 일부 완료되지 않았습니다. 먼저 '알람 재예약'을 실행해 주세요."
+            }
+        }
+    val recoverySummaryText = recoveryStatus?.homeOneLineSummary() ?: "복구 기록 없음"
+    val recoverySummaryColor = when (recoveryStatus?.outcome) {
         RescheduleRecoveryState.Outcome.FULL_RECOVERY -> Color(0xFF4CD37B)
         RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> Color(0xFFFFC061)
-        RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> Color.White.copy(alpha = 0.78f)
-        null -> Color.Transparent
+        RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS,
+        null -> Color.White.copy(alpha = 0.72f)
     }
-    val recoveryDetailText = recoveryStatus?.let {
-        "자동 복구 ${it.occurredAtText()} · ${it.reasonText()} · ${it.countText()}"
+    val recoveryActionLabel = when (recoveryStatus?.outcome) {
+        RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> "재예약"
+        RescheduleRecoveryState.Outcome.FULL_RECOVERY,
+        RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> "점검 열기"
+        null -> null
     }
-    val showRecoveryFixCta = recoveryStatus?.outcome == RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY
-
+    val recoverySummaryClickable = recoveryActionLabel != null
+    var recoveryActionBlockedUntilMillis by remember { mutableStateOf(0L) }
+    val selfTestSummaryText = selfTestStatusState?.homeSummary() ?: "2분 테스트 이력 없음"
+    val selfTestSummaryColor = when (selfTestStatusState?.lastEvent) {
+        SelfTestStatus.Event.PASSED -> Color(0xFF4CD37B)
+        SelfTestStatus.Event.FAILED -> Color(0xFFFF7B7B)
+        SelfTestStatus.Event.SCHEDULED, SelfTestStatus.Event.TRIGGERED -> Color(0xFF7EA8FF)
+        SelfTestStatus.Event.UNCERTAIN, SelfTestStatus.Event.CANCELED -> Color.White.copy(alpha = 0.78f)
+        else -> Color.White.copy(alpha = 0.72f)
+    }
+    val nightlyCheckSummaryText = nightlyCheckStatusState?.bannerText() ?: "최근 점검 없음 · 재점검으로 지금 확인"
+    val nightlyCheckSummaryColor = when {
+        nightlyCheckStatusState == null -> Color.White.copy(alpha = 0.72f)
+        (nightlyCheckStatusState?.issueCount ?: 0) > 0 -> Color(0xFFFFC061)
+        else -> Color(0xFF4CD37B)
+    }
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val isCompactTodayBanner = screenWidthDp <= 380
+    val isSamsungDevice = remember { Build.MANUFACTURER.lowercase(Locale.ROOT).contains("samsung") }
     val setupPrefs = remember(context) {
         context.getSharedPreferences("first_setup_wizard", android.content.Context.MODE_PRIVATE)
     }
@@ -428,6 +563,8 @@ private fun AlarmScreen(
                 setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SUNDAY),
                 setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY),
                 emptySet(),
+                emptySet(),
+                emptySet(),
                 emptySet()
             )
         )
@@ -455,6 +592,7 @@ private fun AlarmScreen(
     var currentPage by remember { mutableStateOf(AlarmPage.TODAY) }
     var editorForcedStep by remember { mutableStateOf<Int?>(null) }
     var selfTestMessage by remember { mutableStateOf("") }
+    val selfTestStatusSummary = selfTestStatusState?.homeSummary() ?: "2분 테스트 이력 없음"
 
     fun persistSelectedCategory(category: ShiftCategory) {
         selectedShiftCategory = category
@@ -477,8 +615,14 @@ private fun AlarmScreen(
         scope.launch { scrollState.animateScrollTo(0) }
     }
 
+    LaunchedEffect(openReliabilityCenterRequestToken) {
+        if (openReliabilityCenterRequestToken > 0) {
+            openReliabilityCenter()
+        }
+    }
+
     var customWorkTypeInput by remember { mutableStateOf("") }
-    var rotationSequence by remember { mutableStateOf(listOf("주간", "당직", "비번", "휴무")) }
+    var rotationSequence by remember { mutableStateOf(listOf("주간", "야간", "비번", "휴무")) }
     var todayRotationIndex by remember { mutableIntStateOf(0) }
     var workTypeConfigs by remember { mutableStateOf(defaultWorkTypeConfigs(rotationSequence.distinct() + listOf("휴무"))) }
     var infiniteRotationEnabled by remember { mutableStateOf(true) }
@@ -487,6 +631,16 @@ private fun AlarmScreen(
     val savedPresets = remember { mutableStateListOf<RotationPreset>() }
     val alarmLogStore = remember(context) { AlarmLogStore(context) }
     val alarmLogs = remember { mutableStateListOf<AlarmLogEntry>() }
+    val latestRecoveryActionEntry = alarmLogs.firstOrNull { it.type == AlarmLogType.MANUAL_RECOVERY_ACTION }
+    val latestRecoveryActionText = latestRecoveryActionEntry?.let { entry ->
+        val ts = entry.toLocalDateTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+        "최근 복구 조치 $ts · ${entry.detail}"
+    } ?: "최근 복구 조치 없음"
+    val latestRecoveryActionColor = if (latestRecoveryActionEntry == null) {
+        Color.White.copy(alpha = 0.62f)
+    } else {
+        Color.White.copy(alpha = 0.88f)
+    }
 
     var pendingUndoMessage by remember { mutableStateOf<String?>(null) }
     var pendingUndoSnapshot by remember { mutableStateOf<Map<Long, Pair<Set<LocalDate>, Set<LocalDate>>>?>(null) }
@@ -509,6 +663,15 @@ private fun AlarmScreen(
         pendingUndoToken += 1
     }
 
+    fun appendRecoveryActionLog(detail: String) {
+        alarmLogStore.append(
+            alarmId = -1,
+            label = "홈 신뢰도",
+            type = AlarmLogType.MANUAL_RECOVERY_ACTION,
+            detail = detail
+        )
+        refreshAlarmLogs()
+    }
     fun registerCalendarChange(
         message: String,
         type: AlarmLogType,
@@ -519,12 +682,44 @@ private fun AlarmScreen(
         apply()
         alarmLogStore.append(
             alarmId = -1,
-            label = "홈 캘린더",
+            label = "캘린더",
             type = type,
             detail = detail
         )
         refreshAlarmLogs()
         pushUndo(message, snapshot)
+    }
+    fun openEditorWithDraft(draft: AlarmEditorDraft) {
+        editorForcedStep = null
+        editingAlarmId = draft.editingAlarmId
+        editingEnabled = draft.editingEnabled
+        selectedTime = draft.selectedTime
+        selectedLabel = draft.selectedLabel
+        intervalWeeks = draft.intervalWeeks
+        activeWeekIndex = 0
+        anchorDate = draft.anchorDate
+        weekPatterns = draft.weekPatterns
+        selectedSoundType = draft.selectedSoundType
+        selectedCustomSoundUri = draft.selectedCustomSoundUri
+        selectedVolume = draft.selectedVolume
+        selectedSnoozeMinutes = draft.selectedSnoozeMinutes
+        customSnoozeInput = draft.selectedSnoozeMinutes.toString()
+        selectedSnoozeMaxCount = draft.selectedSnoozeMaxCount
+        customMaxCountInput = draft.selectedSnoozeMaxCount.toString()
+        vibrationEnabled = draft.vibrationEnabled
+        skipDates = draft.skipDates
+        addDates = draft.addDates
+        exceptionDate = draft.exceptionDate
+        currentPage = AlarmPage.EDITOR
+        scope.launch { scrollState.animateScrollTo(0) }
+    }
+
+    LaunchedEffect(selfTestStatus) {
+        selfTestStatusState = selfTestStatus
+    }
+
+    LaunchedEffect(nightlyCheckStatus) {
+        nightlyCheckStatusState = nightlyCheckStatus
     }
 
     LaunchedEffect(Unit) {
@@ -561,7 +756,7 @@ private fun AlarmScreen(
                 } else {
                     selectedCustomSoundUri = null
                     selectedSoundType = AlarmSoundType.ALARM
-                    customSoundMessage = "이 소리는 재생 불가하여 기본 알람음으로 전환됨"
+                    customSoundMessage = "선택한 소리를 사용할 수 없어 기본 알람음으로 전환했습니다."
                 }
             }
         }
@@ -576,12 +771,12 @@ private fun AlarmScreen(
                 val payload = presetStore.exportJson()
                 context.contentResolver.openOutputStream(uri)?.use { stream ->
                     stream.write(payload.toByteArray(Charsets.UTF_8))
-                } ?: error("출력 스트림을 열 수 없음")
+                } ?: error("출력 스트림을 열 수 없습니다")
             }
             presetFeedbackMessage = if (exportResult.isSuccess) {
                 "프리셋 내보내기 완료"
             } else {
-                "프리셋 내보내기 실패: ${exportResult.exceptionOrNull()?.message ?: "알 수 없음"}"
+                "프리셋 내보내기 실패: ${exportResult.exceptionOrNull()?.message ?: "원인 없음"}"
             }
         }
     }
@@ -596,16 +791,16 @@ private fun AlarmScreen(
                 val content = context.contentResolver.openInputStream(uri)
                     ?.bufferedReader(Charsets.UTF_8)
                     ?.use { it.readText() }
-                    ?: error("입력 스트림을 열 수 없음")
+                    ?: error("입력 스트림을 열 수 없습니다")
                 presetStore.importJson(content, merge = importMergeMode)
             }
             if (importResult.isSuccess) {
                 savedPresets.clear()
                 savedPresets.addAll(presetStore.load())
-                val modeLabel = if (importMergeMode) "병합" else "교체"
+                val modeLabel = if (importMergeMode) "병합" else "덮어쓰기"
                 presetFeedbackMessage = "프리셋 ${importResult.getOrDefault(0)}개 ${modeLabel} 가져오기 완료"
             } else {
-                presetFeedbackMessage = "프리셋 가져오기 실패: ${importResult.exceptionOrNull()?.message ?: "형식 오류"}"
+                presetFeedbackMessage = "프리셋 가져오기 실패: ${importResult.exceptionOrNull()?.message ?: "원인 없음"}"
             }
         }
     }
@@ -614,12 +809,34 @@ private fun AlarmScreen(
     val exactReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExact
     val batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimization
     val notificationReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || canPostNotifications
-    val isDebugBuild = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    val reliabilityStatus = when {
-        !exactReady || !notificationReady -> AlarmReliabilityStatus.ISSUE
-        !batteryReady -> AlarmReliabilityStatus.WARNING
-        else -> AlarmReliabilityStatus.OK
+    val selfTestEvent = selfTestStatusState?.lastEvent
+    val recoveryNeedsAttention = recoveryStatus?.outcome == RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY
+    val selfTestNeedsFollowUp = ReliabilityPolicy.isSelfTestFollowUpNeeded(selfTestStatusState)
+    val reliabilityUi = HomeReliabilityPolicy.evaluate(
+        HomeReliabilitySignals(
+            exactReady = exactReady,
+            notificationReady = notificationReady,
+            batteryReady = batteryReady,
+            recoveryNeedsAttention = recoveryNeedsAttention,
+            selfTestEvent = selfTestEvent,
+            selfTestNeedsFollowUp = selfTestNeedsFollowUp,
+            nightlyIssueCount = nightlyCheckStatusState?.issueCount ?: 0
+        )
+    )
+    val samsungBatteryGuideText = if (
+        isSamsungDevice && reliabilityUi.primaryAction == HomeReliabilityAction.OPEN_BATTERY_SETTINGS
+    ) {
+        "삼성은 앱 정보 > 배터리 > 제한 없음으로 변경 후 재점검해 주세요."
+    } else {
+        null
     }
+
+    var reliabilityPanelExpanded by rememberSaveable { mutableStateOf(false) }
+    val reliabilityBannerState = buildHomeReliabilityBannerState(
+        reliabilityUi = reliabilityUi,
+        panelExpanded = reliabilityPanelExpanded
+    )
+
     val requiresExactPermission = !exactReady
     val canSaveByPermission = canSave
     val previewRule = AlarmRule(
@@ -643,81 +860,133 @@ private fun AlarmScreen(
     val next10Preview = remember(selectedTime, intervalWeeks, anchorDate, weekPatterns, editingEnabled, skipDates, addDates) {
         AlarmTimeCalculator.nextTriggers(previewRule, 10, LocalDateTime.now())
     }
-
-    fun scheduleSelfTest(showToast: Boolean = false) {
-        val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val triggerAtMillis = System.currentTimeMillis() + 2 * 60 * 1000L
-        val testIntent = Intent(context, AlarmReceiver::class.java)
-            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
-            .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "2분 테스트 알람" else "${selectedLabel} 테스트")
-            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
-            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
-            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
-            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, selectedSnoozeMinutes)
-            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
-            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            999_999,
-            testIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExact -> {
-                alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
-                alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
-            else -> {
-                alarmManager?.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
+    val homeNextTrigger = remember(alarms) {
+        val now = LocalDateTime.now()
+        alarms.asSequence()
+            .filter { it.enabled }
+            .mapNotNull { AlarmTimeCalculator.nextTrigger(it, now) }
+            .minOrNull()
+    }
+    fun applySelfTestActionResult(result: SelfTestActionResult, showToast: Boolean = false) {
+        selfTestMessage = result.message
+        result.snapshot?.let { snapshot ->
+            selfTestStatusState = snapshot.selfTestStatus
+            nightlyCheckStatusState = snapshot.nightlyCheckStatus
         }
-        val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), ZoneId.systemDefault())
-        selfTestMessage = "2분 테스트 예약됨: ${triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))}"
         if (showToast) {
             Toast.makeText(context, selfTestMessage, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun scheduleSelfTest(showToast: Boolean = false) {
+        val result = selfTestActionHandler.schedule(
+            config = SelfTestScheduleConfig(
+                label = selectedLabel,
+                soundType = selectedSoundType,
+                customSoundUri = selectedCustomSoundUri,
+                volumePercent = selectedVolume.toInt(),
+                vibrationEnabled = vibrationEnabled,
+                snoozeMinutes = selectedSnoozeMinutes
+            ),
+            canScheduleExact = canScheduleExact
+        )
+        applySelfTestActionResult(result, showToast = showToast)
     }
 
     fun cancelSelfTest(showToast: Boolean = false) {
-        val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            999_999,
-            Intent(context, AlarmReceiver::class.java),
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-        )
-        selfTestMessage = if (pendingIntent != null) {
-            alarmManager?.cancel(pendingIntent)
-            pendingIntent.cancel()
-            "2분 테스트 예약을 취소했습니다."
-        } else {
-            "취소할 테스트 예약이 없습니다."
+        val result = selfTestActionHandler.cancel()
+        applySelfTestActionResult(result, showToast = showToast)
+    }
+
+    fun markSelfTestFeedback(feedback: SelfTestStatus.Feedback, showToast: Boolean = false) {
+        val result = selfTestActionHandler.markFeedback(feedback)
+        applySelfTestActionResult(result, showToast = showToast)
+    }
+
+    fun runPrimaryReliabilityAction(showToast: Boolean = false) {
+        when (reliabilityUi.primaryAction) {
+            HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS -> {
+                onOpenExactAlarmSettings()
+                if (showToast) Toast.makeText(context, "정확 알람 권한 설정 화면을 열었습니다.", Toast.LENGTH_SHORT).show()
+            }
+            HomeReliabilityAction.REQUEST_NOTIFICATION_PERMISSION -> {
+                onRequestNotificationPermission()
+                if (showToast) Toast.makeText(context, "알림 권한 요청을 시작했습니다.", Toast.LENGTH_SHORT).show()
+            }
+            HomeReliabilityAction.OPEN_BATTERY_SETTINGS -> {
+                onOpenBatterySettings()
+                if (showToast) {
+                    val message = if (isSamsungDevice) {
+                        "삼성: 앱 정보 > 배터리 > 제한 없음으로 설정해 주세요."
+                    } else {
+                        "배터리 설정 화면을 열었습니다."
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+            }
+            HomeReliabilityAction.RESCHEDULE_ALARMS -> {
+                vm.rescheduleAllEnabled()
+                if (showToast) Toast.makeText(context, "알람 재예약을 실행했습니다.", Toast.LENGTH_SHORT).show()
+            }
+            HomeReliabilityAction.OPEN_RELIABILITY_CENTER -> {
+                openReliabilityCenter()
+            }
+            HomeReliabilityAction.RUN_SELF_TEST -> {
+                scheduleSelfTest(showToast = showToast)
+            }
+            HomeReliabilityAction.REFRESH_STATUS -> {
+                onRefreshReliabilityStatus()
+                if (showToast) Toast.makeText(context, "신뢰도 상태를 다시 확인했습니다.", Toast.LENGTH_SHORT).show()
+            }
         }
-        if (showToast) {
-            Toast.makeText(context, selfTestMessage, Toast.LENGTH_SHORT).show()
+    }
+
+    fun runRecoverySummaryAction(showToast: Boolean = false) {
+        when (recoveryStatus?.outcome) {
+            RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> {
+                vm.rescheduleAllEnabled()
+                onRefreshReliabilityStatus()
+                appendRecoveryActionLog("부분 복구 상태에서 재예약 실행")
+                if (showToast) Toast.makeText(context, "복구 조치로 알람 재예약을 실행했습니다.", Toast.LENGTH_SHORT).show()
+            }
+            RescheduleRecoveryState.Outcome.FULL_RECOVERY,
+            RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> {
+                openReliabilityCenter()
+                appendRecoveryActionLog("복구 상태 확인 후 신뢰도 화면 이동")
+                if (showToast) Toast.makeText(context, "신뢰도 화면으로 이동했습니다.", Toast.LENGTH_SHORT).show()
+            }
+            null -> {
+                if (showToast) Toast.makeText(context, "복구 기록이 없습니다.", Toast.LENGTH_SHORT).show()
+            }
         }
+    }
+    fun runRecoverySummaryActionWithDebounce(showToast: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (now < recoveryActionBlockedUntilMillis) {
+            if (showToast) Toast.makeText(context, "잠시 후 다시 눌러 주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        recoveryActionBlockedUntilMillis = now + 1_500L
+        runRecoverySummaryAction(showToast = showToast)
     }
     fun runAutoBuildFromShiftConfig(requireInfinite: Boolean): Boolean {
         if (rotationSequence.isEmpty()) {
-            autoBuildFeedback = "로테이션을 먼저 입력하세요."
+            autoBuildFeedback = "근무 순서를 먼저 입력해 주세요"
             return false
         }
         if (requireInfinite && !infiniteRotationEnabled) {
-            autoBuildFeedback = "계속 순환 스위치를 켜면 자동 생성됩니다."
+            autoBuildFeedback = "무한 반복을 켠 뒤 알람을 생성해 주세요."
             return false
         }
         if (workTypeConfigs.none { it.enabled }) {
-            autoBuildFeedback = "활성화된 근무 알람이 없습니다."
+            autoBuildFeedback = "활성 근무 타입이 없어 알람을 생성할 수 없습니다."
             return false
         }
 
         val built = buildWorkTemplateRotation(rotationSequence, todayRotationIndex)
         val uniqueTypes = rotationSequence.distinct()
         val typeToPattern = uniqueTypes.associateWith { type ->
-            buildWeeklyPatternForType(built, type)
+            buildWeeklyPatternForType(built, type, anchor = anchorDate)
         }
 
         var createdCount = 0
@@ -725,7 +994,7 @@ private fun AlarmScreen(
         workTypeConfigs.forEach { cfg ->
             if (!cfg.enabled) return@forEach
             val pattern = typeToPattern[cfg.type].orEmpty()
-            val isVacationType = cfg.type.contains("휴가")
+            val isVacationType = cfg.type.contains("휴")
             if (pattern.all { it.isEmpty() } && !isVacationType) return@forEach
 
             val primary = parseHm(cfg.primaryTime)
@@ -738,7 +1007,7 @@ private fun AlarmScreen(
                     minute = primary.minute,
                     weeklyPattern = pattern,
                     intervalWeeks = built.intervalWeeks,
-                    anchorDate = LocalDate.now(),
+                    anchorDate = anchorDate,
                     soundType = selectedSoundType,
                     customSoundUri = selectedCustomSoundUri,
                     volumePercent = selectedVolume.toInt(),
@@ -762,7 +1031,7 @@ private fun AlarmScreen(
                         minute = second.minute,
                         weeklyPattern = pattern,
                         intervalWeeks = built.intervalWeeks,
-                        anchorDate = LocalDate.now(),
+                        anchorDate = anchorDate,
                         soundType = selectedSoundType,
                         customSoundUri = selectedCustomSoundUri,
                         volumePercent = selectedVolume.toInt(),
@@ -778,7 +1047,7 @@ private fun AlarmScreen(
         }
 
         autoBuildFeedback = when {
-            createdCount == 0 -> "생성된 알람이 없습니다. 시간 형식을 확인하세요."
+            createdCount == 0 -> "생성된 알람이 없습니다. 시간 형식을 확인해 주세요."
             invalidCount > 0 -> "${createdCount}개 생성, ${invalidCount}개 시간 형식 오류"
             else -> "${createdCount}개 알람 자동 생성 완료"
         }
@@ -861,7 +1130,7 @@ private fun AlarmScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = if (isCompactTodayBanner) Alignment.Top else Alignment.CenterVertically
                 ) {
                     Row(
                         modifier = Modifier.weight(1f),
@@ -872,25 +1141,37 @@ private fun AlarmScreen(
                             painter = painterResource(id = R.drawable.ic_brand_badge),
                             contentDescription = "브랜드 로고",
                             tint = Color.Unspecified,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(if (isCompactTodayBanner) 34.dp else 40.dp)
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            val titleText = remember {
+                                buildAnnotatedString {
+                                    append("교대근무")
+                                    withStyle(SpanStyle(color = Color(0xFF6EA0FF))) {
+                                        append("알람")
+                                    }
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
                                 Text(
-                                    text = "교대근무",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "알람",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = Color(0xFF6EA0FF)
+                                    text = titleText,
+                                    modifier = Modifier.weight(1f),
+                                    style = if (isCompactTodayBanner) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "v$HOME_BANNER_VERSION",
-                                    modifier = Modifier.padding(start = 6.dp),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.72f)
+                                    color = Color.White.copy(alpha = 0.72f),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                             Text(
@@ -898,85 +1179,143 @@ private fun AlarmScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.86f)
                             )
-                            recoveryStatusLabel?.let { label ->
+                            AnimatedVisibility(
+                                visible = reliabilityBannerState.showPanel,
+                                enter = EnterTransition.None,
+                                exit = ExitTransition.None
+                            ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Card(
-                                        colors = CardDefaults.cardColors(containerColor = recoveryStatusColor.copy(alpha = 0.24f))
+                                    Text(
+                                        text = reliabilityUi.reasonText,
+                                        maxLines = if (isCompactTodayBanner) 1 else 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.86f)
+                                    )
+                                    samsungBatteryGuideText?.let { guide ->
+                                        Text(
+                                            text = guide,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFFFFC061)
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = label,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = recoveryStatusColor
-                                        )
-                                    }
-                                    recoveryDetailText?.let { detail ->
-                                        Text(
-                                            text = detail,
+                                            text = recoverySummaryText,
+                                            modifier = if (recoverySummaryClickable) {
+                                                Modifier
+                                                    .weight(1f)
+                                                    .clickable { runRecoverySummaryActionWithDebounce(showToast = true) }
+                                            } else {
+                                                Modifier.weight(1f)
+                                            },
                                             maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color.White.copy(alpha = 0.78f)
+                                            color = recoverySummaryColor
                                         )
-                                    }
-                                    if (showRecoveryFixCta) {
-                                        Card(
-                                            modifier = Modifier.clickable { openReliabilityCenter() },
-                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC061).copy(alpha = 0.20f))
-                                        ) {
-                                            Text(
-                                                text = "문제 해결",
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = Color(0xFFFFC061)
-                                            )
+                                        recoveryActionLabel?.let { actionLabel ->
+                                            Card(
+                                                modifier = Modifier.clickable { runRecoverySummaryActionWithDebounce(showToast = true) },
+                                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.14f))
+                                            ) {
+                                                Text(
+                                                    text = "조치: $actionLabel",
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color.White.copy(alpha = 0.9f),
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
                                         }
                                     }
+                                    Text(
+                                        text = latestRecoveryActionText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = latestRecoveryActionColor
+                                    )
+                                    Text(
+                                        text = selfTestSummaryText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = selfTestSummaryColor
+                                    )
+                                    Text(
+                                        text = nightlyCheckSummaryText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = nightlyCheckSummaryColor
+                                    )
                                 }
                             }
                         }
                     }
                     Column(
+                        modifier = Modifier.widthIn(max = if (isCompactTodayBanner) 116.dp else 180.dp),
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        AlarmReliabilityChip(
-                            status = reliabilityStatus,
-                            allowOkClick = isDebugBuild,
-                            onOpenReliabilityCenter = { openReliabilityCenter() }
-                        )
                         Card(
-                            modifier = Modifier.clickable { onRefreshReliabilityStatus() },
+                            modifier = Modifier.clickable {
+                                when {
+                                    !reliabilityBannerState.showPanel -> reliabilityPanelExpanded = true
+                                    reliabilityBannerState.panelLockedOpen -> openReliabilityCenter()
+                                    else -> reliabilityPanelExpanded = false
+                                }
+                            },
                             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
                         ) {
                             Text(
-                                text = "재점검",
+                                text = reliabilityBannerState.toggleLabel,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        if (isDebugBuild) {
-                            Card(
-                                modifier = Modifier.clickable { openReliabilityCenter() },
-                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
+                        AnimatedVisibility(
+                            visible = reliabilityBannerState.showPanel,
+                            enter = EnterTransition.None,
+                            exit = ExitTransition.None
+                        ) {
+                            Column(
+                        modifier = Modifier.widthIn(max = if (isCompactTodayBanner) 116.dp else 180.dp),
+                        horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(
-                                    text = "테스트 열기",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White
+                                HomeReliabilityChip(
+                                    label = reliabilityBannerState.chipLabel,
+                                    tone = reliabilityBannerState.chipTone,
+                                    onOpenReliabilityCenter = { openReliabilityCenter() }
                                 )
-                            }
-                            Card(
-                                modifier = Modifier.clickable { scheduleSelfTest(showToast = true) },
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2F6EF1))
-                            ) {
-                                Text(
-                                    text = "2분 테스트",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White
-                                )
+                                Card(
+                                    modifier = Modifier.clickable { runPrimaryReliabilityAction(showToast = true) },
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2F6EF1))
+                                ) {
+                                    Text(
+                                        text = reliabilityUi.primaryActionLabel,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
@@ -991,7 +1330,7 @@ private fun AlarmScreen(
             HomePage(
                 selectedLabel = selectedLabel,
                 selectedTime = selectedTime,
-                nextTrigger = next10Preview.firstOrNull(),
+                nextTrigger = homeNextTrigger,
                 rotationPreview = buildWorkPreview(rotationSequence, todayRotationIndex, 7, LocalDate.now()),
                 alarms = alarms,
                 onReconfigurePattern = {
@@ -1004,14 +1343,14 @@ private fun AlarmScreen(
                 },
                 onSetVacationDate = { date ->
                     registerCalendarChange(
-                        message = "휴가 처리 적용됨",
+                        message = "휴가 처리 적용",
                         type = AlarmLogType.MANUAL_VACATION_SET,
                         detail = date.toString()
                     ) { vm.setVacationDateForAll(date) }
                 },
                 onClearVacationDate = { date ->
                     registerCalendarChange(
-                        message = "휴가 해제 적용됨",
+                        message = "휴가 해제 적용",
                         type = AlarmLogType.MANUAL_VACATION_CLEAR,
                         detail = date.toString()
                     ) { vm.clearVacationDateForAll(date) }
@@ -1020,7 +1359,7 @@ private fun AlarmScreen(
                     val from = minOf(start, end)
                     val to = maxOf(start, end)
                     registerCalendarChange(
-                        message = "기간 휴가 적용됨",
+                        message = "기간 휴가 적용",
                         type = AlarmLogType.MANUAL_VACATION_SET,
                         detail = "$from~$to"
                     ) { vm.setVacationRangeForAll(start, end) }
@@ -1029,7 +1368,7 @@ private fun AlarmScreen(
                     val from = minOf(start, end)
                     val to = maxOf(start, end)
                     registerCalendarChange(
-                        message = "기간 휴가 해제됨",
+                        message = "기간 휴가 해제",
                         type = AlarmLogType.MANUAL_VACATION_CLEAR,
                         detail = "$from~$to"
                     ) { vm.clearVacationRangeForAll(start, end) }
@@ -1037,7 +1376,7 @@ private fun AlarmScreen(
                 onSetSkipDateForIds = { date, ids ->
                     if (ids.isNotEmpty()) {
                         registerCalendarChange(
-                            message = "스킵 처리됨",
+                            message = "스킵 처리",
                             type = AlarmLogType.MANUAL_SKIP_SET,
                             detail = "${date} (${ids.size}개 알람)"
                         ) { vm.setSkipDateForAlarmIds(date, ids) }
@@ -1046,7 +1385,7 @@ private fun AlarmScreen(
                 onClearSkipDateForIds = { date, ids ->
                     if (ids.isNotEmpty()) {
                         registerCalendarChange(
-                            message = "스킵 해제됨",
+                            message = "스킵 해제",
                             type = AlarmLogType.MANUAL_SKIP_CLEAR,
                             detail = "${date} (${ids.size}개 알람)"
                         ) { vm.clearSkipDateForAlarmIds(date, ids) }
@@ -1054,7 +1393,7 @@ private fun AlarmScreen(
                 },
                 onApplyShiftChange = { date, type ->
                     registerCalendarChange(
-                        message = "근무 변경 적용됨",
+                        message = "근무 변경 적용",
                         type = AlarmLogType.MANUAL_SHIFT_CHANGE,
                         detail = "${date} -> ${type}"
                     ) { vm.applyShiftTypeForDate(date, type) }
@@ -1066,7 +1405,7 @@ private fun AlarmScreen(
                         vm.restoreExceptionSnapshot(snapshot)
                         alarmLogStore.append(
                             alarmId = -1,
-                            label = "홈 캘린더",
+                            label = "캘린더",
                             type = AlarmLogType.MANUAL_UNDO,
                             detail = pendingUndoMessage ?: "직전 변경 취소"
                         )
@@ -1116,7 +1455,7 @@ private fun AlarmScreen(
             exit = ExitTransition.None
         ) {
             if (editingAlarmId != null) {
-                Text("편집 모드: 아래 값 수정 후 '알람 수정 저장'을 누르세요.")
+                Text("편집 모드: 아래 값을 수정하고 저장 버튼을 눌러 주세요.")
             }
 
             EditorPage(
@@ -1143,7 +1482,7 @@ private fun AlarmScreen(
                     val testIntent = Intent(context, AlarmRingingService::class.java)
                         .setAction(AlarmRingingService.ACTION_START)
                         .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
-                        .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "테스트 알람" else selectedLabel)
+                        .putExtra(AlarmReceiver.EXTRA_LABEL, if (selectedLabel.isBlank()) "기본 알람" else selectedLabel)
                         .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
                         .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
                         .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
@@ -1160,7 +1499,13 @@ private fun AlarmScreen(
                 onStopTestSound = { AlarmRingingService.stop(context, 999_999L) },
                 onScheduleSelfTest = { scheduleSelfTest() },
                 onCancelSelfTest = { cancelSelfTest() },
+                onMarkSelfTestPassed = { markSelfTestFeedback(SelfTestStatus.Feedback.PASSED, showToast = true) },
+                onMarkSelfTestUncertain = { markSelfTestFeedback(SelfTestStatus.Feedback.UNCERTAIN, showToast = true) },
+                onMarkSelfTestFailed = { markSelfTestFeedback(SelfTestStatus.Feedback.FAILED, showToast = true) },
                 selfTestMessage = selfTestMessage,
+                selfTestStatusSummary = selfTestStatusSummary,
+                selfTestEvent = selfTestStatusState?.lastEvent,
+                recoveryFirstActionGuide = recoveryFirstActionGuide,
                 selectedTime = selectedTime,
                 onSelectedTimeChange = { selectedTime = it },
                 anchorDate = anchorDate,
@@ -1298,11 +1643,11 @@ private fun AlarmScreen(
                 onAddType = {
                     val name = normalizeWorkType(customWorkTypeInput)
                     if (name.isBlank()) {
-                        autoBuildFeedback = "근무 유형 이름을 입력하세요."
+                        autoBuildFeedback = "근무 타입 이름이 비어 있습니다."
                         return@ShiftPage
                     }
                     if (workTypeConfigs.any { normalizeWorkType(it.type) == name }) {
-                        autoBuildFeedback = "이미 있는 근무 유형입니다."
+                        autoBuildFeedback = "이미 있는 근무 타입입니다."
                         return@ShiftPage
                     }
                     workTypeConfigs = workTypeConfigs + WorkTypeAlarmConfig(
@@ -1312,15 +1657,15 @@ private fun AlarmScreen(
                         secondaryTime = ""
                     )
                     customWorkTypeInput = ""
-                    autoBuildFeedback = "근무 유형 '$name' 추가 완료"
+                    autoBuildFeedback = "근무 타입 '$name' 추가 완료"
                 },
                 onResetDefaults = {
-                    val defaults = defaultWorkTypeConfigs(listOf("주간", "당직", "비번", "휴무"))
+                    val defaults = defaultWorkTypeConfigs(listOf("주간", "야간", "비번", "휴무"))
                     workTypeConfigs = defaults
-                    rotationSequence = listOf("주간", "당직", "비번", "휴무")
+                    rotationSequence = listOf("주간", "야간", "비번", "휴무")
                     todayRotationIndex = 0
                     persistSelectedCategory(ShiftCategory.THREE_SHIFT)
-                    autoBuildFeedback = "기본 패턴 적용됨"
+                    autoBuildFeedback = "기본값으로 초기화 완료"
                 },
                 quickTemplates = QUICK_SHIFT_TEMPLATES,
                 onApplyQuickTemplate = { template ->
@@ -1331,12 +1676,12 @@ private fun AlarmScreen(
                     todayRotationIndex = 0
                     infiniteRotationEnabled = true
                     persistSelectedCategory(template.category)
-                    autoBuildFeedback = "대표 근무형 '${template.label}' 적용 완료"
+                    autoBuildFeedback = "빠른 템플릿 '${template.label}' 적용 완료"
                 },
                 workTypeConfigs = workTypeConfigs,
                 onAppendRotationType = { type ->
                     rotationSequence = rotationSequence + normalizeWorkType(type)
-                    autoBuildFeedback = "${type} 칸 추가"
+                    autoBuildFeedback = "${type} 추가됨"
                 },
                 rotationSequence = rotationSequence,
                 onDropLastRotation = {
@@ -1437,7 +1782,7 @@ private fun AlarmScreen(
                 presetNameInput = presetNameInput,
                 onPresetNameInputChange = { presetNameInput = it },
                 onSaveCurrent = {
-                    val normalized = weekPatterns.take(intervalWeeks.coerceIn(1, 4))
+                    val normalized = weekPatterns.take(intervalWeeks.coerceIn(1, 6))
                     val name = presetNameInput.trim().ifBlank {
                         "프리셋 ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}"
                     }
@@ -1478,15 +1823,13 @@ private fun AlarmScreen(
                 presetFeedbackMessage = presetFeedbackMessage,
                 savedPresets = savedPresets.sortedBy { if (inferPresetCategory(it) == selectedShiftCategory) 0 else 1 },
                 onApplyPreset = { preset ->
-                    intervalWeeks = preset.intervalWeeks.coerceIn(2, 4)
+                    val presetInterval = preset.intervalWeeks.coerceIn(2, 6)
+                    intervalWeeks = presetInterval
                     activeWeekIndex = 0
                     anchorDate = preset.anchorDate
-                    weekPatterns = listOf(
-                        preset.weekPatterns.getOrNull(0).orEmpty(),
-                        preset.weekPatterns.getOrNull(1).orEmpty(),
-                        preset.weekPatterns.getOrNull(2).orEmpty(),
-                        preset.weekPatterns.getOrNull(3).orEmpty()
-                    )
+                    weekPatterns = (0 until presetInterval).map { index ->
+                        preset.weekPatterns.getOrNull(index).orEmpty()
+                    }
                     presetNameInput = preset.name
                     infiniteRotationEnabled = preset.infiniteRotationEnabled
                 },
@@ -1539,20 +1882,15 @@ private fun AlarmScreen(
                     if (LocalDate.now().plusDays(1) in alarm.addDateEpochDays) vm.removeTomorrow(alarm) else vm.addTomorrow(alarm)
                 },
                 onDuplicate = { alarm ->
-                    val copiedLabel = if (alarm.label.isBlank()) "알람 복사본" else "${alarm.label} 복사본".take(24)
-                    val copiedPattern = listOf(
-                        alarm.weeklyPattern.getOrNull(0).orEmpty(),
-                        alarm.weeklyPattern.getOrNull(1).orEmpty(),
-                        alarm.weeklyPattern.getOrNull(2).orEmpty(),
-                        alarm.weeklyPattern.getOrNull(3).orEmpty()
-                    )
+                    val copiedLabel = alarm.duplicateLabel()
+                    val copiedPattern = alarm.normalizedWeeklyPattern()
                     if (autoSaveOnDuplicate) {
                         vm.addAlarm(
                             label = copiedLabel,
                             hour = alarm.hour,
                             minute = alarm.minute,
                             weeklyPattern = copiedPattern,
-                            intervalWeeks = alarm.intervalWeeks.coerceIn(2, 4),
+                            intervalWeeks = alarm.intervalWeeks.coerceIn(2, 6),
                             anchorDate = alarm.anchorDate,
                             soundType = alarm.soundType,
                             customSoundUri = alarm.customSoundUri,
@@ -1564,58 +1902,23 @@ private fun AlarmScreen(
                             addDateEpochDays = alarm.addDateEpochDays
                         )
                     } else {
-                        editorForcedStep = null
-                        editingAlarmId = null
-                        editingEnabled = true
-                        selectedTime = LocalTime.of(alarm.hour, alarm.minute)
-                        selectedLabel = copiedLabel
-                        intervalWeeks = alarm.intervalWeeks.coerceIn(2, 4)
-                        activeWeekIndex = 0
-                        anchorDate = alarm.anchorDate
-                        weekPatterns = copiedPattern
-                        selectedSoundType = alarm.soundType
-                        selectedCustomSoundUri = alarm.customSoundUri
-                        selectedVolume = alarm.volumePercent.toFloat()
-                        selectedSnoozeMinutes = alarm.snoozeMinutes
-                        customSnoozeInput = alarm.snoozeMinutes.toString()
-                        selectedSnoozeMaxCount = alarm.snoozeMaxCount
-                        customMaxCountInput = alarm.snoozeMaxCount.toString()
-                        vibrationEnabled = alarm.vibrationEnabled
-                        skipDates = alarm.skipDateEpochDays
-                        addDates = alarm.addDateEpochDays
-                        exceptionDate = LocalDate.now()
-                        currentPage = AlarmPage.EDITOR
-                        scope.launch { scrollState.animateScrollTo(0) }
+                        openEditorWithDraft(
+                            alarm.toEditorDraft(
+                                editingAlarmId = null,
+                                editingEnabled = true,
+                                selectedLabel = copiedLabel,
+                                weekPatterns = copiedPattern
+                            )
+                        )
                     }
                 },
                 onEdit = { alarm ->
-                    editorForcedStep = null
-                    editingAlarmId = alarm.id
-                    editingEnabled = alarm.enabled
-                    selectedTime = LocalTime.of(alarm.hour, alarm.minute)
-                    selectedLabel = alarm.label
-                    intervalWeeks = alarm.intervalWeeks.coerceIn(2, 4)
-                    activeWeekIndex = 0
-                    anchorDate = alarm.anchorDate
-                    weekPatterns = listOf(
-                        alarm.weeklyPattern.getOrNull(0).orEmpty(),
-                        alarm.weeklyPattern.getOrNull(1).orEmpty(),
-                        alarm.weeklyPattern.getOrNull(2).orEmpty(),
-                        alarm.weeklyPattern.getOrNull(3).orEmpty()
+                    openEditorWithDraft(
+                        alarm.toEditorDraft(
+                            editingAlarmId = alarm.id,
+                            editingEnabled = alarm.enabled
+                        )
                     )
-                    selectedSoundType = alarm.soundType
-                    selectedCustomSoundUri = alarm.customSoundUri
-                    selectedVolume = alarm.volumePercent.toFloat()
-                    selectedSnoozeMinutes = alarm.snoozeMinutes
-                    customSnoozeInput = alarm.snoozeMinutes.toString()
-                    selectedSnoozeMaxCount = alarm.snoozeMaxCount
-                    customMaxCountInput = alarm.snoozeMaxCount.toString()
-                    vibrationEnabled = alarm.vibrationEnabled
-                    skipDates = alarm.skipDateEpochDays
-                    addDates = alarm.addDateEpochDays
-                    exceptionDate = LocalDate.now()
-                        currentPage = AlarmPage.EDITOR
-                    scope.launch { scrollState.animateScrollTo(0) }
                 },
                 onReconfigurePattern = {
                     reopenPatternSetup()
@@ -1631,66 +1934,7 @@ private fun AlarmScreen(
         }
     }
 }
-
 }
-private enum class AlarmReliabilityStatus {
-    OK,
-    WARNING,
-    ISSUE
-}
-
-@Composable
-private fun AlarmReliabilityChip(
-    status: AlarmReliabilityStatus,
-    allowOkClick: Boolean,
-    onOpenReliabilityCenter: () -> Unit
-) {
-    val ui = when (status) {
-        AlarmReliabilityStatus.OK -> ReliabilityChipUi(
-            label = "알람 정상",
-            containerColor = Color.White.copy(alpha = 0.14f),
-            textColor = Color.White.copy(alpha = 0.82f),
-            clickable = allowOkClick
-        )
-        AlarmReliabilityStatus.WARNING -> ReliabilityChipUi(
-            label = "점검 필요",
-            containerColor = Color(0xFFFFD89E),
-            textColor = Color(0xFF4A3000),
-            clickable = true
-        )
-        AlarmReliabilityStatus.ISSUE -> ReliabilityChipUi(
-            label = "권한 필요",
-            containerColor = Color(0xFFFF6B6B),
-            textColor = Color.White,
-            clickable = true
-        )
-    }
-
-    val chipModifier = if (ui.clickable) {
-        Modifier.clickable(onClick = onOpenReliabilityCenter)
-    } else {
-        Modifier
-    }
-
-    Card(
-        modifier = chipModifier,
-        colors = CardDefaults.cardColors(containerColor = ui.containerColor)
-    ) {
-        Text(
-            text = ui.label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = ui.textColor
-        )
-    }
-}
-
-private data class ReliabilityChipUi(
-    val label: String,
-    val containerColor: Color,
-    val textColor: Color,
-    val clickable: Boolean
-)
 
 private fun maybePersistReadPermission(context: android.content.Context, data: Intent?, uri: Uri) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) return
@@ -1710,4 +1954,5 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
 

@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -121,7 +121,7 @@ class RotationPresetStore(context: android.content.Context) {
                     val obj = array.optJSONObject(index) ?: return@repeat
                     val name = obj.optString("name", "").trim()
                     if (name.isBlank()) return@repeat
-                    val interval = obj.optInt("intervalWeeks", 2).coerceIn(2, 4)
+                    val interval = obj.optInt("intervalWeeks", 2).coerceIn(2, 6)
                     val anchor = LocalDate.ofEpochDay(obj.optLong("anchorEpochDay", LocalDate.now().toEpochDay()))
                     val patterns = parsePatterns(obj.optJSONArray("patterns"), interval)
                     val isDefault = obj.optBoolean("isDefault", false)
@@ -152,12 +152,12 @@ class RotationPresetStore(context: android.content.Context) {
         normalized.forEach { preset ->
             val obj = JSONObject()
                 .put("name", preset.name)
-                .put("intervalWeeks", preset.intervalWeeks.coerceIn(2, 4))
+                .put("intervalWeeks", preset.intervalWeeks.coerceIn(2, 6))
                 .put("anchorEpochDay", preset.anchorDate.toEpochDay())
                 .put("infiniteRotationEnabled", preset.infiniteRotationEnabled)
                 .put("isDefault", preset.isDefault)
             val patterns = JSONArray()
-            (0 until preset.intervalWeeks.coerceIn(2, 4)).forEach { index ->
+            (0 until preset.intervalWeeks.coerceIn(2, 6)).forEach { index ->
                 val dayArray = JSONArray()
                 preset.weekPatterns.getOrNull(index)
                     .orEmpty()
@@ -199,7 +199,7 @@ class RotationPresetStore(context: android.content.Context) {
     }
 
     private fun normalizePreset(preset: RotationPreset): RotationPreset {
-        val interval = preset.intervalWeeks.coerceIn(2, 4)
+        val interval = preset.intervalWeeks.coerceIn(2, 6)
         return preset.copy(
             name = preset.name.trim(),
             intervalWeeks = interval,

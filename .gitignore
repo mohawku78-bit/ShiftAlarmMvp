@@ -15,3 +15,9 @@ local.properties
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Local sandbox caches/logs
+.gradle-local/
+.android-local/
+hs_err_pid*.log
+replay_pid*.log

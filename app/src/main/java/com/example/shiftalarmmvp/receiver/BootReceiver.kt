@@ -7,6 +7,7 @@ import com.example.shiftalarmmvp.data.AlarmDatabase
 import com.example.shiftalarmmvp.data.toDomain
 import com.example.shiftalarmmvp.recovery.RescheduleRecoveryStore
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
+import com.example.shiftalarmmvp.scheduler.NightlyReliabilityCheckScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,6 +51,7 @@ class BootReceiver : BroadcastReceiver() {
                     scheduledCount = scheduledCount,
                     blockedCount = blockedCount
                 )
+                NightlyReliabilityCheckScheduler.schedule(context)
                 pendingResult.finish()
             }
         }

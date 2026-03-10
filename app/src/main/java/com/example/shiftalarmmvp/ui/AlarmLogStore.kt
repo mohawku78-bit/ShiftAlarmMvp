@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.content.Context
 import org.json.JSONArray
@@ -19,7 +19,8 @@ enum class AlarmLogType {
     MANUAL_SKIP_SET,
     MANUAL_SKIP_CLEAR,
     MANUAL_SHIFT_CHANGE,
-    MANUAL_UNDO
+    MANUAL_UNDO,
+    MANUAL_RECOVERY_ACTION
 }
 
 data class AlarmLogEntry(

@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.service
+package com.example.shiftalarmmvp.service
 
 import android.app.AlarmManager
 import android.app.Notification
@@ -21,6 +21,8 @@ import androidx.core.app.NotificationCompat
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmActionReceiver
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
+import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
+import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
 import com.example.shiftalarmmvp.ui.AlarmLogStore
 import com.example.shiftalarmmvp.ui.AlarmLogType
@@ -391,64 +393,69 @@ class AlarmRingingService : Service() {
             .setFullScreenIntent(fullScreenIntent, true)
             .addAction(0, getString(com.example.shiftalarmmvp.R.string.notification_stop), stopIntent)
 
-        val hasLimit = snoozeMaxCount > 0
-        val canSnooze = !hasLimit || currentSnoozeCount < snoozeMaxCount
-        val canOneMore = hasLimit && currentSnoozeCount == snoozeMaxCount
+        val isSelfTestAlarm = alarmId == 999_999L
+        if (isSelfTestAlarm) {
+            builder.setSubText("2분 테스트 알람 · 울림 확인 후 끄기를 누르세요.")
+        } else {
+            val hasLimit = snoozeMaxCount > 0
+            val canSnooze = !hasLimit || currentSnoozeCount < snoozeMaxCount
+            val canOneMore = hasLimit && currentSnoozeCount == snoozeMaxCount
 
-        when {
-            canSnooze -> {
-                val actionText = if (hasLimit) {
-                    getString(
-                        com.example.shiftalarmmvp.R.string.notification_snooze_count,
-                        snoozeMinutes,
-                        currentSnoozeCount + 1,
-                        snoozeMaxCount
+            when {
+                canSnooze -> {
+                    val actionText = if (hasLimit) {
+                        getString(
+                            com.example.shiftalarmmvp.R.string.notification_snooze_count,
+                            snoozeMinutes,
+                            currentSnoozeCount + 1,
+                            snoozeMaxCount
+                        )
+                    } else {
+                        getString(com.example.shiftalarmmvp.R.string.notification_snooze_after, snoozeMinutes)
+                    }
+                    val snoozeIntent = PendingIntent.getBroadcast(
+                        this,
+                        alarmId.toInt() + 40_000,
+                        Intent(this, AlarmActionReceiver::class.java)
+                            .setAction(ACTION_SNOOZE)
+                            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+                            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+                            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+                            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+                            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
-                } else {
-                    getString(com.example.shiftalarmmvp.R.string.notification_snooze_after, snoozeMinutes)
+                    builder.addAction(0, actionText, snoozeIntent)
                 }
-                val snoozeIntent = PendingIntent.getBroadcast(
-                    this,
-                    alarmId.toInt() + 40_000,
-                    Intent(this, AlarmActionReceiver::class.java)
-                        .setAction(ACTION_SNOOZE)
-                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                        .putExtra(AlarmReceiver.EXTRA_LABEL, label)
-                        .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
-                        .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
-                        .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
-                        .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                builder.addAction(0, actionText, snoozeIntent)
-            }
 
-            canOneMore -> {
-                builder.setSubText(getString(com.example.shiftalarmmvp.R.string.notification_snooze_limit))
-                val oneMoreIntent = PendingIntent.getBroadcast(
-                    this,
-                    alarmId.toInt() + 60_000,
-                    Intent(this, AlarmActionReceiver::class.java)
-                        .setAction(ACTION_ONE_MORE)
-                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                        .putExtra(AlarmReceiver.EXTRA_LABEL, label)
-                        .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
-                        .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
-                        .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
-                        .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                builder.addAction(0, getString(com.example.shiftalarmmvp.R.string.notification_one_more), oneMoreIntent)
-            }
+                canOneMore -> {
+                    builder.setSubText(getString(com.example.shiftalarmmvp.R.string.notification_snooze_limit))
+                    val oneMoreIntent = PendingIntent.getBroadcast(
+                        this,
+                        alarmId.toInt() + 60_000,
+                        Intent(this, AlarmActionReceiver::class.java)
+                            .setAction(ACTION_ONE_MORE)
+                            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+                            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+                            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+                            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+                            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    builder.addAction(0, getString(com.example.shiftalarmmvp.R.string.notification_one_more), oneMoreIntent)
+                }
 
-            else -> {
-                builder.setSubText(getString(com.example.shiftalarmmvp.R.string.notification_snooze_finished))
+                else -> {
+                    builder.setSubText(getString(com.example.shiftalarmmvp.R.string.notification_snooze_finished))
+                }
             }
         }
 
@@ -514,6 +521,8 @@ class AlarmRingingService : Service() {
         const val ACTION_STOP = "com.example.shiftalarmmvp.action.STOP"
         const val ACTION_SNOOZE = "com.example.shiftalarmmvp.action.SNOOZE"
         const val ACTION_ONE_MORE = "com.example.shiftalarmmvp.action.ONE_MORE"
+        const val ACTION_DISMISS_ALERT = "com.example.shiftalarmmvp.action.DISMISS_ALERT"
+        const val ACTION_RELIABILITY_STATE_CHANGED = "com.example.shiftalarmmvp.action.RELIABILITY_STATE_CHANGED"
 
         private const val CHANNEL_ID = "ringing_alarm_channel_silent_v4"
         private const val NOTIFICATION_ID = 1001
@@ -523,6 +532,16 @@ class AlarmRingingService : Service() {
 
         fun stop(context: Context, alarmId: Long) {
             val appContext = context.applicationContext
+            if (alarmId == 999_999L) {
+                val coordinator = ReliabilityStateCoordinator(appContext)
+                val selfTestEvent = coordinator.snapshot().selfTestStatus?.lastEvent
+                val shouldPass = selfTestEvent == SelfTestStatus.Event.TRIGGERED ||
+                    selfTestEvent == SelfTestStatus.Event.SCHEDULED
+                if (shouldPass) {
+                    coordinator.recordSelfTestFeedback(SelfTestStatus.Feedback.PASSED)
+                }
+            }
+
             runCatching {
                 appContext.getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
             }
@@ -530,6 +549,22 @@ class AlarmRingingService : Service() {
             runCatching {
                 appContext.stopService(
                     Intent(appContext, AlarmRingingService::class.java)
+                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                )
+            }
+
+            runCatching {
+                appContext.sendBroadcast(
+                    Intent(ACTION_DISMISS_ALERT)
+                        .setPackage(appContext.packageName)
+                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                )
+            }
+
+            runCatching {
+                appContext.sendBroadcast(
+                    Intent(ACTION_RELIABILITY_STATE_CHANGED)
+                        .setPackage(appContext.packageName)
                         .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
                 )
             }
@@ -596,8 +631,3 @@ class AlarmRingingService : Service() {
         }
     }
 }
-
-
-
-
-

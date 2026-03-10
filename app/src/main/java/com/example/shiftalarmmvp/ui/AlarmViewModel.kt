@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -42,7 +42,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         addDateEpochDays: Set<LocalDate>
     ) {
         viewModelScope.launch {
-            val interval = intervalWeeks.coerceIn(1, 4)
+            val interval = intervalWeeks.coerceIn(1, 6)
             val normalizedPattern = (0 until interval).map { index -> weeklyPattern.getOrNull(index).orEmpty() }
             val alarm = AlarmRule(
                 id = 0,
@@ -87,7 +87,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         addDateEpochDays: Set<LocalDate>
     ) {
         viewModelScope.launch {
-            val interval = intervalWeeks.coerceIn(1, 4)
+            val interval = intervalWeeks.coerceIn(1, 6)
             val normalizedPattern = (0 until interval).map { index -> weeklyPattern.getOrNull(index).orEmpty() }
             val updated = AlarmRule(
                 id = id,

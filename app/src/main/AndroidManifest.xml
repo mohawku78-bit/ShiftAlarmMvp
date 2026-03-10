@@ -54,6 +54,10 @@
             </intent-filter>
         </receiver>
 
+
+        <receiver
+            android:name=".receiver.NightlyReliabilityCheckReceiver"
+            android:exported="false" />
         <receiver
             android:name=".receiver.BootReceiver"
             android:enabled="true"
