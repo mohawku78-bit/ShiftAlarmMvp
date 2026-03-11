@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import android.Manifest
 import android.app.Activity
@@ -601,7 +601,7 @@ private fun AlarmScreen(
     var setupWizardDismissed by remember { mutableStateOf(setupPrefs.getBoolean("dismissed", false)) }
     var shiftQuickSetupDone by remember { mutableStateOf(setupPrefs.getBoolean("shift_quick_setup_done", false)) }
     var shiftQuickSetupHidden by remember { mutableStateOf(setupPrefs.getBoolean("shift_quick_setup_hidden", false)) }
-    var selectedShiftCategory by remember {
+    var persistedShiftCategory by remember {
         mutableStateOf(
             runCatching {
                 ShiftCategory.valueOf(
@@ -611,15 +611,11 @@ private fun AlarmScreen(
             }.getOrDefault(ShiftCategory.THREE_SHIFT)
         )
     }
-    var firstSetupWizardState by rememberSaveable(stateSaver = FirstSetupWizardState.Saver) {
-        mutableStateOf(FirstSetupWizardState())
-    }
 
     var selectedTime by remember { mutableStateOf(LocalTime.of(7, 0)) }
     var selectedLabel by remember { mutableStateOf("") }
     var intervalWeeks by remember { mutableIntStateOf(2) }
     var activeWeekIndex by remember { mutableIntStateOf(0) }
-    var anchorDate by remember { mutableStateOf(LocalDate.now()) }
     var weekPatterns by remember {
         mutableStateOf(
             listOf(
@@ -665,21 +661,6 @@ private fun AlarmScreen(
     var editorForcedStep by remember { mutableStateOf<Int?>(null) }
     var selfTestMessage by remember { mutableStateOf("") }
 
-    fun persistSelectedCategory(category: ShiftCategory) {
-        selectedShiftCategory = category
-        setupPrefs.edit().putString("selected_shift_category", category.name).apply()
-    }
-
-    fun reopenPatternSetup() {
-        shiftQuickSetupDone = false
-        shiftQuickSetupHidden = false
-        firstSetupWizardState = FirstSetupWizardState()
-        setupPrefs.edit()
-            .putBoolean("shift_quick_setup_done", false)
-            .putBoolean("shift_quick_setup_hidden", false)
-            .apply()
-        currentPage = AlarmPage.PATTERN
-    }
 
     fun openReliabilityCenter() {
         editorForcedStep = 3
@@ -703,7 +684,6 @@ private fun AlarmScreen(
         }
     }
 
-    var customWorkTypeInput by remember { mutableStateOf("") }
     val defaultDayType = stringResource(R.string.main_default_type_day)
     val defaultNightType = stringResource(R.string.main_default_type_night)
     val defaultOffType = stringResource(R.string.main_default_type_off)
@@ -711,11 +691,36 @@ private fun AlarmScreen(
     val defaultRotationTypes = remember(defaultDayType, defaultNightType, defaultOffType, defaultRestType) {
         listOf(defaultDayType, defaultNightType, defaultOffType, defaultRestType)
     }
-    var rotationSequence by remember(defaultRotationTypes) { mutableStateOf(defaultRotationTypes) }
-    var todayRotationIndex by remember { mutableIntStateOf(0) }
-    var workTypeConfigs by remember(defaultRotationTypes) { mutableStateOf(defaultWorkTypeConfigs(defaultRotationTypes.distinct())) }
-    var infiniteRotationEnabled by remember { mutableStateOf(true) }
-    var autoBuildFeedback by remember { mutableStateOf("") }
+    fun currentShiftSetupDefaults() = ShiftSetupDefaults(
+        defaultRotationTypes = defaultRotationTypes,
+        initialCategory = persistedShiftCategory
+    )
+    var shiftSetupDraft by remember(defaultRotationTypes) {
+        mutableStateOf(createInitialShiftSetupDraft(currentShiftSetupDefaults()))
+    }
+    val selectedShiftCategory = shiftSetupDraft.selectedCategory
+    val infiniteRotationEnabled = shiftSetupDraft.infiniteRotationEnabled
+    val anchorDate = shiftSetupDraft.anchorDate
+
+    fun updateShiftSetupDraft(transform: (ShiftSetupDraft) -> ShiftSetupDraft) {
+        val updated = transform(shiftSetupDraft).normalized()
+        if (updated.selectedCategory != persistedShiftCategory) {
+            persistedShiftCategory = updated.selectedCategory
+            setupPrefs.edit().putString("selected_shift_category", updated.selectedCategory.name).apply()
+        }
+        shiftSetupDraft = updated
+    }
+
+    fun reopenPatternSetup() {
+        shiftQuickSetupDone = false
+        shiftQuickSetupHidden = false
+        updateShiftSetupDraft { it.reduce(ShiftSetupAction.ReopenWizard, currentShiftSetupDefaults()) }
+        setupPrefs.edit()
+            .putBoolean("shift_quick_setup_done", false)
+            .putBoolean("shift_quick_setup_hidden", false)
+            .apply()
+        currentPage = AlarmPage.PATTERN
+    }
     val presetStore = remember(context) { RotationPresetStore(context) }
     val savedPresets = remember { mutableStateListOf<RotationPreset>() }
     val alarmLogStore = remember(context) { AlarmLogStore(context) }
@@ -790,7 +795,7 @@ private fun AlarmScreen(
         selectedLabel = draft.selectedLabel
         activeWeekIndex = 0
         applyIntervalWeeks(draft.intervalWeeks, draft.weekPatterns)
-        anchorDate = draft.anchorDate
+        updateShiftSetupDraft { it.copy(anchorDate = draft.anchorDate) }
         selectedSoundType = draft.selectedSoundType
         selectedCustomSoundUri = draft.selectedCustomSoundUri
         selectedVolume = draft.selectedVolume
@@ -1249,29 +1254,35 @@ private fun AlarmScreen(
         recoveryActionBlockedUntilMillis = now + 1_500L
         runRecoverySummaryAction(showToast = showToast)
     }
-    fun runAutoBuildFromShiftConfig(requireInfinite: Boolean): Boolean {
-        if (rotationSequence.isEmpty()) {
-            autoBuildFeedback = context.getString(R.string.main_auto_build_empty_rotation)
-            return false
-        }
-        if (requireInfinite && !infiniteRotationEnabled) {
-            autoBuildFeedback = context.getString(R.string.main_auto_build_requires_infinite)
-            return false
-        }
-        if (workTypeConfigs.none { it.enabled }) {
-            autoBuildFeedback = context.getString(R.string.main_auto_build_no_enabled_types)
+    fun runAutoBuildFromShiftConfig(
+        draft: ShiftSetupDraft = shiftSetupDraft,
+        requireInfinite: Boolean
+    ): Boolean {
+        val autoBuildInput = draft.toAutoBuildInput()
+        fun fail(message: String): Boolean {
+            updateShiftSetupDraft { it.copy(autoBuildFeedback = message) }
             return false
         }
 
-        val built = buildWorkTemplateRotation(rotationSequence, todayRotationIndex)
-        val uniqueTypes = rotationSequence.distinct()
+        if (autoBuildInput.rotationSequence.isEmpty()) {
+            return fail(context.getString(R.string.main_auto_build_empty_rotation))
+        }
+        if (requireInfinite && !autoBuildInput.infiniteRotationEnabled) {
+            return fail(context.getString(R.string.main_auto_build_requires_infinite))
+        }
+        if (autoBuildInput.workTypeConfigs.none { it.enabled }) {
+            return fail(context.getString(R.string.main_auto_build_no_enabled_types))
+        }
+
+        val built = buildWorkTemplateRotation(autoBuildInput.rotationSequence, autoBuildInput.todayRotationIndex)
+        val uniqueTypes = autoBuildInput.rotationSequence.distinct()
         val typeToPattern = uniqueTypes.associateWith { type ->
-            buildWeeklyPatternForType(built, type, anchor = anchorDate)
+            buildWeeklyPatternForType(built, type, anchor = autoBuildInput.anchorDate)
         }
 
         var createdCount = 0
         var invalidCount = 0
-        workTypeConfigs.forEach { cfg ->
+        autoBuildInput.workTypeConfigs.forEach { cfg ->
             if (!cfg.enabled) return@forEach
             val pattern = typeToPattern[cfg.type].orEmpty()
             val isVacationType = hasRestFamilyToken(cfg.type)
@@ -1287,7 +1298,7 @@ private fun AlarmScreen(
                     minute = primary.minute,
                     weeklyPattern = pattern,
                     intervalWeeks = built.intervalWeeks,
-                    anchorDate = anchorDate,
+                    anchorDate = autoBuildInput.anchorDate,
                     soundType = selectedSoundType,
                     customSoundUri = selectedCustomSoundUri,
                     volumePercent = selectedVolume.toInt(),
@@ -1311,7 +1322,7 @@ private fun AlarmScreen(
                         minute = second.minute,
                         weeklyPattern = pattern,
                         intervalWeeks = built.intervalWeeks,
-                        anchorDate = anchorDate,
+                        anchorDate = autoBuildInput.anchorDate,
                         soundType = selectedSoundType,
                         customSoundUri = selectedCustomSoundUri,
                         volumePercent = selectedVolume.toInt(),
@@ -1326,7 +1337,7 @@ private fun AlarmScreen(
             }
         }
 
-        autoBuildFeedback = when {
+        val feedback = when {
             createdCount == 0 -> context.getString(R.string.main_auto_build_none_created)
             invalidCount > 0 -> context.getString(
                 R.string.main_auto_build_partial_invalid_format,
@@ -1335,6 +1346,7 @@ private fun AlarmScreen(
             )
             else -> context.getString(R.string.main_auto_build_success_format, createdCount)
         }
+        updateShiftSetupDraft { it.copy(autoBuildFeedback = feedback) }
         return createdCount > 0
     }
     val primaryPages = listOf(AlarmPage.TODAY, AlarmPage.PATTERN, AlarmPage.MANAGE)
@@ -1816,7 +1828,7 @@ private fun AlarmScreen(
                 selectedTime = selectedTime,
                 onSelectedTimeChange = { selectedTime = it },
                 anchorDate = anchorDate,
-                onAnchorDateChange = { anchorDate = it },
+                onAnchorDateChange = { updateShiftSetupDraft { draft -> draft.copy(anchorDate = it) } },
                 selectedSoundType = selectedSoundType,
                 onSelectedSoundTypeChange = { selectedSoundType = it },
                 onPickCustomSound = {
@@ -1867,7 +1879,7 @@ private fun AlarmScreen(
                 weekPatterns = normalizeWeekPatterns(intervalWeeks, weekPatterns),
                 onWeekPatternsChange = { weekPatterns = normalizeWeekPatterns(intervalWeeks, it) },
                 infiniteRotationEnabled = infiniteRotationEnabled,
-                onInfiniteRotationEnabledChange = { infiniteRotationEnabled = it },
+                onInfiniteRotationEnabledChange = { updateShiftSetupDraft { draft -> draft.copy(infiniteRotationEnabled = it) } },
                 canSaveByPermission = canSaveByPermission,
                 onSaveOrUpdate = {
                     val editId = editingAlarmId
@@ -1944,116 +1956,30 @@ private fun AlarmScreen(
                 }
                 if (selectedPatternTab == 0) {
                     ShiftPage(
-                customWorkTypeInput = customWorkTypeInput,
-                onCustomWorkTypeInputChange = { customWorkTypeInput = it },
-                onAddType = {
-                    val name = normalizeWorkType(customWorkTypeInput)
-                    if (name.isBlank()) {
-                        autoBuildFeedback = context.getString(R.string.main_shift_type_name_empty)
-                        return@ShiftPage
-                    }
-                    if (workTypeConfigs.any { normalizeWorkType(it.type) == name }) {
-                        autoBuildFeedback = context.getString(R.string.main_shift_type_exists)
-                        return@ShiftPage
-                    }
-                    workTypeConfigs = workTypeConfigs + WorkTypeAlarmConfig(
-                        type = name,
-                        enabled = true,
-                        primaryTime = defaultPrimaryTime(name),
-                        secondaryTime = ""
-                    )
-                    customWorkTypeInput = ""
-                    autoBuildFeedback = context.getString(R.string.main_shift_type_added_format, name)
-                },
-                onResetDefaults = {
-                    val defaults = defaultWorkTypeConfigs(defaultRotationTypes)
-                    workTypeConfigs = defaults
-                    rotationSequence = defaultRotationTypes
-                    todayRotationIndex = 0
-                    persistSelectedCategory(ShiftCategory.THREE_SHIFT)
-                    autoBuildFeedback = context.getString(R.string.main_shift_defaults_reset)
-                },
-                quickTemplates = QUICK_SHIFT_TEMPLATES,
-                onApplyQuickTemplate = { template ->
-                    val normalized = template.sequence.map(::normalizeWorkType).filter { it.isNotBlank() }
-                    val configTypes = (normalized + listOf(defaultRestType)).distinct()
-                    workTypeConfigs = defaultWorkTypeConfigs(configTypes)
-                    rotationSequence = normalized
-                    todayRotationIndex = 0
-                    infiniteRotationEnabled = true
-                    persistSelectedCategory(template.category)
-                    autoBuildFeedback = context.getString(
-                        R.string.main_shift_quick_template_applied_format,
-                        context.getString(template.labelResId)
-                    )
-                },
-                workTypeConfigs = workTypeConfigs,
-                wizardState = firstSetupWizardState,
-                onWizardStateChange = { firstSetupWizardState = it },
-                onAppendRotationType = { type ->
-                    rotationSequence = rotationSequence + normalizeWorkType(type)
-                    autoBuildFeedback = context.getString(R.string.main_shift_rotation_type_added_format, type)
-                },
-                rotationSequence = rotationSequence,
-                onDropLastRotation = {
-                    if (rotationSequence.isNotEmpty()) {
-                        rotationSequence = rotationSequence.dropLast(1)
-                        todayRotationIndex = todayRotationIndex.coerceAtMost((rotationSequence.size - 1).coerceAtLeast(0))
-                    }
-                },
-                onClearRotation = {
-                    rotationSequence = emptyList()
-                    todayRotationIndex = 0
-                },
-                todayRotationIndex = todayRotationIndex,
-                onTodayRotationIndexChange = { todayRotationIndex = it },
-                onToggleConfigEnabled = { index, checked ->
-                    val copy = workTypeConfigs.toMutableList()
-                    copy[index] = copy[index].copy(enabled = checked)
-                    workTypeConfigs = copy
-                },
-                onDeleteConfigType = { target ->
-                    workTypeConfigs = workTypeConfigs.filterNot { it.type == target }
-                    rotationSequence = rotationSequence.filterNot { it == target }
-                    todayRotationIndex = todayRotationIndex.coerceAtMost((rotationSequence.size - 1).coerceAtLeast(0))
-                },
-                onConfigPrimaryChange = { index, value ->
-                    val copy = workTypeConfigs.toMutableList()
-                    copy[index] = copy[index].copy(primaryTime = value)
-                    workTypeConfigs = copy
-                },
-                onConfigSecondaryChange = { index, value ->
-                    val copy = workTypeConfigs.toMutableList()
-                    copy[index] = copy[index].copy(secondaryTime = value)
-                    workTypeConfigs = copy
-                },
-                infiniteRotationEnabled = infiniteRotationEnabled,
-                onInfiniteRotationEnabledChange = { infiniteRotationEnabled = it },
-                onAutoBuild = { runAutoBuildFromShiftConfig(requireInfinite = true) },
-                showFirstSetupWizard = isFirstSetupWizardActive,
-                onCompleteFirstSetup = {
-                    val success = runAutoBuildFromShiftConfig(requireInfinite = false)
-                    if (success) {
-                        shiftQuickSetupDone = true
-                        shiftQuickSetupHidden = true
-                        firstSetupWizardState = FirstSetupWizardState()
-                        setupPrefs.edit()
-                            .putBoolean("shift_quick_setup_done", true)
-                            .putBoolean("shift_quick_setup_hidden", true)
-                            .apply()
-                        currentPage = AlarmPage.TODAY
-                    }
-                },
-                onHideFirstSetupWizard = {
-                    shiftQuickSetupHidden = true
-                    setupPrefs.edit().putBoolean("shift_quick_setup_hidden", true).apply()
-                },
-                onReopenFirstSetupWizard = { reopenPatternSetup() },
-                autoBuildFeedback = autoBuildFeedback,
-                selectedCategory = selectedShiftCategory,
-                onSelectedCategoryChange = { persistSelectedCategory(it) },
-                anchorDate = anchorDate,
-                onAnchorDateChange = { anchorDate = it },
+                        draft = shiftSetupDraft,
+                        defaults = currentShiftSetupDefaults(),
+                        onDraftChange = { transform -> updateShiftSetupDraft(transform) },
+                        quickTemplates = QUICK_SHIFT_TEMPLATES,
+                        showFirstSetupWizard = isFirstSetupWizardActive,
+                        onAutoBuild = { runAutoBuildFromShiftConfig(requireInfinite = true) },
+                        onCompleteFirstSetup = {
+                            val success = runAutoBuildFromShiftConfig(requireInfinite = false)
+                            if (success) {
+                                shiftQuickSetupDone = true
+                                shiftQuickSetupHidden = true
+                                updateShiftSetupDraft { it.copy(wizardState = FirstSetupWizardState()) }
+                                setupPrefs.edit()
+                                    .putBoolean("shift_quick_setup_done", true)
+                                    .putBoolean("shift_quick_setup_hidden", true)
+                                    .apply()
+                                currentPage = AlarmPage.TODAY
+                            }
+                        },
+                        onHideFirstSetupWizard = {
+                            shiftQuickSetupHidden = true
+                            setupPrefs.edit().putBoolean("shift_quick_setup_hidden", true).apply()
+                        },
+                        onReopenFirstSetupWizard = { reopenPatternSetup() }
                     )
                 } else {
                     ExceptionPage(
@@ -2156,10 +2082,14 @@ private fun AlarmScreen(
                 onApplyPreset = { preset ->
                     val presetInterval = normalizeIntervalWeeks(preset.intervalWeeks)
                     activeWeekIndex = 0
-                    anchorDate = preset.anchorDate
                     applyIntervalWeeks(presetInterval, preset.weekPatterns)
                     presetNameInput = preset.name
-                    infiniteRotationEnabled = preset.infiniteRotationEnabled
+                    updateShiftSetupDraft {
+                        it.copy(
+                            anchorDate = preset.anchorDate,
+                            infiniteRotationEnabled = preset.infiniteRotationEnabled
+                        )
+                    }
                 },
                 onDeletePreset = { name ->
                     presetStore.deleteByName(name)
@@ -2176,7 +2106,7 @@ private fun AlarmScreen(
                     savedPresets.clear()
                     savedPresets.addAll(presetStore.load())
                     if (presetNameInput.equals(name, ignoreCase = true)) {
-                        infiniteRotationEnabled = enabled
+                        updateShiftSetupDraft { it.copy(infiniteRotationEnabled = enabled) }
                     }
                 },
                 onMoveUp = { name ->
@@ -2282,6 +2212,7 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
 
 
 

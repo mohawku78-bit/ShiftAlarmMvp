@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -26,6 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,51 +38,101 @@ import java.time.YearMonth
 
 @Composable
 fun ShiftPage(
-    customWorkTypeInput: String,
-    onCustomWorkTypeInputChange: (String) -> Unit,
-    onAddType: () -> Unit,
-    onResetDefaults: () -> Unit,
+    draft: ShiftSetupDraft,
+    defaults: ShiftSetupDefaults,
+    onDraftChange: ((ShiftSetupDraft) -> ShiftSetupDraft) -> Unit,
     quickTemplates: List<QuickShiftTemplate>,
-    onApplyQuickTemplate: (QuickShiftTemplate) -> Unit,
-    workTypeConfigs: List<WorkTypeAlarmConfig>,
-    onAppendRotationType: (String) -> Unit,
-    rotationSequence: List<String>,
-    onDropLastRotation: () -> Unit,
-    onClearRotation: () -> Unit,
-    todayRotationIndex: Int,
-    onTodayRotationIndexChange: (Int) -> Unit,
-    onToggleConfigEnabled: (Int, Boolean) -> Unit,
-    onDeleteConfigType: (String) -> Unit,
-    onConfigPrimaryChange: (Int, String) -> Unit,
-    onConfigSecondaryChange: (Int, String) -> Unit,
-    infiniteRotationEnabled: Boolean,
-    onInfiniteRotationEnabledChange: (Boolean) -> Unit,
-    onAutoBuild: () -> Unit,
-    wizardState: FirstSetupWizardState,
-    onWizardStateChange: (FirstSetupWizardState) -> Unit,
     showFirstSetupWizard: Boolean,
+    onAutoBuild: () -> Unit,
     onCompleteFirstSetup: () -> Unit,
     onHideFirstSetupWizard: () -> Unit,
     onReopenFirstSetupWizard: () -> Unit,
-    autoBuildFeedback: String,
-    selectedCategory: ShiftCategory,
-    onSelectedCategoryChange: (ShiftCategory) -> Unit,
-    anchorDate: LocalDate,
-    onAnchorDateChange: (LocalDate) -> Unit,
 ) {
-    val normalizedWizardState = wizardState.normalized(workTypeConfigs.size)
+    val context = LocalContext.current
+    val normalizedDraft = draft.normalized()
+    val normalizedWizardState = normalizedDraft.wizardState
+    val customWorkTypeInput = normalizedDraft.customWorkTypeInput
+    val workTypeConfigs = normalizedDraft.workTypeConfigs
+    val rotationSequence = normalizedDraft.rotationSequence
+    val todayRotationIndex = normalizedDraft.todayRotationIndex
+    val infiniteRotationEnabled = normalizedDraft.infiniteRotationEnabled
+    val autoBuildFeedback = normalizedDraft.autoBuildFeedback
+    val selectedCategory = normalizedDraft.selectedCategory
+    val anchorDate = normalizedDraft.anchorDate
     val wizardStep = normalizedWizardState.step
     val showAdvanced = normalizedWizardState.showAdvanced
     val showStep1Advanced = normalizedWizardState.showStep1Advanced
     val selectedStep1TypeIndex = normalizedWizardState.selectedStep1TypeIndex
     val selectedAlarmSlot = normalizedWizardState.selectedAlarmSlot
 
+    fun updateDraft(transform: (ShiftSetupDraft) -> ShiftSetupDraft) {
+        onDraftChange(transform)
+    }
+
+    fun dispatch(action: ShiftSetupAction) {
+        updateDraft { currentDraft -> currentDraft.reduce(action, defaults) }
+    }
+
     fun updateWizardState(transform: (FirstSetupWizardState) -> FirstSetupWizardState) {
-        onWizardStateChange(transform(normalizedWizardState).normalized(workTypeConfigs.size))
+        updateDraft { currentDraft ->
+            val currentWizardState = currentDraft.normalized().wizardState
+            currentDraft.copy(wizardState = transform(currentWizardState)).normalized()
+        }
+    }
+
+    val onCustomWorkTypeInputChange: (String) -> Unit = {
+        dispatch(ShiftSetupAction.UpdateCustomWorkTypeInput(it))
+    }
+    val onAddType: () -> Unit = {
+        updateDraft { currentDraft ->
+            val normalizedName = normalizeWorkType(currentDraft.customWorkTypeInput)
+            currentDraft.reduce(
+                ShiftSetupAction.AddType(
+                    emptyFeedback = context.getString(R.string.main_shift_type_name_empty),
+                    existsFeedback = context.getString(R.string.main_shift_type_exists),
+                    addedFeedback = context.getString(R.string.main_shift_type_added_format, normalizedName)
+                ),
+                defaults
+            )
+        }
+    }
+    val onResetDefaults: () -> Unit = {
+        dispatch(ShiftSetupAction.ResetDefaults(context.getString(R.string.main_shift_defaults_reset)))
+    }
+    val onAppendRotationType: (String) -> Unit = { type ->
+        dispatch(
+            ShiftSetupAction.AppendRotationType(
+                type = type,
+                feedback = context.getString(R.string.main_shift_rotation_type_added_format, type)
+            )
+        )
+    }
+    val onDropLastRotation: () -> Unit = { dispatch(ShiftSetupAction.DropLastRotation) }
+    val onClearRotation: () -> Unit = { dispatch(ShiftSetupAction.ClearRotation) }
+    val onTodayRotationIndexChange: (Int) -> Unit = {
+        dispatch(ShiftSetupAction.ChangeTodayRotationIndex(it))
+    }
+    val onToggleConfigEnabled: (Int, Boolean) -> Unit = { index, checked ->
+        dispatch(ShiftSetupAction.ToggleConfigEnabled(index, checked))
+    }
+    val onDeleteConfigType: (String) -> Unit = {
+        dispatch(ShiftSetupAction.DeleteConfigType(it))
+    }
+    val onConfigPrimaryChange: (Int, String) -> Unit = { index, value ->
+        dispatch(ShiftSetupAction.ChangePrimaryTime(index, value))
+    }
+    val onConfigSecondaryChange: (Int, String) -> Unit = { index, value ->
+        dispatch(ShiftSetupAction.ChangeSecondaryTime(index, value))
+    }
+    val onInfiniteRotationEnabledChange: (Boolean) -> Unit = {
+        dispatch(ShiftSetupAction.SetInfiniteRotationEnabled(it))
+    }
+    val onAnchorDateChange: (LocalDate) -> Unit = {
+        dispatch(ShiftSetupAction.ChangeAnchorDate(it))
     }
 
     BackHandler(enabled = showFirstSetupWizard && wizardStep > 0) {
-        updateWizardState { it.back() }
+        dispatch(ShiftSetupAction.Back)
     }
 
     val representativeTemplates = quickTemplates.filter {
@@ -92,6 +144,19 @@ fun ShiftPage(
         )
     }.ifEmpty { quickTemplates.take(4) }
     val categoryTemplates: List<QuickShiftTemplate> = if (selectedCategory == ShiftCategory.CUSTOM) emptyList() else representativeTemplates
+    fun onSelectedCategoryChange(category: ShiftCategory) {
+        dispatch(
+            ShiftSetupAction.SelectCategory(
+                category = category,
+                selectedTemplateId = if (category == ShiftCategory.CUSTOM) {
+                    null
+                } else {
+                    representativeTemplates.firstOrNull()?.id
+                }
+            )
+        )
+    }
+
     val selectedTemplate = categoryTemplates.firstOrNull { it.id == normalizedWizardState.selectedTemplateId }
         ?: categoryTemplates.firstOrNull()
     val usesCustomPattern = selectedCategory == ShiftCategory.CUSTOM
@@ -108,11 +173,23 @@ fun ShiftPage(
 
     fun advanceWizard() {
         if (!canAdvanceWizard) return
-        if (shouldApplyQuickTemplate) {
-            val chosen = selectedTemplate ?: categoryTemplates.firstOrNull() ?: return
-            onApplyQuickTemplate(chosen)
+        updateDraft { currentDraft ->
+            var nextDraft = currentDraft
+            if (shouldApplyQuickTemplate) {
+                val chosen = selectedTemplate ?: categoryTemplates.firstOrNull() ?: return@updateDraft currentDraft
+                nextDraft = nextDraft.reduce(
+                    ShiftSetupAction.ApplyQuickTemplate(
+                        template = chosen,
+                        feedback = context.getString(
+                            R.string.main_shift_quick_template_applied_format,
+                            context.getString(chosen.labelResId)
+                        )
+                    ),
+                    defaults
+                )
+            }
+            nextDraft.reduce(ShiftSetupAction.Next, defaults)
         }
-        updateWizardState { it.next() }
     }
     val wizardLastStep = 2
     val wizardTotalSteps = wizardLastStep + 1
@@ -150,7 +227,7 @@ fun ShiftPage(
 
     if (showFirstSetupWizard) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(ShiftSetupTestTags.WIZARD_ROOT),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -158,28 +235,33 @@ fun ShiftPage(
                     Icon(Icons.Filled.Settings, contentDescription = null)
                     Text(stringResource(R.string.shift_wizard_title), style = MaterialTheme.typography.titleMedium)
                 }
-                Text(stringResource(R.string.shift_wizard_step_format, wizardStep + 1, wizardTotalSteps))
+                Text(
+                    stringResource(R.string.shift_wizard_step_format, wizardStep + 1, wizardTotalSteps),
+                    modifier = Modifier.testTag(ShiftSetupTestTags.STEP_LABEL)
+                )
 
                 when (wizardStep) {
                     0 -> {
                         Text(stringResource(R.string.shift_step_pattern_intro))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            CategoryButton(stringResource(R.string.shift_category_representative), selectedCategory != ShiftCategory.CUSTOM) {
-                                onSelectedCategoryChange(ShiftCategory.THREE_SHIFT)
-                                updateWizardState {
-                                    it.copy(selectedTemplateId = representativeTemplates.firstOrNull()?.id)
-                                }
-                            }
-                            CategoryButton(stringResource(R.string.shift_category_custom), selectedCategory == ShiftCategory.CUSTOM) {
-                                onSelectedCategoryChange(ShiftCategory.CUSTOM)
-                                updateWizardState { it.copy(selectedTemplateId = null) }
-                            }
+                            CategoryButton(
+                                label = stringResource(R.string.shift_category_representative),
+                                selected = selectedCategory != ShiftCategory.CUSTOM,
+                                modifier = Modifier.testTag(ShiftSetupTestTags.CATEGORY_REPRESENTATIVE),
+                                onClick = { onSelectedCategoryChange(ShiftCategory.THREE_SHIFT) }
+                            )
+                            CategoryButton(
+                                label = stringResource(R.string.shift_category_custom),
+                                selected = selectedCategory == ShiftCategory.CUSTOM,
+                                modifier = Modifier.testTag(ShiftSetupTestTags.CATEGORY_CUSTOM),
+                                onClick = { onSelectedCategoryChange(ShiftCategory.CUSTOM) }
+                            )
                         }
 
                         if (selectedCategory != ShiftCategory.CUSTOM) {
                             Text(stringResource(R.string.shift_template_select))
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                categoryTemplates.forEach { template ->
+                                categoryTemplates.forEachIndexed { index, template ->
                                     val selected = selectedTemplate?.id == template.id
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
@@ -199,6 +281,7 @@ fun ShiftPage(
                                             }
                                             Button(
                                                 onClick = { updateWizardState { it.copy(selectedTemplateId = template.id) } },
+                                                modifier = Modifier.testTag(ShiftSetupTestTags.template(index)),
                                                 colors = segmentedActionButtonColors(selected)
                                             ) {
                                                 Text(
@@ -223,12 +306,14 @@ fun ShiftPage(
                                 .distinct()
                                 .ifEmpty { listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF, WORK_TYPE_REST) }
 
-                            appendableTypes.chunked(4).forEach { rowItems ->
+                            appendableTypes.chunked(4).forEachIndexed { rowIndex, rowItems ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    rowItems.forEach { type ->
+                                    rowItems.forEachIndexed { itemIndex, type ->
                                         NeutralActionButton(
                                             onClick = { onAppendRotationType(type) },
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag(ShiftSetupTestTags.rotationType(rowIndex * 4 + itemIndex))
                                         ) {
                                             Text(type)
                                         }
@@ -273,7 +358,9 @@ fun ShiftPage(
                                             val selected = selectedConfigIndex == index
                                             Button(
                                                 onClick = { updateWizardState { it.copy(selectedStep1TypeIndex = index) } },
-                                                modifier = Modifier.weight(1f),
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag(ShiftSetupTestTags.workType(index)),
                                                 colors = segmentedActionButtonColors(selected)
                                             ) {
                                                 Text(step1TypeChipLabel(type))
@@ -318,7 +405,7 @@ fun ShiftPage(
                                     )
 
                                     NeutralActionButton(
-                                        onClick = { updateWizardState { it.copy(showStep1Advanced = !showStep1Advanced) } },
+                                        onClick = { dispatch(ShiftSetupAction.ToggleStep1Advanced) },
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
@@ -347,7 +434,9 @@ fun ShiftPage(
                                                 ) {
                                                     Button(
                                                         onClick = { updateWizardState { it.copy(selectedAlarmSlot = 0) } },
-                                                        modifier = Modifier.weight(1f),
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .testTag(ShiftSetupTestTags.ALARM_SLOT_PRIMARY),
                                                         colors = segmentedActionButtonColors(!editingSecondary)
                                                     ) {
                                                         Text(stringResource(R.string.shift_alarm_slot_primary))
@@ -368,7 +457,9 @@ fun ShiftPage(
                                                                 onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
                                                             }
                                                         },
-                                                        modifier = Modifier.weight(1f),
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .testTag(ShiftSetupTestTags.ALARM_SLOT_SECONDARY),
                                                         colors = segmentedActionButtonColors(editingSecondary)
                                                     ) {
                                                         Text(stringResource(R.string.shift_alarm_slot_secondary))
@@ -482,7 +573,10 @@ fun ShiftPage(
                 if (!showAdvanced) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         if (wizardStep > 0) {
-                            NeutralActionButton(onClick = { updateWizardState { it.back() } }, modifier = Modifier.weight(1f)) {
+                            NeutralActionButton(
+                                onClick = { updateWizardState { it.back() } },
+                                modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.PREVIOUS_BUTTON)
+                            ) {
                                 Text(stringResource(R.string.shift_previous))
                             }
                         }
@@ -491,15 +585,21 @@ fun ShiftPage(
                             PrimaryActionButton(
                                 onClick = { advanceWizard() },
                                 enabled = canAdvanceWizard,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.NEXT_BUTTON)
                             ) {
                                 Text(stringResource(R.string.shift_next))
                             }
                         } else {
-                            PrimaryActionButton(onClick = onCompleteFirstSetup, modifier = Modifier.weight(1f)) {
+                            PrimaryActionButton(
+                                onClick = onCompleteFirstSetup,
+                                modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.COMPLETE_BUTTON)
+                            ) {
                                 Text(stringResource(R.string.shift_confirm))
                             }
-                            NeutralActionButton(onClick = onHideFirstSetupWizard, modifier = Modifier.weight(1f)) {
+                            NeutralActionButton(
+                                onClick = onHideFirstSetupWizard,
+                                modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.CLOSE_BUTTON)
+                            ) {
                                 Text(stringResource(R.string.shift_close))
                             }
                         }
@@ -595,7 +695,7 @@ fun ShiftPage(
                     if (wizardStep > 0) {
                         NeutralActionButton(
                             onClick = { updateWizardState { it.back() } },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.PREVIOUS_BUTTON)
                         ) {
                             Text(stringResource(R.string.shift_previous))
                         }
@@ -609,7 +709,13 @@ fun ShiftPage(
                             }
                         },
                         enabled = wizardStep >= wizardLastStep || canAdvanceWizard,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).testTag(
+                            if (wizardStep < wizardLastStep) {
+                                ShiftSetupTestTags.NEXT_BUTTON
+                            } else {
+                                ShiftSetupTestTags.COMPLETE_BUTTON
+                            }
+                        )
                     ) {
                         Text(progressLabel)
                     }
@@ -631,9 +737,14 @@ fun ShiftPage(
 private fun RowScope.CategoryButton(
     label: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Button(onClick = onClick, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(selected)) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.weight(1f),
+        colors = segmentedActionButtonColors(selected)
+    ) {
         Text(label)
     }
 }
@@ -830,3 +941,5 @@ private fun previewBadgeColor(badge: ShiftBadge): Color {
         ShiftBadge.WORK -> Color(0xFF4D6B5C)
     }
 }
+
+
