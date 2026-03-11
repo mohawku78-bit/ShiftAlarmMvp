@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,60 +16,73 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.shiftalarmmvp.R
 import java.time.LocalDate
 import java.time.YearMonth
 
+const val SHIFT_BADGE_DAY = "day"
+const val SHIFT_BADGE_NIGHT = "night"
+const val SHIFT_BADGE_DUTY = "duty"
+const val SHIFT_BADGE_OFF = "off"
+const val SHIFT_BADGE_REST = "rest"
+const val SHIFT_BADGE_DAY_NIGHT = "day_night"
+const val SHIFT_BADGE_DAY_DUTY = "day_duty"
+const val SHIFT_BADGE_NIGHT_DUTY = "night_duty"
+const val SHIFT_BADGE_WORK = "work"
+
 fun shiftTypeToBadge(type: String): String {
     return when (normalizeWorkType(type)) {
-        "주간" -> "주"
-        "야간" -> "야"
-        "당직" -> "당"
-        "비번" -> "비"
-        "휴무", "휴일", "휴가" -> "휴"
-        else -> "근"
+        WORK_TYPE_DAY -> SHIFT_BADGE_DAY
+        WORK_TYPE_NIGHT -> SHIFT_BADGE_NIGHT
+        WORK_TYPE_DUTY -> SHIFT_BADGE_DUTY
+        WORK_TYPE_OFF -> SHIFT_BADGE_OFF
+        WORK_TYPE_REST, WORK_TYPE_HOLIDAY, WORK_TYPE_VACATION -> SHIFT_BADGE_REST
+        else -> SHIFT_BADGE_WORK
     }
 }
 
-fun shiftBadgeLabel(badge: String): String {
+fun shiftBadgeLabel(resources: android.content.res.Resources, badge: String): String {
     return when (badge) {
-        "주" -> "▲ 주"
-        "야" -> "■ 야"
-        "당" -> "◆ 당"
-        "비" -> "● 비"
-        "휴" -> "○ 휴"
-        "주/야" -> "▣ 주/야"
-        "주/당" -> "▣ 주/당"
-        "야/당" -> "▣ 야/당"
-        else -> "• 근"
+        SHIFT_BADGE_DAY -> resources.getString(R.string.shift_preview_badge_day)
+        SHIFT_BADGE_NIGHT -> resources.getString(R.string.shift_preview_badge_night)
+        SHIFT_BADGE_DUTY -> resources.getString(R.string.shift_preview_badge_duty)
+        SHIFT_BADGE_OFF -> resources.getString(R.string.shift_preview_badge_off)
+        SHIFT_BADGE_REST -> resources.getString(R.string.shift_preview_badge_rest)
+        SHIFT_BADGE_DAY_NIGHT -> resources.getString(R.string.calendar_components_badge_day_night)
+        SHIFT_BADGE_DAY_DUTY -> resources.getString(R.string.calendar_components_badge_day_duty)
+        SHIFT_BADGE_NIGHT_DUTY -> resources.getString(R.string.calendar_components_badge_night_duty)
+        else -> resources.getString(R.string.shift_preview_badge_work)
     }
 }
 
 fun shiftBadgeBackgroundColor(badge: String): Color {
     return when (badge) {
-        "주" -> Color(0xFFD9E8FA)
-        "야" -> Color(0xFFFFE3C8)
-        "당" -> Color(0xFFFFE9D6)
-        "비" -> Color(0xFFE3E8EE)
-        "휴" -> Color(0xFFEEF1F4)
-        "주/야" -> Color(0xFFE8E6F8)
-        "주/당" -> Color(0xFFE9ECFB)
-        "야/당" -> Color(0xFFF7E7DB)
+        SHIFT_BADGE_DAY -> Color(0xFFD9E8FA)
+        SHIFT_BADGE_NIGHT -> Color(0xFFFFE3C8)
+        SHIFT_BADGE_DUTY -> Color(0xFFFFE9D6)
+        SHIFT_BADGE_OFF -> Color(0xFFE3E8EE)
+        SHIFT_BADGE_REST -> Color(0xFFEEF1F4)
+        SHIFT_BADGE_DAY_NIGHT -> Color(0xFFE8E6F8)
+        SHIFT_BADGE_DAY_DUTY -> Color(0xFFE9ECFB)
+        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFFF7E7DB)
         else -> Color(0xFFE2F0EA)
     }
 }
 
 fun shiftBadgeColor(badge: String): Color {
     return when (badge) {
-        "주" -> Color(0xFF1E4E8C)
-        "야" -> Color(0xFF9A5400)
-        "당" -> Color(0xFF8A3E00)
-        "비" -> Color(0xFF4F6375)
-        "휴" -> Color(0xFF5B6670)
-        "주/야" -> Color(0xFF5A4D99)
-        "주/당" -> Color(0xFF4A5EA8)
-        "야/당" -> Color(0xFF8E4B16)
+        SHIFT_BADGE_DAY -> Color(0xFF1E4E8C)
+        SHIFT_BADGE_NIGHT -> Color(0xFF9A5400)
+        SHIFT_BADGE_DUTY -> Color(0xFF8A3E00)
+        SHIFT_BADGE_OFF -> Color(0xFF4F6375)
+        SHIFT_BADGE_REST -> Color(0xFF5B6670)
+        SHIFT_BADGE_DAY_NIGHT -> Color(0xFF5A4D99)
+        SHIFT_BADGE_DAY_DUTY -> Color(0xFF4A5EA8)
+        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFF8E4B16)
         else -> Color(0xFF4D6B5C)
     }
 }
@@ -83,7 +96,16 @@ fun ShiftCalendarMonthGrid(
     badgeForDate: (LocalDate) -> String,
     compact: Boolean
 ) {
-    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일")
+    val resources = LocalContext.current.resources
+    val dayLabels = listOf(
+        stringResource(R.string.shift_day_mon),
+        stringResource(R.string.shift_day_tue),
+        stringResource(R.string.shift_day_wed),
+        stringResource(R.string.shift_day_thu),
+        stringResource(R.string.shift_day_fri),
+        stringResource(R.string.shift_day_sat),
+        stringResource(R.string.shift_day_sun)
+    )
     val firstDay = month.atDay(1)
     val leading = firstDay.dayOfWeek.value - 1
     val dates = mutableListOf<LocalDate?>()
@@ -154,7 +176,7 @@ fun ShiftCalendarMonthGrid(
                             )
                             if (badge.isNotBlank()) {
                                 Text(
-                                    shiftBadgeLabel(badge),
+                                    shiftBadgeLabel(resources, badge),
                                     color = shiftBadgeColor(badge),
                                     style = badgeStyle,
                                     fontWeight = FontWeight.SemiBold
@@ -174,7 +196,7 @@ fun ShiftPreviewCalendar(
     compact: Boolean
 ) {
     if (previewDays.isEmpty()) {
-        Text("미리보기 없음")
+        Text(stringResource(R.string.shift_preview_empty))
         return
     }
 
@@ -193,7 +215,10 @@ fun ShiftPreviewCalendar(
 
     monthList.forEach { month ->
         Column(verticalArrangement = Arrangement.spacedBy(monthSpacing), modifier = Modifier.fillMaxWidth()) {
-            Text("${month.year}년 ${month.monthValue}월", style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.shift_preview_month_format, month.year, month.monthValue),
+                style = MaterialTheme.typography.titleSmall
+            )
             ShiftCalendarMonthGrid(
                 month = month,
                 today = LocalDate.MIN,

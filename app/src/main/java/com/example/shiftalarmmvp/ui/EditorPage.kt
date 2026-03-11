@@ -25,16 +25,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.shiftalarmmvp.R
+import com.example.shiftalarmmvp.data.AlarmDateOverrideState
+import com.example.shiftalarmmvp.data.AlarmDateOverrides
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.recovery.HomeReliabilityAction
+import com.example.shiftalarmmvp.recovery.NightlyReliabilityCheckStatus
+import com.example.shiftalarmmvp.recovery.ReliabilityOverviewPolicy
+import com.example.shiftalarmmvp.recovery.ReliabilityOverviewSignals
+import com.example.shiftalarmmvp.recovery.ReliabilityOverviewTone
 import com.example.shiftalarmmvp.recovery.ReliabilitySetupPolicy
 import com.example.shiftalarmmvp.recovery.ReliabilitySetupSignals
+import com.example.shiftalarmmvp.recovery.RescheduleRecoveryState
+import com.example.shiftalarmmvp.recovery.SelfTestStatus
+import com.example.shiftalarmmvp.recovery.recoveryStrings
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -42,7 +56,34 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 
-private val EDITOR_STEPS = listOf("기본", "반복", "알림", "고급")
+private val EDITOR_STEP_LABEL_RES_IDS = listOf(
+    R.string.editor_step_basic,
+    R.string.editor_step_repeat,
+    R.string.editor_step_alert,
+    R.string.editor_step_advanced,
+)
+
+@Composable
+private fun editorReliabilityOverviewToneColor(tone: ReliabilityOverviewTone): Color {
+    return when (tone) {
+        ReliabilityOverviewTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+        ReliabilityOverviewTone.SAFE -> Color(0xFF2E7D32)
+        ReliabilityOverviewTone.INFO -> Color(0xFF1565C0)
+        ReliabilityOverviewTone.CHECK -> Color(0xFFB26A00)
+        ReliabilityOverviewTone.ACTION -> Color(0xFFC62828)
+    }
+}
+
+@Composable
+private fun reliabilityOverviewLabel(key: String): String {
+    return when (key) {
+        "recovery" -> stringResource(R.string.reliability_label_recovery)
+        "latest_recovery_action" -> stringResource(R.string.reliability_label_latest_recovery)
+        "self_test" -> stringResource(R.string.reliability_label_self_test)
+        "nightly_check" -> stringResource(R.string.reliability_label_nightly_check)
+        else -> key
+    }
+}
 
 @Composable
 fun EditorPage(
@@ -56,6 +97,8 @@ fun EditorPage(
     onOpenAppDetailSettings: () -> Unit,
     onRescheduleAllEnabled: () -> Unit,
     canPostNotifications: Boolean,
+    registeredNextAlarmReady: Boolean,
+    shouldCheckAlarmRegistration: Boolean,
     onRequestNotificationPermission: () -> Unit,
     setupWizardDismissed: Boolean,
     onSetupWizardDismissedChange: (Boolean) -> Unit,
@@ -66,6 +109,10 @@ fun EditorPage(
     onScheduleSelfTest: () -> Unit,
     onCancelSelfTest: () -> Unit,
     selfTestMessage: String,
+    recoveryStatus: RescheduleRecoveryState?,
+    latestRecoveryActionText: String?,
+    selfTestStatus: SelfTestStatus?,
+    nightlyCheckStatus: NightlyReliabilityCheckStatus?,
     selectedTime: LocalTime,
     onSelectedTimeChange: (LocalTime) -> Unit,
     anchorDate: LocalDate,
@@ -111,7 +158,10 @@ fun EditorPage(
     var step by rememberSaveable(editingAlarmId) { mutableIntStateOf(0) }
     var currentNow by remember { mutableStateOf(LocalDateTime.now()) }
     var intervalInput by rememberSaveable(editingAlarmId) { mutableStateOf(intervalWeeks.toString()) }
-    val lastStep = EDITOR_STEPS.lastIndex
+    val editorSteps = EDITOR_STEP_LABEL_RES_IDS.map { stringResource(it) }
+    val lastStep = editorSteps.lastIndex
+    val context = LocalContext.current
+    val recoveryTextSet = remember(context) { recoveryStrings(context.resources) }
 
     BackHandler(enabled = step > 0) {
         step -= 1
@@ -146,21 +196,21 @@ fun EditorPage(
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("편집 단계", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.editor_step_title), style = MaterialTheme.typography.titleSmall)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    EDITOR_STEPS.forEachIndexed { idx, label ->
+                    editorSteps.forEachIndexed { idx, label ->
                         val selected = step == idx
                         Button(onClick = { step = idx }, colors = segmentedActionButtonColors(selected)) {
-                            Text("${idx + 1}. $label")
+                            Text(stringResource(R.string.editor_step_chip_format, idx + 1, label))
                         }
                     }
                 }
-                Text("현재 단계: ${step + 1}/${EDITOR_STEPS.size} ${EDITOR_STEPS[step]}")
+                Text(stringResource(R.string.editor_current_step_format, step + 1, editorSteps.size, editorSteps[step]))
             }
         }
 
@@ -169,24 +219,24 @@ fun EditorPage(
                 OutlinedTextField(
                     value = selectedLabel,
                     onValueChange = { onSelectedLabelChange(it.take(24)) },
-                    label = { Text("알람 이름(선택)") },
+                    label = { Text(stringResource(R.string.editor_alarm_name_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("현재 시간 기준 설정", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.editor_current_time_reference), style = MaterialTheme.typography.titleSmall)
                         Text(currentNow.format(DateTimeFormatter.ofPattern("HH:mm:ss")), style = MaterialTheme.typography.headlineSmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             Button(onClick = { onSelectedTimeChange(currentNow.toLocalTime().withSecond(0).withNano(0)) }, modifier = Modifier.weight(1f)) {
-                                Text("현재시간 적용")
+                                Text(stringResource(R.string.editor_apply_current_time))
                             }
                             Button(onClick = { onSelectedTimeChange(currentNow.toLocalTime().plusMinutes(10).withSecond(0).withNano(0)) }, modifier = Modifier.weight(1f)) {
-                                Text("+10분")
+                                Text(stringResource(R.string.editor_add_ten_minutes))
                             }
                             Button(onClick = { onSelectedTimeChange(currentNow.toLocalTime().plusMinutes(30).withSecond(0).withNano(0)) }, modifier = Modifier.weight(1f)) {
-                                Text("+30분")
+                                Text(stringResource(R.string.editor_add_thirty_minutes))
                             }
                         }
                     }
@@ -199,9 +249,13 @@ fun EditorPage(
             }
 
             1 -> {
-                DatePickerButton(label = "로테이션 기준일", date = anchorDate, onDatePicked = onAnchorDateChange)
+                DatePickerButton(
+                    label = stringResource(R.string.editor_rotation_anchor_date),
+                    date = anchorDate,
+                    onDatePicked = onAnchorDateChange
+                )
 
-                Text("로테이션 주기")
+                Text(stringResource(R.string.editor_rotation_cycle))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
@@ -211,7 +265,7 @@ fun EditorPage(
                             onClick = { updateIntervalWeeks(value) },
                             colors = segmentedActionButtonColors(intervalWeeks == value)
                         ) {
-                            Text("${value}주")
+                            Text(stringResource(R.string.editor_rotation_cycle_value_format, value))
                         }
                     }
                 }
@@ -222,27 +276,27 @@ fun EditorPage(
                         intervalInput = digits
                         digits.toIntOrNull()?.takeIf { it > 0 }?.let { updateIntervalWeeks(it) }
                     },
-                    label = { Text("직접 주차 입력") },
+                    label = { Text(stringResource(R.string.editor_direct_week_input)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("현재 주기: ${intervalWeeks}주")
+                Text(stringResource(R.string.editor_current_cycle_format, intervalWeeks))
 
-                Text("편집할 주차")
+                Text(stringResource(R.string.editor_select_week_to_edit))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 ) {
                     repeat(intervalWeeks) { index ->
                         Button(onClick = { onActiveWeekIndexChange(index) }, colors = segmentedActionButtonColors(activeWeekIndex == index)) {
-                            val mark = if (activeWeekIndex == index) "*" else ""
-                            Text("${index + 1}주차$mark")
+                            val mark = if (activeWeekIndex == index) stringResource(R.string.editor_selected_mark) else ""
+                            Text(stringResource(R.string.editor_week_chip_format, index + 1, mark))
                         }
                     }
                 }
 
-                Text("${activeWeekIndex + 1}주차 요일 선택")
+                Text(stringResource(R.string.editor_weekdays_select_format, activeWeekIndex + 1))
                 WeekdaySelector(selectedDays = weekPatterns[activeWeekIndex], onToggle = { day ->
                     val copy = weekPatterns.toMutableList()
                     val current = copy[activeWeekIndex]
@@ -255,12 +309,12 @@ fun EditorPage(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("무한 반복")
+                        Text(stringResource(R.string.editor_infinite_rotation))
                         Switch(
                             checked = infiniteRotationEnabled,
                             onCheckedChange = onInfiniteRotationEnabledChange
                         )
-                        Text(if (infiniteRotationEnabled) "ON" else "OFF")
+                        Text(if (infiniteRotationEnabled) stringResource(R.string.common_on) else stringResource(R.string.common_off))
                     }
                 }
             }
@@ -268,45 +322,50 @@ fun EditorPage(
             2 -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = onPlayTestSound, modifier = Modifier.weight(1f)) {
-                        Text("테스트 소리 재생")
+                        Text(stringResource(R.string.editor_test_sound_play))
                     }
                     Button(onClick = onStopTestSound, modifier = Modifier.weight(1f)) {
-                        Text("테스트 중지")
+                        Text(stringResource(R.string.editor_test_sound_stop))
                     }
                 }
 
-                Text("소리 선택")
+                Text(stringResource(R.string.editor_sound_selection))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row {
                         RadioButton(
                             selected = selectedSoundType == AlarmSoundType.ALARM,
                             onClick = { onSelectedSoundTypeChange(AlarmSoundType.ALARM) }
                         )
-                        Text("알람음")
+                        Text(stringResource(R.string.editor_sound_alarm))
                     }
                     Row {
                         RadioButton(
                             selected = selectedSoundType == AlarmSoundType.NOTIFICATION,
                             onClick = { onSelectedSoundTypeChange(AlarmSoundType.NOTIFICATION) }
                         )
-                        Text("알림음")
+                        Text(stringResource(R.string.editor_sound_notification))
                     }
                     Row {
                         RadioButton(
                             selected = selectedSoundType == AlarmSoundType.CUSTOM,
                             onClick = { onSelectedSoundTypeChange(AlarmSoundType.CUSTOM) }
                         )
-                        Text("커스텀")
+                        Text(stringResource(R.string.editor_sound_custom))
                     }
                 }
 
                 Button(onClick = onPickCustomSound) {
-                    Text("커스텀 소리 선택")
+                    Text(stringResource(R.string.editor_pick_custom_sound))
                 }
-                Text("선택된 커스텀: ${selectedCustomSoundUri ?: "없음"}")
+                Text(
+                    stringResource(
+                        R.string.editor_selected_custom_sound_format,
+                        selectedCustomSoundUri ?: stringResource(R.string.common_none)
+                    )
+                )
                 if (customSoundMessage.isNotBlank()) Text(customSoundMessage)
 
-                Text("볼륨: ${selectedVolume.toInt()}%")
+                Text(stringResource(R.string.editor_volume_format, selectedVolume.toInt()))
                 Slider(
                     value = selectedVolume,
                     onValueChange = onSelectedVolumeChange,
@@ -314,19 +373,24 @@ fun EditorPage(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("진동")
+                    Text(stringResource(R.string.editor_vibration))
                     Switch(checked = vibrationEnabled, onCheckedChange = onVibrationEnabledChange)
                 }
 
-                Text("스누즈 설정")
+                Text(stringResource(R.string.editor_snooze_settings))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 ) {
                     listOf(1, 3, 5, 10, 15, 20, 30).forEach { value ->
                         Button(onClick = { onSelectedSnoozeMinutesChange(value) }, colors = segmentedActionButtonColors(selectedSnoozeMinutes == value)) {
-                            val mark = if (selectedSnoozeMinutes == value) "[x]" else "[ ]"
-                            Text("$mark ${value}분")
+                            Text(
+                                if (selectedSnoozeMinutes == value) {
+                                    stringResource(R.string.editor_snooze_option_selected, value)
+                                } else {
+                                    stringResource(R.string.editor_snooze_option_unselected, value)
+                                }
+                            )
                         }
                     }
                 }
@@ -334,26 +398,26 @@ fun EditorPage(
                 OutlinedTextField(
                     value = customSnoozeInput,
                     onValueChange = onCustomSnoozeInputChange,
-                    label = { Text("직접 입력(분)") },
+                    label = { Text(stringResource(R.string.editor_direct_minutes_input)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("현재 스누즈: ${selectedSnoozeMinutes}분")
+                Text(stringResource(R.string.editor_current_snooze_format, selectedSnoozeMinutes))
 
-                Text("스누즈 횟수 (0 = 무제한)")
+                Text(stringResource(R.string.editor_snooze_count_title))
                 OutlinedTextField(
                     value = customMaxCountInput,
                     onValueChange = onCustomMaxCountInputChange,
-                    label = { Text("최대 스누즈 횟수") },
+                    label = { Text(stringResource(R.string.editor_max_snooze_count)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
                     when {
-                        selectedSnoozeMaxCount <= 0 -> "횟수 제한: 무제한"
-                        else -> "횟수 제한: 최대 ${selectedSnoozeMaxCount}회"
+                        selectedSnoozeMaxCount <= 0 -> stringResource(R.string.editor_snooze_limit_unlimited)
+                        else -> stringResource(R.string.editor_snooze_limit_format, selectedSnoozeMaxCount)
                     }
                 )
             }
@@ -363,27 +427,56 @@ fun EditorPage(
                 val batteryReady = !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimization)
                 val notificationReady = canPostNotifications
                 val setupUi = ReliabilitySetupPolicy.build(
-                    ReliabilitySetupSignals(
+                    signals = ReliabilitySetupSignals(
                         exactReady = exactReady,
                         notificationReady = notificationReady,
-                        batteryReady = batteryReady
-                    )
+                        batteryReady = batteryReady,
+                        nextAlarmRegisteredReady = registeredNextAlarmReady,
+                        shouldCheckAlarmRegistration = shouldCheckAlarmRegistration
+                    ),
+                    texts = recoveryTextSet.setup
                 )
                 val allSetupReady = setupUi.allReady
                 val next3Preview = next10Preview.take(3)
+                val overviewUi = ReliabilityOverviewPolicy.build(
+                    signals = ReliabilityOverviewSignals(
+                        recoveryStatus = recoveryStatus,
+                        latestRecoveryActionText = latestRecoveryActionText,
+                        selfTestStatus = selfTestStatus,
+                        nightlyCheckStatus = nightlyCheckStatus
+                    ),
+                    texts = recoveryTextSet
+                )
 
                 fun runSetupAction(action: HomeReliabilityAction) {
                     when (action) {
                         HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS -> onOpenExactAlarmSettings()
                         HomeReliabilityAction.REQUEST_NOTIFICATION_PERMISSION -> onRequestNotificationPermission()
                         HomeReliabilityAction.OPEN_BATTERY_SETTINGS -> onOpenBatterySettings()
+                        HomeReliabilityAction.RESCHEDULE_ALARMS -> onRescheduleAllEnabled()
                         else -> Unit
                     }
                 }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("알람 신뢰도 점검", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.editor_recent_reliability_records), style = MaterialTheme.typography.titleSmall)
+                        overviewUi.lines.forEach { line ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+                                Text(reliabilityOverviewLabel(line.key), style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    text = line.text,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = editorReliabilityOverviewToneColor(line.tone)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.editor_reliability_check_title), style = MaterialTheme.typography.titleSmall)
                         Text(setupUi.summaryText, style = MaterialTheme.typography.bodySmall)
                         setupUi.primaryStep?.let { step ->
                             Card(modifier = Modifier.fillMaxWidth()) {
@@ -391,20 +484,20 @@ fun EditorPage(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("우선 조치 ${step.stepNumber}/${step.totalStepCount}", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.editor_priority_action_progress, step.stepNumber, step.totalStepCount), style = MaterialTheme.typography.labelLarge)
                                     Text(step.title, style = MaterialTheme.typography.titleSmall)
                                     Text(step.detailText, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
                         setupUi.steps.forEach { step ->
-                            Text("${step.stepNumber}/${step.totalStepCount} ${step.statusText}")
+                            Text(stringResource(R.string.editor_setup_step_status_format, step.stepNumber, step.totalStepCount, step.statusText))
                         }
 
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             setupUi.unresolvedSteps.forEach { step ->
                                 val title = if (step == setupUi.primaryStep) {
-                                    "우선 조치: ${step.actionLabel}"
+                                    stringResource(R.string.editor_priority_action_prefix, step.actionLabel)
                                 } else {
                                     step.actionLabel
                                 }
@@ -412,8 +505,8 @@ fun EditorPage(
                                     Text(title)
                                 }
                             }
-                            Button(onClick = onRescheduleAllEnabled, modifier = Modifier.fillMaxWidth()) { Text("알람 재예약") }
-                            Button(onClick = onOpenAppDetailSettings, modifier = Modifier.fillMaxWidth()) { Text("앱 정보") }
+                            Button(onClick = onRescheduleAllEnabled, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.editor_reschedule_alarms)) }
+                            Button(onClick = onOpenAppDetailSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.editor_app_info)) }
                         }
 
                         if (!setupWizardDismissed || !allSetupReady) {
@@ -421,20 +514,20 @@ fun EditorPage(
                                 onClick = { onSetupWizardDismissedChange(true) },
                                 enabled = allSetupReady
                             ) {
-                                Text("설정 완료, 카드 숨기기")
+                                Text(stringResource(R.string.editor_hide_setup_card))
                             }
                         }
                     }
                 }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("2분 셀프 테스트", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.editor_self_test_title), style = MaterialTheme.typography.titleSmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             Button(onClick = onScheduleSelfTest, modifier = Modifier.weight(1f)) {
-                                Text("2분 뒤 테스트")
+                                Text(stringResource(R.string.editor_self_test_run))
                             }
                             Button(onClick = onCancelSelfTest, modifier = Modifier.weight(1f)) {
-                                Text("테스트 취소")
+                                Text(stringResource(R.string.editor_self_test_cancel))
                             }
                         }
                         if (selfTestMessage.isNotBlank()) {
@@ -444,70 +537,88 @@ fun EditorPage(
                 }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("다음 예약 3회", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.editor_next_reservations_title), style = MaterialTheme.typography.titleSmall)
                         if (next3Preview.isEmpty()) {
-                            Text("예정된 예약이 없습니다.")
+                            Text(stringResource(R.string.editor_next_reservations_empty))
                         } else {
                             next3Preview.forEachIndexed { idx, dt ->
-                                Text("${idx + 1}. ${dt.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))}")
+                                Text(stringResource(R.string.editor_numbered_item_format, idx + 1, dt.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))))
                             }
                         }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("복제 시 즉시 저장")
+                    Text(stringResource(R.string.editor_auto_save_on_duplicate))
                     Switch(checked = autoSaveOnDuplicate, onCheckedChange = onAutoSaveOnDuplicateChange)
                 }
 
-                Text("예외일 설정")
-                DatePickerButton(label = "예외 날짜 선택", date = exceptionDate, onDatePicked = onExceptionDateChange)
-                val isSkipSelected = exceptionDate in skipDates
-                val isAddSelected = exceptionDate in addDates
+                Text(stringResource(R.string.editor_exception_settings))
+                DatePickerButton(
+                    label = stringResource(R.string.editor_exception_date_select),
+                    date = exceptionDate,
+                    onDatePicked = onExceptionDateChange
+                )
+                val overrides = AlarmDateOverrides.of(skipDates = skipDates, addDates = addDates)
+                val selectedOverrideState = overrides.stateFor(exceptionDate)
+                val isSkipSelected = selectedOverrideState == AlarmDateOverrideState.SKIP
+                val isAddSelected = selectedOverrideState == AlarmDateOverrideState.ADD
+
+                fun updateOverrides(updated: AlarmDateOverrides) {
+                    onSkipDatesChange(updated.skipDates)
+                    onAddDatesChange(updated.addDates)
+                }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
-                            if (isSkipSelected) {
-                                onSkipDatesChange(skipDates - exceptionDate)
-                            } else {
-                                onSkipDatesChange(skipDates + exceptionDate)
-                                onAddDatesChange(addDates - exceptionDate)
-                            }
+                            updateOverrides(
+                                overrides.withState(
+                                    exceptionDate,
+                                    if (isSkipSelected) AlarmDateOverrideState.NONE else AlarmDateOverrideState.SKIP
+                                )
+                            )
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (isSkipSelected) "스킵일 취소" else "스킵일로 추가")
+                        Text(if (isSkipSelected) stringResource(R.string.editor_skip_date_cancel) else stringResource(R.string.editor_skip_date_add))
                     }
                     Button(
                         onClick = {
-                            if (isAddSelected) {
-                                onAddDatesChange(addDates - exceptionDate)
-                            } else {
-                                onAddDatesChange(addDates + exceptionDate)
-                                onSkipDatesChange(skipDates - exceptionDate)
-                            }
+                            updateOverrides(
+                                overrides.withState(
+                                    exceptionDate,
+                                    if (isAddSelected) AlarmDateOverrideState.NONE else AlarmDateOverrideState.ADD
+                                )
+                            )
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (isAddSelected) "추가 알람일 취소" else "추가 알람일로 추가")
+                        Text(if (isAddSelected) stringResource(R.string.editor_add_alarm_date_cancel) else stringResource(R.string.editor_add_alarm_date_add))
                     }
                 }
 
                 if (skipDates.isNotEmpty()) {
-                    Text("스킵일: ${skipDates.sorted().joinToString { it.toString() }}")
+                    Text(stringResource(R.string.editor_skip_dates_format, skipDates.sorted().joinToString { it.toString() }))
                 }
                 if (addDates.isNotEmpty()) {
-                    Text("추가일: ${addDates.sorted().joinToString { it.toString() }}")
+                    Text(stringResource(R.string.editor_add_dates_format, addDates.sorted().joinToString { it.toString() }))
                 }
 
                 Button(onClick = { onShowNext10Change(!showNext10) }) {
-                    Text(if (showNext10) "다음 10회 예정 숨기기" else "다음 10회 예정 보기")
+                    Text(
+                        if (showNext10) {
+                            stringResource(R.string.editor_next_ten_hide)
+                        } else {
+                            stringResource(R.string.editor_next_ten_show)
+                        }
+                    )
                 }
                 if (showNext10) {
                     if (next10Preview.isEmpty()) {
-                        Text("없음")
+                        Text(stringResource(R.string.common_none))
                     } else {
                         next10Preview.forEachIndexed { idx, dt ->
-                            Text("${idx + 1}. ${dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))}")
+                            Text(stringResource(R.string.editor_numbered_item_format, idx + 1, dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))))
                         }
                     }
                 }
@@ -519,13 +630,13 @@ fun EditorPage(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             if (step > 0) {
                 NeutralActionButton(onClick = { step -= 1 }, modifier = Modifier.weight(1f)) {
-                    Text("이전")
+                    Text(stringResource(R.string.editor_back))
                 }
             }
 
             if (step < lastStep) {
                 PrimaryActionButton(onClick = { step += 1 }, modifier = Modifier.weight(1f)) {
-                    Text("다음")
+                    Text(stringResource(R.string.editor_next))
                 }
             } else {
                 PrimaryActionButton(
@@ -533,13 +644,13 @@ fun EditorPage(
                     enabled = canSaveByPermission,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (editingAlarmId == null) "알람 저장" else "알람 수정 저장")
+                    Text(if (editingAlarmId == null) stringResource(R.string.editor_save_alarm) else stringResource(R.string.editor_update_alarm))
                 }
             }
 
             if (step == lastStep && editingAlarmId != null) {
                 NeutralActionButton(onClick = onCancelEdit, modifier = Modifier.weight(1f)) {
-                    Text("편집 취소")
+                    Text(stringResource(R.string.editor_cancel_edit))
                 }
             }
         }
@@ -557,9 +668,17 @@ private fun GalaxyTimeInput(
     var textInput by remember(selectedTime) {
         mutableStateOf(selectedTime.format(DateTimeFormatter.ofPattern("HH:mm")))
     }
+    var wheelHour by remember { mutableIntStateOf(selectedTime.hour) }
+    var wheelMinute by remember { mutableIntStateOf(selectedTime.minute) }
+    val latestOnSelectedTimeChange by rememberUpdatedState(onSelectedTimeChange)
+
+    LaunchedEffect(selectedTime) {
+        wheelHour = selectedTime.hour
+        wheelMinute = selectedTime.minute
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        Text("시간 입력 (휠 또는 텍스트)", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.editor_time_input_title), style = MaterialTheme.typography.titleSmall)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             AndroidView(
@@ -570,12 +689,15 @@ private fun GalaxyTimeInput(
                         maxValue = 23
                         wrapSelectorWheel = true
                         setOnValueChangedListener { _, _, newVal ->
-                            onSelectedTimeChange(LocalTime.of(newVal, selectedTime.minute))
+                            if (newVal != wheelHour) {
+                                wheelHour = newVal
+                                latestOnSelectedTimeChange(LocalTime.of(wheelHour, wheelMinute))
+                            }
                         }
                     }
                 },
                 update = { picker ->
-                    if (picker.value != selectedTime.hour) picker.value = selectedTime.hour
+                    if (picker.value != wheelHour) picker.value = wheelHour
                 }
             )
             AndroidView(
@@ -587,12 +709,15 @@ private fun GalaxyTimeInput(
                         wrapSelectorWheel = true
                         setFormatter { String.format("%02d", it) }
                         setOnValueChangedListener { _, _, newVal ->
-                            onSelectedTimeChange(LocalTime.of(selectedTime.hour, newVal))
+                            if (newVal != wheelMinute) {
+                                wheelMinute = newVal
+                                latestOnSelectedTimeChange(LocalTime.of(wheelHour, wheelMinute))
+                            }
                         }
                     }
                 },
                 update = { picker ->
-                    if (picker.value != selectedTime.minute) picker.value = selectedTime.minute
+                    if (picker.value != wheelMinute) picker.value = wheelMinute
                 }
             )
         }
@@ -601,13 +726,17 @@ private fun GalaxyTimeInput(
             value = textInput,
             onValueChange = { value ->
                 textInput = value.take(5)
-                parseHm(value)?.let { parsed -> onSelectedTimeChange(parsed) }
+                parseHm(value)?.let { parsed -> latestOnSelectedTimeChange(parsed) }
             },
-            label = { Text("직접 입력 (HH:mm)") },
+            label = { Text(stringResource(R.string.editor_time_direct_input)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        Text("선택 시간: ${selectedTime.format(DateTimeFormatter.ofPattern("HH:mm"))}")
+        Text(stringResource(R.string.editor_selected_time_format, selectedTime.format(DateTimeFormatter.ofPattern("HH:mm"))))
     }
 }
+
+
+
+
 

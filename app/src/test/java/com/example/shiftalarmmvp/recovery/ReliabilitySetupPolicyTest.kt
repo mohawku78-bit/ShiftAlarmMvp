@@ -7,6 +7,8 @@ import org.junit.Test
 
 class ReliabilitySetupPolicyTest {
 
+    private val texts = testRecoveryStrings().setup
+
     @Test
     fun `exact alarm is first unresolved step on Android 14`() {
         val ui = ReliabilitySetupPolicy.build(
@@ -15,6 +17,7 @@ class ReliabilitySetupPolicyTest {
                 notificationReady = false,
                 batteryReady = false
             ),
+            texts = texts,
             sdkInt = Build.VERSION_CODES.UPSIDE_DOWN_CAKE
         )
 
@@ -32,6 +35,7 @@ class ReliabilitySetupPolicyTest {
                 notificationReady = false,
                 batteryReady = false
             ),
+            texts = texts,
             sdkInt = Build.VERSION_CODES.UPSIDE_DOWN_CAKE
         )
 
@@ -49,11 +53,31 @@ class ReliabilitySetupPolicyTest {
                 notificationReady = false,
                 batteryReady = false
             ),
+            texts = texts,
             sdkInt = Build.VERSION_CODES.S
         )
 
         assertEquals(2, ui.totalStepCount)
         assertEquals("배터리 최적화 예외", ui.primaryStep?.title)
         assertTrue(ui.steps.none { it.issue == ReliabilitySetupIssue.NOTIFICATION_PERMISSION })
+    }
+
+    @Test
+    fun `registered next alarm becomes shared follow up step`() {
+        val ui = ReliabilitySetupPolicy.build(
+            signals = ReliabilitySetupSignals(
+                exactReady = true,
+                notificationReady = true,
+                batteryReady = true,
+                nextAlarmRegisteredReady = false,
+                shouldCheckAlarmRegistration = true
+            ),
+            texts = texts,
+            sdkInt = Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        )
+
+        assertEquals(4, ui.totalStepCount)
+        assertEquals("다음 알람 등록", ui.primaryStep?.title)
+        assertEquals(HomeReliabilityAction.RESCHEDULE_ALARMS, ui.primaryStep?.action)
     }
 }

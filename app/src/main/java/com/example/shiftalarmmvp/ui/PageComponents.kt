@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.app.DatePickerDialog
 import android.widget.NumberPicker
@@ -20,7 +20,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -29,9 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
@@ -44,13 +48,21 @@ fun TimePickerButton(
     time: LocalTime,
     onTimePicked: (LocalTime) -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "시간 선택"
+    label: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     var inputMode by remember { mutableStateOf(false) }
-    val latestTime by rememberUpdatedState(time)
+    var wheelHour by remember { mutableIntStateOf(time.hour) }
+    var wheelMinute by remember { mutableIntStateOf(time.minute) }
+    val latestOnTimePicked by rememberUpdatedState(onTimePicked)
+    val resolvedLabel = label ?: stringResource(R.string.dialog_time_select)
     var hourInput by remember(time) { mutableStateOf(String.format("%02d", time.hour)) }
     var minuteInput by remember(time) { mutableStateOf(String.format("%02d", time.minute)) }
+
+    LaunchedEffect(time) {
+        wheelHour = time.hour
+        wheelMinute = time.minute
+    }
 
     Column(
         modifier = modifier,
@@ -60,7 +72,7 @@ fun TimePickerButton(
             onClick = { expanded = !expanded },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("$label ${time.format(DateTimeFormatter.ofPattern("HH:mm"))}")
+            Text(stringResource(R.string.page_components_time_picker_button_format, resolvedLabel, time.format(DateTimeFormatter.ofPattern("HH:mm"))))
         }
 
         if (expanded) {
@@ -83,14 +95,14 @@ fun TimePickerButton(
                             modifier = Modifier.weight(1f),
                             colors = segmentedActionButtonColors(!inputMode)
                         ) {
-                            Text("휠 조절")
+                            Text(stringResource(R.string.dialog_time_wheel_mode))
                         }
                         Button(
                             onClick = { inputMode = true },
                             modifier = Modifier.weight(1f),
                             colors = segmentedActionButtonColors(inputMode)
                         ) {
-                            Text("숫자 입력")
+                            Text(stringResource(R.string.dialog_time_number_mode))
                         }
                     }
 
@@ -107,10 +119,10 @@ fun TimePickerButton(
                                     val hour = next.toIntOrNull()
                                     val minute = minuteInput.toIntOrNull()
                                     if (hour != null && hour in 0..23 && minute != null && minute in 0..59) {
-                                        onTimePicked(LocalTime.of(hour, minute))
+                                        latestOnTimePicked(LocalTime.of(hour, minute))
                                     }
                                 },
-                                label = { Text("시") },
+                                label = { Text(stringResource(R.string.dialog_hour)) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f)
@@ -123,10 +135,10 @@ fun TimePickerButton(
                                     val hour = hourInput.toIntOrNull()
                                     val minute = next.toIntOrNull()
                                     if (hour != null && hour in 0..23 && minute != null && minute in 0..59) {
-                                        onTimePicked(LocalTime.of(hour, minute))
+                                        latestOnTimePicked(LocalTime.of(hour, minute))
                                     }
                                 },
-                                label = { Text("분") },
+                                label = { Text(stringResource(R.string.dialog_minute)) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f)
@@ -146,15 +158,15 @@ fun TimePickerButton(
                                         wrapSelectorWheel = true
                                         setFormatter { String.format("%02d", it) }
                                         setOnValueChangedListener { _, _, newVal ->
-                                            val current = latestTime
-                                            if (newVal != current.hour) {
-                                                onTimePicked(LocalTime.of(newVal, current.minute))
+                                            if (newVal != wheelHour) {
+                                                wheelHour = newVal
+                                                latestOnTimePicked(LocalTime.of(wheelHour, wheelMinute))
                                             }
                                         }
                                     }
                                 },
                                 update = { picker ->
-                                    if (picker.value != time.hour) picker.value = time.hour
+                                    if (picker.value != wheelHour) picker.value = wheelHour
                                 }
                             )
                             AndroidView(
@@ -166,21 +178,21 @@ fun TimePickerButton(
                                         wrapSelectorWheel = true
                                         setFormatter { String.format("%02d", it) }
                                         setOnValueChangedListener { _, _, newVal ->
-                                            val current = latestTime
-                                            if (newVal != current.minute) {
-                                                onTimePicked(LocalTime.of(current.hour, newVal))
+                                            if (newVal != wheelMinute) {
+                                                wheelMinute = newVal
+                                                latestOnTimePicked(LocalTime.of(wheelHour, wheelMinute))
                                             }
                                         }
                                     }
                                 },
                                 update = { picker ->
-                                    if (picker.value != time.minute) picker.value = time.minute
+                                    if (picker.value != wheelMinute) picker.value = wheelMinute
                                 }
                             )
                         }
                     }
 
-                    Text("현재 선택: ${time.format(DateTimeFormatter.ofPattern("HH:mm"))}")
+                    Text(stringResource(R.string.dialog_current_selection_format, time.format(DateTimeFormatter.ofPattern("HH:mm"))))
                 }
             }
         }
@@ -201,20 +213,20 @@ fun DatePickerButton(label: String, date: LocalDate, onDatePicked: (LocalDate) -
             ).show()
         }
     ) {
-        Text("$label: $date")
+        Text(stringResource(R.string.page_components_date_picker_button_format, label, date))
     }
 }
 
 @Composable
 fun WeekdaySelector(selectedDays: Set<DayOfWeek>, onToggle: (DayOfWeek) -> Unit) {
     val labels = listOf(
-        DayOfWeek.MONDAY to "월",
-        DayOfWeek.TUESDAY to "화",
-        DayOfWeek.WEDNESDAY to "수",
-        DayOfWeek.THURSDAY to "목",
-        DayOfWeek.FRIDAY to "금",
-        DayOfWeek.SATURDAY to "토",
-        DayOfWeek.SUNDAY to "일"
+        DayOfWeek.MONDAY to stringResource(R.string.shift_day_mon),
+        DayOfWeek.TUESDAY to stringResource(R.string.shift_day_tue),
+        DayOfWeek.WEDNESDAY to stringResource(R.string.shift_day_wed),
+        DayOfWeek.THURSDAY to stringResource(R.string.shift_day_thu),
+        DayOfWeek.FRIDAY to stringResource(R.string.shift_day_fri),
+        DayOfWeek.SATURDAY to stringResource(R.string.shift_day_sat),
+        DayOfWeek.SUNDAY to stringResource(R.string.shift_day_sun)
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -222,7 +234,7 @@ fun WeekdaySelector(selectedDays: Set<DayOfWeek>, onToggle: (DayOfWeek) -> Unit)
             labels.take(4).forEach { (day, label) ->
                 Button(onClick = { onToggle(day) }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(day in selectedDays)) {
                     val mark = if (day in selectedDays) "[x]" else "[ ]"
-                    Text("$mark $label")
+                    Text(stringResource(R.string.page_components_weekday_toggle_format, mark, label))
                 }
             }
         }
@@ -231,7 +243,7 @@ fun WeekdaySelector(selectedDays: Set<DayOfWeek>, onToggle: (DayOfWeek) -> Unit)
             labels.drop(4).forEach { (day, label) ->
                 Button(onClick = { onToggle(day) }, modifier = Modifier.weight(1f), colors = segmentedActionButtonColors(day in selectedDays)) {
                     val mark = if (day in selectedDays) "[x]" else "[ ]"
-                    Text("$mark $label")
+                    Text(stringResource(R.string.page_components_weekday_toggle_format, mark, label))
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -251,30 +263,35 @@ fun AlarmItem(
     onEdit: () -> Unit
 ) {
     val next = remember(alarm) { AlarmTimeCalculator.nextTrigger(alarm) }
+    val resources = LocalContext.current.resources
     val soundLabel = when (alarm.soundType) {
-        AlarmSoundType.ALARM -> "알람음"
-        AlarmSoundType.NOTIFICATION -> "알림음"
-        AlarmSoundType.CUSTOM -> "커스텀"
+        AlarmSoundType.ALARM -> stringResource(R.string.editor_sound_alarm)
+        AlarmSoundType.NOTIFICATION -> stringResource(R.string.editor_sound_notification)
+        AlarmSoundType.CUSTOM -> stringResource(R.string.editor_sound_custom)
     }
-    val snoozeLimitLabel = if (alarm.snoozeMaxCount <= 0) "무제한" else "최대 ${alarm.snoozeMaxCount}회"
+    val snoozeLimitLabel = if (alarm.snoozeMaxCount <= 0) stringResource(R.string.page_components_snooze_limit_unlimited_short) else stringResource(R.string.page_components_snooze_limit_format_short, alarm.snoozeMaxCount)
     val skippedToday = LocalDate.now() in alarm.skipDateEpochDays
     val tomorrowAdded = LocalDate.now().plusDays(1) in alarm.addDateEpochDays
     val nextAlarmLabel = if (next == null) {
-        "없음"
+        stringResource(R.string.common_none)
     } else {
-        "${next.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))} (${formatTimeUntil(next)} 후)"
+        stringResource(
+            R.string.exception_next_label_format,
+            next.format(DateTimeFormatter.ofPattern("MM-dd HH:mm")),
+            formatTimeUntil(resources, next)
+        )
     }
 
     val weekSummary = alarm.weeklyPattern.mapIndexedNotNull { idx, days ->
         if (days.isEmpty()) null
         else {
-            val dayText = days.sortedBy { it.value }.joinToString { dayOfWeekLabel(it) }
-            "${idx + 1}주차 $dayText"
+            val dayText = days.sortedBy { it.value }.joinToString { dayOfWeekLabel(resources, it) }
+            stringResource(R.string.page_components_week_summary_format, idx + 1, dayText)
         }
     }
     val exceptionSummary = listOf(
-        if (alarm.skipDateEpochDays.isNotEmpty()) "스킵 ${alarm.skipDateEpochDays.size}일" else null,
-        if (alarm.addDateEpochDays.isNotEmpty()) "추가 ${alarm.addDateEpochDays.size}일" else null
+        if (alarm.skipDateEpochDays.isNotEmpty()) stringResource(R.string.page_components_exception_skip_days_format, alarm.skipDateEpochDays.size) else null,
+        if (alarm.addDateEpochDays.isNotEmpty()) stringResource(R.string.page_components_exception_add_days_format, alarm.addDateEpochDays.size) else null
     ).filterNotNull().joinToString(" / ")
 
     var showDetails by remember(alarm.id) { mutableStateOf(false) }
@@ -294,24 +311,24 @@ fun AlarmItem(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                     if (isEditing) {
-                        StatusChip("편집 중", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                        StatusChip(stringResource(R.string.page_components_editing), MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
                     }
                     if (alarm.label.isNotBlank()) {
                         Text(alarm.label, style = MaterialTheme.typography.titleMedium)
                     }
                     Text(String.format("%02d:%02d", alarm.hour, alarm.minute), style = MaterialTheme.typography.headlineMedium)
-                    Text("다음 울림: $nextAlarmLabel")
+                    Text(stringResource(R.string.exception_next_alarm, nextAlarmLabel))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("사용")
+                    Text(stringResource(R.string.page_components_enabled))
                     Switch(checked = alarm.enabled, onCheckedChange = { onToggle() })
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                StatusChip("${alarm.intervalWeeks}주", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                StatusChip(stringResource(R.string.editor_rotation_cycle_value_format, alarm.intervalWeeks), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
                 StatusChip(soundLabel, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                StatusChip("스누즈 ${alarm.snoozeMinutes}분", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                StatusChip(stringResource(R.string.page_components_snooze_chip_format, alarm.snoozeMinutes), MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
                 if (exceptionSummary.isNotBlank()) {
                     StatusChip(exceptionSummary, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
                 }
@@ -319,45 +336,49 @@ fun AlarmItem(
 
             if (showDetails) {
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("기준일: ${alarm.anchorDate}")
-                    Text("볼륨 ${alarm.volumePercent}% / 진동 ${if (alarm.vibrationEnabled) "ON" else "OFF"} / 횟수 $snoozeLimitLabel")
+                    Text(stringResource(R.string.page_components_anchor_date_format, alarm.anchorDate))
+                    Text(stringResource(R.string.page_components_volume_vibration_count_format, alarm.volumePercent, if (alarm.vibrationEnabled) stringResource(R.string.common_on) else stringResource(R.string.common_off), snoozeLimitLabel))
                     if (weekSummary.isNotEmpty()) {
                         weekSummary.forEach { Text(it) }
                     }
                     if (alarm.skipDateEpochDays.isNotEmpty() || alarm.addDateEpochDays.isNotEmpty()) {
                         Text(
-                            "예외일\n스킵: ${alarm.skipDateEpochDays.sorted().joinToString()}\n추가: ${alarm.addDateEpochDays.sorted().joinToString()}"
+                            stringResource(
+                                R.string.page_components_exception_dates_format,
+                                alarm.skipDateEpochDays.sorted().joinToString(),
+                                alarm.addDateEpochDays.sorted().joinToString()
+                            )
                         )
                     }
                     if (alarm.soundType == AlarmSoundType.CUSTOM) {
-                        Text("커스텀 URI: ${alarm.customSoundUri ?: "없음"}")
+                        Text(stringResource(R.string.page_components_custom_uri_format, alarm.customSoundUri ?: stringResource(R.string.common_none)))
                     }
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                PrimaryActionButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("편집") }
+                PrimaryActionButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.page_components_edit_action)) }
                 NeutralActionButton(onClick = { showActions = !showActions }, modifier = Modifier.weight(1f)) {
-                    Text(if (showActions) "더보기 닫기" else "더보기")
+                    Text(if (showActions) stringResource(R.string.page_components_more_close) else stringResource(R.string.page_components_more_show))
                 }
             }
 
             if (showActions) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     SecondaryActionButton(onClick = onToggleTodaySkip, modifier = Modifier.weight(1f)) {
-                        Text(if (skippedToday) "오늘 스킵 취소" else "오늘 스킵")
+                        Text(if (skippedToday) stringResource(R.string.exception_today_skip_cancel) else stringResource(R.string.exception_today_skip))
                     }
                     SecondaryActionButton(onClick = onToggleTomorrowAdd, modifier = Modifier.weight(1f)) {
-                        Text(if (tomorrowAdded) "내일 추가 취소" else "내일 추가")
+                        Text(if (tomorrowAdded) stringResource(R.string.exception_tomorrow_add_cancel) else stringResource(R.string.exception_tomorrow_add))
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     NeutralActionButton(onClick = { showDetails = !showDetails }, modifier = Modifier.weight(1f)) {
-                        Text(if (showDetails) "상세 닫기" else "상세 보기")
+                        Text(if (showDetails) stringResource(R.string.page_components_details_close) else stringResource(R.string.page_components_details_show))
                     }
-                    NeutralActionButton(onClick = onDuplicate, modifier = Modifier.weight(1f)) { Text("복제") }
+                    NeutralActionButton(onClick = onDuplicate, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.page_components_duplicate)) }
                 }
-                DangerActionButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) { Text("삭제") }
+                DangerActionButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_delete)) }
             }
         }
     }

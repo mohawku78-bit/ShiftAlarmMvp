@@ -72,6 +72,15 @@ class AlarmScheduler(private val context: Context) {
             true
         }
 
+    fun nextOwnedAlarmClockTriggerMillis(): Long? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return null
+        val nextAlarm = alarmManager.nextAlarmClock ?: return null
+        return if (nextAlarm.showIntent.creatorPackage == context.packageName) {
+            nextAlarm.triggerTime
+        } else {
+            null
+        }
+    }
     fun computeNextTriggerMillis(
         rule: AlarmRule,
         now: LocalDateTime = LocalDateTime.now(),
@@ -112,3 +121,6 @@ class AlarmScheduler(private val context: Context) {
         return (normalizedId * 31 + base).xor(0x5a5a5a5a)
     }
 }
+
+
+

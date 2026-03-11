@@ -20,6 +20,8 @@ data class HomeReliabilitySignals(
     val exactReady: Boolean,
     val notificationReady: Boolean,
     val batteryReady: Boolean,
+    val nextAlarmRegisteredReady: Boolean,
+    val shouldCheckAlarmRegistration: Boolean,
     val recoveryNeedsAttention: Boolean,
     val selfTestEvent: SelfTestStatus.Event?,
     val selfTestNeedsFollowUp: Boolean,
@@ -35,22 +37,28 @@ data class HomeReliabilityUiModel(
 )
 
 object HomeReliabilityPolicy {
-    fun evaluate(signals: HomeReliabilitySignals): HomeReliabilityUiModel {
+    fun evaluate(
+        signals: HomeReliabilitySignals,
+        texts: RecoveryStrings
+    ): HomeReliabilityUiModel {
         val setupUi = ReliabilitySetupPolicy.build(
-            ReliabilitySetupSignals(
+            signals = ReliabilitySetupSignals(
                 exactReady = signals.exactReady,
                 notificationReady = signals.notificationReady,
-                batteryReady = signals.batteryReady
-            )
+                batteryReady = signals.batteryReady,
+                nextAlarmRegisteredReady = signals.nextAlarmRegisteredReady,
+                shouldCheckAlarmRegistration = signals.shouldCheckAlarmRegistration
+            ),
+            texts = texts.setup
         )
-        setupUi.primaryStep?.let { return it.toHomeReliabilityUiModel() }
+        setupUi.primaryStep?.let { return it.toHomeReliabilityUiModel(texts.setup) }
 
         if (signals.recoveryNeedsAttention) {
             return HomeReliabilityUiModel(
                 level = HomeReliabilityLevel.ACTION,
-                statusLabel = "조치 필요",
-                reasonText = "일부 알람 복구가 누락되어 재예약이 필요합니다.",
-                primaryActionLabel = "알람 재예약",
+                statusLabel = texts.home.statusActionNeeded,
+                reasonText = texts.home.reasonRecoveryNeedsReschedule,
+                primaryActionLabel = texts.setup.alarmRegistrationAction,
                 primaryAction = HomeReliabilityAction.RESCHEDULE_ALARMS
             )
         }
@@ -58,9 +66,9 @@ object HomeReliabilityPolicy {
         if (signals.selfTestEvent == SelfTestStatus.Event.FAILED) {
             return HomeReliabilityUiModel(
                 level = HomeReliabilityLevel.ACTION,
-                statusLabel = "조치 필요",
-                reasonText = "최근 2분 테스트가 실패했습니다.",
-                primaryActionLabel = "신뢰도 화면 열기",
+                statusLabel = texts.home.statusActionNeeded,
+                reasonText = texts.home.reasonSelfTestFailed,
+                primaryActionLabel = texts.home.actionOpenCenter,
                 primaryAction = HomeReliabilityAction.OPEN_RELIABILITY_CENTER
             )
         }
@@ -68,34 +76,34 @@ object HomeReliabilityPolicy {
         if (signals.selfTestNeedsFollowUp) {
             val followUpUi = when (signals.selfTestEvent) {
                 SelfTestStatus.Event.SCHEDULED -> Triple(
-                    "2분 테스트가 예약되었습니다. 알람이 울리면 끄기를 눌러 확인해 주세요.",
-                    "상태 다시 확인",
+                    texts.home.followUpScheduled,
+                    texts.home.actionRefreshStatus,
                     HomeReliabilityAction.REFRESH_STATUS
                 )
                 SelfTestStatus.Event.TRIGGERED -> Triple(
-                    "테스트 알람이 울렸다면 끄기만 누르면 확인이 완료됩니다.",
-                    "상태 다시 확인",
+                    texts.home.followUpTriggered,
+                    texts.home.actionRefreshStatus,
                     HomeReliabilityAction.REFRESH_STATUS
                 )
                 SelfTestStatus.Event.UNCERTAIN -> Triple(
-                    "이전 테스트를 확인하지 못했습니다. 2분 테스트를 다시 해 주세요.",
-                    "2분 테스트",
+                    texts.home.followUpUncertain,
+                    texts.home.actionRunSelfTest,
                     HomeReliabilityAction.RUN_SELF_TEST
                 )
                 SelfTestStatus.Event.CANCELED -> Triple(
-                    "2분 테스트가 취소되었습니다. 다시 실행해 주세요.",
-                    "2분 테스트",
+                    texts.home.followUpCanceled,
+                    texts.home.actionRunSelfTest,
                     HomeReliabilityAction.RUN_SELF_TEST
                 )
                 else -> Triple(
-                    "2분 테스트로 오늘 울림 상태를 확인해 주세요.",
-                    "2분 테스트",
+                    texts.home.followUpDefault,
+                    texts.home.actionRunSelfTest,
                     HomeReliabilityAction.RUN_SELF_TEST
                 )
             }
             return HomeReliabilityUiModel(
                 level = HomeReliabilityLevel.CHECK,
-                statusLabel = "확인 필요",
+                statusLabel = texts.home.statusCheckNeeded,
                 reasonText = followUpUi.first,
                 primaryActionLabel = followUpUi.second,
                 primaryAction = followUpUi.third
@@ -105,18 +113,18 @@ object HomeReliabilityPolicy {
         if (signals.nightlyIssueCount > 0) {
             return HomeReliabilityUiModel(
                 level = HomeReliabilityLevel.CHECK,
-                statusLabel = "확인 필요",
-                reasonText = "최근 점검에서 확인 항목이 있어 재점검이 권장됩니다.",
-                primaryActionLabel = "재점검",
+                statusLabel = texts.home.statusCheckNeeded,
+                reasonText = texts.home.reasonNightlyIssue,
+                primaryActionLabel = texts.home.actionRecheck,
                 primaryAction = HomeReliabilityAction.REFRESH_STATUS
             )
         }
 
         return HomeReliabilityUiModel(
             level = HomeReliabilityLevel.SAFE,
-            statusLabel = "지금 안전함",
-            reasonText = "알람 신뢰도 상태가 정상입니다.",
-            primaryActionLabel = "재점검",
+            statusLabel = texts.home.statusSafe,
+            reasonText = texts.home.reasonSafe,
+            primaryActionLabel = texts.home.actionRecheck,
             primaryAction = HomeReliabilityAction.REFRESH_STATUS
         )
     }

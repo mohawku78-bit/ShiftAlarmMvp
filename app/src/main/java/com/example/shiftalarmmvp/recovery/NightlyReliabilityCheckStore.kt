@@ -1,6 +1,7 @@
-﻿package com.example.shiftalarmmvp.recovery
+package com.example.shiftalarmmvp.recovery
 
 import android.content.Context
+import com.example.shiftalarmmvp.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -23,14 +24,16 @@ data class NightlyReliabilityCheckStatus(
             .format(NIGHTLY_CHECK_TIME_FORMATTER)
     }
 
-    fun bannerText(): String {
-        val state = if (issueCount > 0) "확인 필요" else "양호"
-        return "최근 점검 ${checkedAtText()} · $state · $summary"
+    fun bannerText(texts: NightlyCheckStrings): String {
+        val state = if (issueCount > 0) texts.stateCheckNeeded else texts.stateGood
+        val resolvedSummary = summary.ifBlank { texts.summaryNone }
+        return texts.bannerFormat.format(checkedAtText(), state, resolvedSummary)
     }
 }
 
 class NightlyReliabilityCheckStore(context: Context) {
-    private val prefs = context.getSharedPreferences(NIGHTLY_CHECK_PREF_NAME, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences(NIGHTLY_CHECK_PREF_NAME, Context.MODE_PRIVATE)
 
     fun record(
         issueCount: Int,
@@ -51,8 +54,7 @@ class NightlyReliabilityCheckStore(context: Context) {
         return NightlyReliabilityCheckStatus(
             checkedAtMillis = checkedAtMillis,
             issueCount = prefs.getInt(KEY_ISSUE_COUNT, 0),
-            summary = prefs.getString(KEY_SUMMARY, "점검 정보 없음").orEmpty()
+            summary = prefs.getString(KEY_SUMMARY, appContext.getString(R.string.main_reliability_summary_none)).orEmpty()
         )
     }
 }
-

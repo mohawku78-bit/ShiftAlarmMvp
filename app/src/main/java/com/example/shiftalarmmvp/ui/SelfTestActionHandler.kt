@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
@@ -42,9 +43,14 @@ class SelfTestActionHandler(
     ): SelfTestActionResult {
         val alarmManager = appContext.getSystemService(AlarmManager::class.java)
         val triggerAtMillis = nowMillis + 2 * 60 * 1000L
+        val testLabel = if (config.label.isBlank()) {
+            appContext.getString(R.string.self_test_default_alarm_label)
+        } else {
+            appContext.getString(R.string.self_test_alarm_label_format, config.label)
+        }
         val testIntent = Intent(appContext, AlarmReceiver::class.java)
             .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
-            .putExtra(AlarmReceiver.EXTRA_LABEL, if (config.label.isBlank()) "2분 테스트 알람" else "${config.label} 테스트")
+            .putExtra(AlarmReceiver.EXTRA_LABEL, testLabel)
             .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, config.soundType.name)
             .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, config.customSoundUri)
             .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, config.volumePercent)
@@ -75,7 +81,10 @@ class SelfTestActionHandler(
         val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), ZoneId.systemDefault())
         val snapshot = reliabilityCoordinator.recordSelfTestScheduled(triggerAtMillis)
         return SelfTestActionResult(
-            message = "2분 테스트 예약됨: ${triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))}",
+            message = appContext.getString(
+                R.string.self_test_schedule_success_format,
+                triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))
+            ),
             snapshot = snapshot
         )
     }
@@ -91,7 +100,7 @@ class SelfTestActionHandler(
 
         if (pendingIntent == null) {
             return SelfTestActionResult(
-                message = "취소할 테스트 예약이 없습니다.",
+                message = appContext.getString(R.string.self_test_cancel_empty),
                 snapshot = null
             )
         }
@@ -100,7 +109,7 @@ class SelfTestActionHandler(
         pendingIntent.cancel()
         val snapshot = reliabilityCoordinator.recordSelfTestCanceled()
         return SelfTestActionResult(
-            message = "2분 테스트 예약을 취소했습니다.",
+            message = appContext.getString(R.string.self_test_cancel_success),
             snapshot = snapshot
         )
     }
@@ -108,9 +117,9 @@ class SelfTestActionHandler(
     fun markFeedback(feedback: SelfTestStatus.Feedback): SelfTestActionResult {
         val snapshot = reliabilityCoordinator.recordSelfTestFeedback(feedback)
         val message = when (feedback) {
-            SelfTestStatus.Feedback.PASSED -> "테스트 결과: 울림 확인"
-            SelfTestStatus.Feedback.UNCERTAIN -> "테스트 결과: 확인 못함"
-            SelfTestStatus.Feedback.FAILED -> "테스트 결과: 실패"
+            SelfTestStatus.Feedback.PASSED -> appContext.getString(R.string.self_test_feedback_passed)
+            SelfTestStatus.Feedback.UNCERTAIN -> appContext.getString(R.string.self_test_feedback_uncertain)
+            SelfTestStatus.Feedback.FAILED -> appContext.getString(R.string.self_test_feedback_failed)
         }
         return SelfTestActionResult(
             message = message,

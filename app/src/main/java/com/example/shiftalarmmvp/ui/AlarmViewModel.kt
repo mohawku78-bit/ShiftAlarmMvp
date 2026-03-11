@@ -3,24 +3,32 @@ package com.example.shiftalarmmvp.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import com.example.shiftalarmmvp.data.AlarmDatabase
+import com.example.shiftalarmmvp.data.AlarmDateOverrideState
+import com.example.shiftalarmmvp.data.AlarmDateOverrides
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import com.example.shiftalarmmvp.data.normalizeWeekPatterns
+import com.example.shiftalarmmvp.data.normalizedDateOverrides
 import com.example.shiftalarmmvp.data.toDomain
 import com.example.shiftalarmmvp.data.toEntity
+import com.example.shiftalarmmvp.data.withDateOverrides
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
+import java.time.DayOfWeek
+import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.DayOfWeek
-import java.time.LocalDate
+import kotlinx.coroutines.withContext
 
 class AlarmViewModel(application: Application) : AndroidViewModel(application) {
-    private val dao = AlarmDatabase.get(application).alarmDao()
+    private val database = AlarmDatabase.get(application)
+    private val dao = database.alarmDao()
     private val scheduler = AlarmScheduler(application)
 
     val alarms = dao.observeAll()
@@ -46,6 +54,10 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val interval = normalizeIntervalWeeks(intervalWeeks)
             val normalizedPattern = normalizeWeekPatterns(interval, weeklyPattern)
+            val overrides = AlarmDateOverrides.of(
+                skipDates = skipDateEpochDays,
+                addDates = addDateEpochDays
+            )
             val alarm = AlarmRule(
                 id = 0,
                 label = label.trim(),
@@ -60,8 +72,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
                 customSoundUri = customSoundUri,
                 volumePercent = volumePercent.coerceIn(0, 100),
                 vibrationEnabled = vibrationEnabled,
-                skipDateEpochDays = skipDateEpochDays,
-                addDateEpochDays = addDateEpochDays,
+                skipDateEpochDays = overrides.skipDates,
+                addDateEpochDays = overrides.addDates,
                 enabled = true
             )
 
@@ -91,6 +103,10 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val interval = normalizeIntervalWeeks(intervalWeeks)
             val normalizedPattern = normalizeWeekPatterns(interval, weeklyPattern)
+            val overrides = AlarmDateOverrides.of(
+                skipDates = skipDateEpochDays,
+                addDates = addDateEpochDays
+            )
             val updated = AlarmRule(
                 id = id,
                 label = label.trim(),
@@ -105,8 +121,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
                 customSoundUri = customSoundUri,
                 volumePercent = volumePercent.coerceIn(0, 100),
                 vibrationEnabled = vibrationEnabled,
-                skipDateEpochDays = skipDateEpochDays,
-                addDateEpochDays = addDateEpochDays,
+                skipDateEpochDays = overrides.skipDates,
+                addDateEpochDays = overrides.addDates,
                 enabled = enabled
             )
             dao.update(updated.toEntity())
@@ -133,9 +149,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     fun skipToday(alarm: AlarmRule) {
         viewModelScope.launch {
             val today = LocalDate.now()
-            val updated = alarm.copy(
-                skipDateEpochDays = alarm.skipDateEpochDays + today,
-                addDateEpochDays = alarm.addDateEpochDays - today
+            val updated = alarm.withDateOverrides(
+                alarm.normalizedDateOverrides().withState(today, AlarmDateOverrideState.SKIP)
             )
             dao.update(updated.toEntity())
             if (updated.enabled) {
@@ -148,7 +163,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     fun unskipToday(alarm: AlarmRule) {
         viewModelScope.launch {
             val today = LocalDate.now()
-            val updated = alarm.copy(skipDateEpochDays = alarm.skipDateEpochDays - today)
+            val updated = alarm.withDateOverrides(alarm.normalizedDateOverrides().withoutSkip(today))
             dao.update(updated.toEntity())
             if (updated.enabled) {
                 scheduler.cancel(updated.id)
@@ -160,9 +175,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     fun addTomorrow(alarm: AlarmRule) {
         viewModelScope.launch {
             val tomorrow = LocalDate.now().plusDays(1)
-            val updated = alarm.copy(
-                addDateEpochDays = alarm.addDateEpochDays + tomorrow,
-                skipDateEpochDays = alarm.skipDateEpochDays - tomorrow
+            val updated = alarm.withDateOverrides(
+                alarm.normalizedDateOverrides().withState(tomorrow, AlarmDateOverrideState.ADD)
             )
             dao.update(updated.toEntity())
             if (updated.enabled) {
@@ -175,7 +189,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     fun removeTomorrow(alarm: AlarmRule) {
         viewModelScope.launch {
             val tomorrow = LocalDate.now().plusDays(1)
-            val updated = alarm.copy(addDateEpochDays = alarm.addDateEpochDays - tomorrow)
+            val updated = alarm.withDateOverrides(alarm.normalizedDateOverrides().withoutAdd(tomorrow))
             dao.update(updated.toEntity())
             if (updated.enabled) {
                 scheduler.cancel(updated.id)
@@ -185,7 +199,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setVacationDateForAll(date: LocalDate) {
-        applyShiftTypeForDate(date, "휴가")
+        applyShiftTypeForDate(date, WORK_TYPE_VACATION)
     }
 
     fun clearVacationDateForAll(date: LocalDate) {
@@ -193,7 +207,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setVacationRangeForAll(start: LocalDate, end: LocalDate) {
-        applyShiftTypeForDateRange(start, end, "휴가")
+        applyShiftTypeForDateRange(start, end, WORK_TYPE_VACATION)
     }
 
     fun clearVacationRangeForAll(start: LocalDate, end: LocalDate) {
@@ -210,30 +224,23 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
             alarms.value.forEach { alarm ->
                 val alarmType = extractWorkTypeFromLabel(alarm.label)
-                var skip = alarm.skipDateEpochDays
-                var add = alarm.addDateEpochDays
+                var overrides = alarm.normalizedDateOverrides()
 
                 range.forEach { date ->
                     val scheduledOnDate = AlarmTimeCalculator.isScheduledOnDate(alarm, date)
-                    if (scheduledOnDate) {
-                        skip = skip + date
-                        add = add - date
+                    val targetState = when {
+                        alarmType == normalized -> AlarmDateOverrideState.ADD
+                        scheduledOnDate -> AlarmDateOverrideState.SKIP
+                        else -> AlarmDateOverrideState.NONE
                     }
-
-                    if (alarmType == normalized) {
-                        add = add + date
-                        skip = skip - date
-                    } else {
-                        add = add - date
-                    }
+                    overrides = overrides.withState(date, targetState)
                 }
 
-                if (skip == alarm.skipDateEpochDays && add == alarm.addDateEpochDays) return@forEach
+                if (overrides.skipDates == alarm.skipDateEpochDays && overrides.addDates == alarm.addDateEpochDays) {
+                    return@forEach
+                }
 
-                val updated = alarm.copy(
-                    skipDateEpochDays = skip,
-                    addDateEpochDays = add
-                )
+                val updated = alarm.withDateOverrides(overrides)
                 dao.update(updated.toEntity())
                 if (updated.enabled) {
                     scheduler.cancel(updated.id)
@@ -246,10 +253,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     fun clearDateOverridesForAll(date: LocalDate) {
         viewModelScope.launch {
             alarms.value.forEach { alarm ->
-                val updated = alarm.copy(
-                    skipDateEpochDays = alarm.skipDateEpochDays - date,
-                    addDateEpochDays = alarm.addDateEpochDays - date
-                )
+                val updated = alarm.withDateOverrides(alarm.normalizedDateOverrides().clearDates(setOf(date)))
                 if (
                     updated.skipDateEpochDays == alarm.skipDateEpochDays &&
                     updated.addDateEpochDays == alarm.addDateEpochDays
@@ -270,10 +274,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
             if (range.isEmpty()) return@launch
 
             alarms.value.forEach { alarm ->
-                val updated = alarm.copy(
-                    skipDateEpochDays = alarm.skipDateEpochDays - range,
-                    addDateEpochDays = alarm.addDateEpochDays - range
-                )
+                val updated = alarm.withDateOverrides(alarm.normalizedDateOverrides().clearDates(range))
                 if (
                     updated.skipDateEpochDays == alarm.skipDateEpochDays &&
                     updated.addDateEpochDays == alarm.addDateEpochDays
@@ -291,9 +292,8 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         if (alarmIds.isEmpty()) return
         viewModelScope.launch {
             alarms.value.filter { it.id in alarmIds }.forEach { alarm ->
-                val updated = alarm.copy(
-                    skipDateEpochDays = alarm.skipDateEpochDays + date,
-                    addDateEpochDays = alarm.addDateEpochDays - date
+                val updated = alarm.withDateOverrides(
+                    alarm.normalizedDateOverrides().withState(date, AlarmDateOverrideState.SKIP)
                 )
                 dao.update(updated.toEntity())
                 if (updated.enabled) {
@@ -308,7 +308,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         if (alarmIds.isEmpty()) return
         viewModelScope.launch {
             alarms.value.filter { it.id in alarmIds }.forEach { alarm ->
-                val updated = alarm.copy(skipDateEpochDays = alarm.skipDateEpochDays - date)
+                val updated = alarm.withDateOverrides(alarm.normalizedDateOverrides().withoutSkip(date))
                 dao.update(updated.toEntity())
                 if (updated.enabled) {
                     scheduler.cancel(updated.id)
@@ -376,10 +376,11 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             alarms.value.forEach { alarm ->
                 val state = snapshot[alarm.id] ?: return@forEach
-                val updated = alarm.copy(
-                    skipDateEpochDays = state.first,
-                    addDateEpochDays = state.second
+                val overrides = AlarmDateOverrides.of(
+                    skipDates = state.first,
+                    addDates = state.second
                 )
+                val updated = alarm.withDateOverrides(overrides)
                 if (
                     updated.skipDateEpochDays == alarm.skipDateEpochDays &&
                     updated.addDateEpochDays == alarm.addDateEpochDays
@@ -394,6 +395,45 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+    suspend fun replaceAllAlarms(imported: List<AlarmRule>): Int {
+        val normalizedImported = imported.map { alarm ->
+            val interval = normalizeIntervalWeeks(alarm.intervalWeeks)
+            val normalizedPattern = normalizeWeekPatterns(interval, alarm.weeklyPattern)
+            val overrides = AlarmDateOverrides.of(
+                skipDates = alarm.skipDateEpochDays,
+                addDates = alarm.addDateEpochDays
+            )
+            alarm.copy(
+                id = 0,
+                label = alarm.label.trim(),
+                weeklyPattern = normalizedPattern,
+                intervalWeeks = interval,
+                snoozeMinutes = alarm.snoozeMinutes.coerceIn(1, 60),
+                snoozeMaxCount = alarm.snoozeMaxCount.coerceIn(0, 99),
+                volumePercent = alarm.volumePercent.coerceIn(0, 100),
+                skipDateEpochDays = overrides.skipDates,
+                addDateEpochDays = overrides.addDates
+            )
+        }
+        val existing = withContext(Dispatchers.IO) {
+            dao.getAll().map { it.toDomain() }
+        }
+        withContext(Dispatchers.IO) {
+            database.withTransaction {
+                dao.deleteAll()
+                normalizedImported.forEach { alarm ->
+                    dao.insert(alarm.toEntity())
+                }
+            }
+        }
+        existing.forEach { scheduler.cancel(it.id) }
+        withContext(Dispatchers.IO) {
+            dao.getAllEnabled()
+                .map { it.toDomain() }
+        }.forEach { scheduler.schedule(it) }
+        return normalizedImported.size
+    }
+
     fun rescheduleAllEnabled() {
         viewModelScope.launch {
             dao.getAllEnabled()
@@ -402,3 +442,7 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+
+
+

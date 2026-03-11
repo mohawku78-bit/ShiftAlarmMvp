@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -22,7 +21,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import java.time.format.DateTimeFormatter
 
@@ -41,6 +43,7 @@ fun AlarmListPage(
     onRefreshLogs: () -> Unit,
     onClearLogs: () -> Unit
 ) {
+    val resources = LocalContext.current.resources
     var pendingDeleteAlarm by remember { mutableStateOf<AlarmRule?>(null) }
 
     if (pendingDeleteAlarm != null) {
@@ -53,8 +56,8 @@ fun AlarmListPage(
 
         AlertDialog(
             onDismissRequest = { pendingDeleteAlarm = null },
-            title = { Text("알람 삭제") },
-            text = { Text("'${targetLabel}' 알람을 삭제할까요?") },
+            title = { Text(stringResource(R.string.alarm_list_delete_title)) },
+            text = { Text(stringResource(R.string.alarm_list_delete_message, targetLabel)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -62,12 +65,12 @@ fun AlarmListPage(
                         pendingDeleteAlarm = null
                     }
                 ) {
-                    Text("삭제")
+                    Text(stringResource(R.string.common_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteAlarm = null }) {
-                    Text("취소")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -81,15 +84,15 @@ fun AlarmListPage(
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text("등록된 알람", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.alarm_list_registered_title), style = MaterialTheme.typography.titleMedium)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     PrimaryActionButton(onClick = onReconfigurePattern, modifier = Modifier.weight(1f)) {
-                        Text("템플릿에서 다시 시작")
+                        Text(stringResource(R.string.alarm_list_restart_from_template))
                     }
                 }
                 if (alarms.isEmpty()) {
-                    Text("아직 등록된 알람이 없습니다. 패턴 탭에서 자동 생성을 눌러보세요.")
+                    Text(stringResource(R.string.alarm_list_empty))
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         alarms.forEach { alarm ->
@@ -116,25 +119,42 @@ fun AlarmListPage(
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Edit, contentDescription = null)
-                    Text("알람 로그(최근 50건)", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.alarm_list_logs_title), style = MaterialTheme.typography.titleMedium)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     SecondaryActionButton(onClick = onRefreshLogs, modifier = Modifier.weight(1f)) {
-                        Text("로그 새로고침")
+                        Text(stringResource(R.string.alarm_list_logs_refresh))
                     }
                     DangerActionButton(onClick = onClearLogs, modifier = Modifier.weight(1f)) {
-                        Text("로그 초기화")
+                        Text(stringResource(R.string.alarm_list_logs_clear))
                     }
                 }
                 if (alarmLogs.isEmpty()) {
-                    Text("기록 없음")
+                    Text(stringResource(R.string.alarm_list_logs_empty))
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         alarmLogs.forEach { entry ->
                             val ts = entry.toLocalDateTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm:ss"))
-                            val labelText = if (entry.label.isBlank()) "(이름 없음)" else entry.label
-                            val detailText = if (entry.detail.isBlank()) "" else " / ${entry.detail}"
-                            Text("$ts [${formatAlarmLogType(entry.type)}] $labelText(#${entry.alarmId})$detailText")
+                            val labelText = if (entry.label.isBlank()) {
+                                stringResource(R.string.alarm_list_name_empty_wrapped)
+                            } else {
+                                entry.label
+                            }
+                            val detailText = if (entry.detail.isBlank()) {
+                                ""
+                            } else {
+                                stringResource(R.string.alarm_list_log_detail_format, entry.detail)
+                            }
+                            Text(
+                                stringResource(
+                                    R.string.alarm_list_log_entry_format,
+                                    ts,
+                                    formatAlarmLogType(resources, entry.type),
+                                    labelText,
+                                    entry.alarmId,
+                                    detailText
+                                )
+                            )
                         }
                     }
                 }
@@ -142,9 +162,3 @@ fun AlarmListPage(
         }
     }
 }
-
-
-
-
-
-

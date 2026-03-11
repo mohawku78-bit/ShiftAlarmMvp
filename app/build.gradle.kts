@@ -20,8 +20,8 @@ android {
         applicationId = "com.example.shiftalarmmvp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 81
+        versionName = "v081"
 
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
         buildConfigField("String", "BUILD_REF", "\"$gitHash\"")
@@ -71,6 +71,7 @@ dependencies {
     androidTestImplementation(composeBom)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    implementation("com.google.code.gson:gson:2.9.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")

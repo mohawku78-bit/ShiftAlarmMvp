@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.scheduler
+package com.example.shiftalarmmvp.scheduler
 
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
@@ -200,5 +200,54 @@ class AlarmTimeCalculatorTest {
 
         val diff = Duration.between(Instant.ofEpochMilli(newYork), Instant.ofEpochMilli(seoul)).abs()
         assertEquals(Duration.ofHours(14), diff)
+    }
+
+        @Test
+    fun `conflicting skip and add dates resolve to skip`() {
+        val rule = buildRule(
+            anchorDate = LocalDate.of(2026, 3, 2),
+            intervalWeeks = 1,
+            patterns = listOf(setOf(DayOfWeek.MONDAY)),
+            skipDates = setOf(LocalDate.of(2026, 3, 2)),
+            addDates = setOf(LocalDate.of(2026, 3, 2))
+        )
+
+        val first = AlarmTimeCalculator.nextTrigger(rule, LocalDateTime.of(2026, 3, 1, 0, 0))
+
+        assertEquals(LocalDateTime.of(2026, 3, 9, 7, 0), first)
+    }
+
+    @Test
+    fun `dates before anchor reuse previous rotation slot`() {
+        val rule = buildRule(
+            anchorDate = LocalDate.of(2026, 3, 16),
+            intervalWeeks = 2,
+            patterns = listOf(
+                setOf(DayOfWeek.MONDAY),
+                setOf(DayOfWeek.TUESDAY)
+            )
+        )
+
+        val beforeAnchorMatch = AlarmTimeCalculator.isScheduledOnDate(rule, LocalDate.of(2026, 3, 10))
+        val beforeAnchorNonMatch = AlarmTimeCalculator.isScheduledOnDate(rule, LocalDate.of(2026, 3, 9))
+
+        assertEquals(true, beforeAnchorMatch)
+        assertEquals(false, beforeAnchorNonMatch)
+    }
+
+    @Test
+    fun `next trigger can be found before anchor when future date matches prior slot`() {
+        val rule = buildRule(
+            anchorDate = LocalDate.of(2026, 3, 16),
+            intervalWeeks = 2,
+            patterns = listOf(
+                setOf(DayOfWeek.MONDAY),
+                setOf(DayOfWeek.TUESDAY)
+            )
+        )
+
+        val next = AlarmTimeCalculator.nextTrigger(rule, LocalDateTime.of(2026, 3, 8, 23, 0))
+
+        assertEquals(LocalDateTime.of(2026, 3, 10, 7, 0), next)
     }
 }

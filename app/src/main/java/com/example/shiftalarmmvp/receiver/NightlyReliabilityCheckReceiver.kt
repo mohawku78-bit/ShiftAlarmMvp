@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.receiver
+package com.example.shiftalarmmvp.receiver
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.recovery.NightlyReliabilityCheckStore
 import com.example.shiftalarmmvp.recovery.ReliabilityInspector
+import com.example.shiftalarmmvp.recovery.recoveryStrings
 import com.example.shiftalarmmvp.scheduler.NightlyReliabilityCheckScheduler
 import com.example.shiftalarmmvp.ui.MainActivity
 
@@ -53,14 +54,15 @@ class NightlyReliabilityCheckReceiver : BroadcastReceiver() {
 
     @SuppressLint("MissingPermission")
     private fun showIssueNotification(context: Context, summary: String) {
+        val texts = recoveryStrings(context.resources).nightlyNotification
         val manager = context.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager != null) {
             val channel = NotificationChannel(
                 NIGHTLY_CHECK_NOTIFICATION_CHANNEL_ID,
-                "취침 전 자동 점검",
+                texts.channelName,
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "취침 전에 알람 신뢰도를 자동 점검하고 문제가 있으면 알려줍니다."
+                description = texts.channelDescription
             }
             manager.createNotificationChannel(channel)
         }
@@ -78,9 +80,9 @@ class NightlyReliabilityCheckReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, NIGHTLY_CHECK_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_brand_badge)
-            .setContentTitle("취침 전 자동 점검: 확인 필요")
+            .setContentTitle(texts.notificationTitleCheckNeeded)
             .setContentText(summary)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$summary\n앱에서 추천 버튼으로 바로 조치하세요."))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(texts.notificationBigTextFormat.format(summary)))
             .setAutoCancel(true)
             .setContentIntent(openAppPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

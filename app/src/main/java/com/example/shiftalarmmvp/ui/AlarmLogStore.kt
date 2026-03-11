@@ -55,12 +55,19 @@ class AlarmLogStore(context: Context) {
                 detail = detail
             )
         )
-        val trimmed = current.takeLast(MAX_ENTRIES)
-        save(trimmed)
+        save(current.takeLast(MAX_ENTRIES))
     }
 
     fun recent(limit: Int = 50): List<AlarmLogEntry> {
         return loadMutable().takeLast(limit.coerceIn(1, MAX_ENTRIES)).asReversed()
+    }
+
+    fun allEntries(): List<AlarmLogEntry> {
+        return loadMutable().takeLast(MAX_ENTRIES)
+    }
+
+    fun replaceAll(entries: List<AlarmLogEntry>) {
+        save(entries.sortedBy { it.timestampMillis }.takeLast(MAX_ENTRIES))
     }
 
     fun clear() {

@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.data
+package com.example.shiftalarmmvp.data
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -13,11 +13,17 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms ORDER BY hour, minute")
     fun observeAll(): Flow<List<AlarmRuleEntity>>
 
+    @Query("SELECT * FROM alarms")
+    suspend fun getAll(): List<AlarmRuleEntity>
+
     @Query("SELECT * FROM alarms WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): AlarmRuleEntity?
 
     @Query("SELECT * FROM alarms WHERE enabled = 1")
     suspend fun getAllEnabled(): List<AlarmRuleEntity>
+
+    @Query("DELETE FROM alarms")
+    suspend fun deleteAll()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(alarm: AlarmRuleEntity): Long

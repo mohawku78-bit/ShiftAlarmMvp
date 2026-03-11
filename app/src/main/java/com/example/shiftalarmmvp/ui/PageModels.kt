@@ -1,6 +1,9 @@
 package com.example.shiftalarmmvp.ui
 
+import android.content.res.Resources
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import java.time.DayOfWeek
@@ -11,13 +14,13 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
-enum class AlarmPage(val label: String) {
-    TODAY("오늘"),
-    PATTERN("패턴"),
-    EXCEPTION("예외"),
-    MANAGE("관리"),
-    EDITOR("편집"),
-    PRESET("프리셋")
+enum class AlarmPage(@StringRes val labelResId: Int) {
+    TODAY(R.string.main_nav_today),
+    PATTERN(R.string.main_nav_pattern),
+    EXCEPTION(R.string.main_nav_exception),
+    MANAGE(R.string.main_nav_manage),
+    EDITOR(R.string.main_nav_editor),
+    PRESET(R.string.main_nav_preset)
 }
 
 data class WorkTypeAlarmConfig(
@@ -38,30 +41,145 @@ enum class ShiftCategory {
     THREE_SHIFT,
     CUSTOM
 }
+
 data class QuickShiftTemplate(
-    val label: String,
+    val id: String,
+    @StringRes val labelResId: Int,
     val sequence: List<String>,
     val category: ShiftCategory
 )
 
-val STANDARD_WORK_TYPES: List<String> = listOf("당직", "비번", "주간", "야간", "휴무", "휴가", "휴일")
+const val WORK_TYPE_DUTY = "당직"
+const val WORK_TYPE_OFF = "비번"
+const val WORK_TYPE_DAY = "주간"
+const val WORK_TYPE_NIGHT = "야간"
+const val WORK_TYPE_REST = "휴무"
+const val WORK_TYPE_VACATION = "휴가"
+const val WORK_TYPE_HOLIDAY = "휴일"
+
+const val WORK_TYPE_TOKEN_DAY = "주"
+const val WORK_TYPE_TOKEN_NIGHT = "야"
+const val WORK_TYPE_TOKEN_DUTY = "당"
+const val WORK_TYPE_TOKEN_OFF = "비"
+const val WORK_TYPE_TOKEN_REST = "휴"
+const val WORK_TYPE_TOKEN_HOLIDAY = "공휴일"
+const val WORK_TYPE_TOKEN_WORK = "근무"
+const val WORK_TYPE_TOKEN_EVENING = "석간"
+const val WORK_TYPE_TOKEN_EVENING_SHORT = "석"
+
+const val QUICK_TEMPLATE_ID_DAY_NIGHT = "day_night"
+const val QUICK_TEMPLATE_ID_DUTY_OFF = "duty_off"
+const val QUICK_TEMPLATE_ID_EVERY_OTHER_DAY = "every_other_day"
+const val QUICK_TEMPLATE_ID_TWO_SHIFT_CUSTOM = "two_shift_custom"
+const val QUICK_TEMPLATE_ID_DAY_DUTY_OFF = "day_duty_off"
+const val QUICK_TEMPLATE_ID_DAY_NIGHT_OFF = "day_night_off"
+const val QUICK_TEMPLATE_ID_DOUBLE_DAY_DOUBLE_NIGHT_OFF_OFF = "double_day_double_night_off_off"
+const val QUICK_TEMPLATE_ID_THREE_SHIFT_CUSTOM = "three_shift_custom"
+const val QUICK_TEMPLATE_ID_CUSTOM = "custom"
+
+val STANDARD_WORK_TYPES: List<String> = listOf(
+    WORK_TYPE_DUTY,
+    WORK_TYPE_OFF,
+    WORK_TYPE_DAY,
+    WORK_TYPE_NIGHT,
+    WORK_TYPE_REST,
+    WORK_TYPE_VACATION,
+    WORK_TYPE_HOLIDAY
+)
 
 private val WORK_TYPE_ALIAS_MAP: Map<String, String> = mapOf(
-    "주" to "주간",
-    "야" to "야간",
-    "당" to "당직",
-    "비" to "비번",
-    "휴" to "휴무",
-    "공휴일" to "휴일",
-    "근무" to "당직",
-    "석간" to "야간",
-    "석" to "야간"
+    WORK_TYPE_TOKEN_DAY to WORK_TYPE_DAY,
+    WORK_TYPE_TOKEN_NIGHT to WORK_TYPE_NIGHT,
+    WORK_TYPE_TOKEN_DUTY to WORK_TYPE_DUTY,
+    WORK_TYPE_TOKEN_OFF to WORK_TYPE_OFF,
+    WORK_TYPE_TOKEN_REST to WORK_TYPE_REST,
+    WORK_TYPE_TOKEN_HOLIDAY to WORK_TYPE_HOLIDAY,
+    WORK_TYPE_TOKEN_WORK to WORK_TYPE_DUTY,
+    WORK_TYPE_TOKEN_EVENING to WORK_TYPE_NIGHT,
+    WORK_TYPE_TOKEN_EVENING_SHORT to WORK_TYPE_NIGHT
 )
 
 private val WORK_TYPE_MATCH_ORDER: List<String> =
     (STANDARD_WORK_TYPES + WORK_TYPE_ALIAS_MAP.keys)
         .distinct()
         .sortedByDescending { it.length }
+
+val QUICK_SHIFT_TEMPLATES: List<QuickShiftTemplate> = listOf(
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_DAY_NIGHT,
+        labelResId = R.string.page_models_quick_template_day_night,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT),
+        category = ShiftCategory.TWO_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_DUTY_OFF,
+        labelResId = R.string.page_models_quick_template_duty_off,
+        sequence = listOf(WORK_TYPE_DUTY, WORK_TYPE_OFF),
+        category = ShiftCategory.TWO_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_EVERY_OTHER_DAY,
+        labelResId = R.string.page_models_quick_template_every_other_day,
+        sequence = listOf(WORK_TYPE_DUTY, WORK_TYPE_REST),
+        category = ShiftCategory.TWO_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_TWO_SHIFT_CUSTOM,
+        labelResId = R.string.page_models_quick_template_two_shift_custom,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT),
+        category = ShiftCategory.TWO_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_DAY_DUTY_OFF,
+        labelResId = R.string.page_models_quick_template_day_duty_off,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF),
+        category = ShiftCategory.THREE_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_DAY_NIGHT_OFF,
+        labelResId = R.string.page_models_quick_template_day_night_off,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT, WORK_TYPE_OFF),
+        category = ShiftCategory.THREE_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_DOUBLE_DAY_DOUBLE_NIGHT_OFF_OFF,
+        labelResId = R.string.page_models_quick_template_double_day_double_night_off_off,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_DAY, WORK_TYPE_NIGHT, WORK_TYPE_NIGHT, WORK_TYPE_OFF, WORK_TYPE_OFF),
+        category = ShiftCategory.THREE_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_THREE_SHIFT_CUSTOM,
+        labelResId = R.string.page_models_quick_template_three_shift_custom,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF, WORK_TYPE_REST),
+        category = ShiftCategory.THREE_SHIFT
+    ),
+    QuickShiftTemplate(
+        id = QUICK_TEMPLATE_ID_CUSTOM,
+        labelResId = R.string.page_models_quick_template_custom,
+        sequence = listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF),
+        category = ShiftCategory.CUSTOM
+    )
+)
+
+private sealed interface ShiftPatternBadgeKey {
+    object None : ShiftPatternBadgeKey
+    object Rest : ShiftPatternBadgeKey
+    object Daily : ShiftPatternBadgeKey
+    object DutyOff : ShiftPatternBadgeKey
+    object TwoDayCycle : ShiftPatternBadgeKey
+    object DayDutyOff : ShiftPatternBadgeKey
+    object DayNightOff : ShiftPatternBadgeKey
+    object ThreeDayCycle : ShiftPatternBadgeKey
+    object DoubleDayDoubleNight : ShiftPatternBadgeKey
+    object FourTeamThreeShift : ShiftPatternBadgeKey
+    object DayNightTwoShift : ShiftPatternBadgeKey
+    object Weekday : ShiftPatternBadgeKey
+    object WeeklyFive : ShiftPatternBadgeKey
+    object Weekend : ShiftPatternBadgeKey
+    data class WeeklyCount(val activeCount: Int) : ShiftPatternBadgeKey
+    data class HalfRotation(val period: Int) : ShiftPatternBadgeKey
+    data class Rotation(val period: Int) : ShiftPatternBadgeKey
+}
 
 fun normalizeWorkType(raw: String): String {
     val text = raw.trim()
@@ -73,44 +191,41 @@ fun normalizeWorkType(raw: String): String {
 
 fun extractWorkTypeFromLabel(label: String): String = normalizeWorkType(label)
 
-val QUICK_SHIFT_TEMPLATES: List<QuickShiftTemplate> = listOf(
-    QuickShiftTemplate(label = "주간/야간", sequence = listOf("주간", "야간"), category = ShiftCategory.TWO_SHIFT),
-    QuickShiftTemplate(label = "당직/비번", sequence = listOf("당직", "비번"), category = ShiftCategory.TWO_SHIFT),
-    QuickShiftTemplate(label = "격일", sequence = listOf("당직", "휴무"), category = ShiftCategory.TWO_SHIFT),
-    QuickShiftTemplate(label = "2교대 직접 구성", sequence = listOf("주간", "야간"), category = ShiftCategory.TWO_SHIFT),
-
-    QuickShiftTemplate(label = "주간/당직/비번", sequence = listOf("주간", "당직", "비번"), category = ShiftCategory.THREE_SHIFT),
-    QuickShiftTemplate(label = "주/야/비", sequence = listOf("주간", "야간", "비번"), category = ShiftCategory.THREE_SHIFT),
-    QuickShiftTemplate(label = "주주야야비비", sequence = listOf("주간", "주간", "야간", "야간", "비번", "비번"), category = ShiftCategory.THREE_SHIFT),
-    QuickShiftTemplate(label = "3교대 직접 구성", sequence = listOf("주간", "당직", "비번", "휴무"), category = ShiftCategory.THREE_SHIFT),
-
-    QuickShiftTemplate(label = "직접 설정", sequence = listOf("주간", "당직", "비번"), category = ShiftCategory.CUSTOM)
-)
-
 fun templatesForCategory(category: ShiftCategory): List<QuickShiftTemplate> {
     return QUICK_SHIFT_TEMPLATES.filter { it.category == category }
 }
 
 fun inferPresetCategory(preset: RotationPreset): ShiftCategory {
-    val badge = inferShiftPatternBadge(preset)
-    return when {
-        badge.contains("2교대") || badge.contains("당비당비") -> ShiftCategory.TWO_SHIFT
-        badge.contains("3교대") || badge.contains("주당비") || badge.contains("주야비") -> ShiftCategory.THREE_SHIFT
+    return when (inferShiftPatternBadgeKey(preset)) {
+        ShiftPatternBadgeKey.DutyOff,
+        ShiftPatternBadgeKey.TwoDayCycle,
+        ShiftPatternBadgeKey.DoubleDayDoubleNight,
+        ShiftPatternBadgeKey.DayNightTwoShift -> ShiftCategory.TWO_SHIFT
+
+        ShiftPatternBadgeKey.DayDutyOff,
+        ShiftPatternBadgeKey.DayNightOff,
+        ShiftPatternBadgeKey.ThreeDayCycle,
+        ShiftPatternBadgeKey.FourTeamThreeShift -> ShiftCategory.THREE_SHIFT
+
         else -> ShiftCategory.CUSTOM
     }
 }
 
+fun hasRestFamilyToken(type: String): Boolean = type.contains(WORK_TYPE_TOKEN_REST)
+
+fun isDefaultEnabledWorkType(type: String): Boolean {
+    return when {
+        type.contains(WORK_TYPE_VACATION) -> true
+        type.contains(WORK_TYPE_TOKEN_OFF) || hasRestFamilyToken(type) -> false
+        else -> true
+    }
+}
 
 fun defaultWorkTypeConfigs(types: List<String>): List<WorkTypeAlarmConfig> {
     return types.map(::normalizeWorkType).filter { it.isNotBlank() }.distinct().map { type ->
-        val defaultEnabled = when {
-            type.contains("휴가") -> true
-            type.contains("비") || type.contains("휴") -> false
-            else -> true
-        }
         WorkTypeAlarmConfig(
             type = type,
-            enabled = defaultEnabled,
+            enabled = isDefaultEnabledWorkType(type),
             primaryTime = defaultPrimaryTime(type),
             secondaryTime = ""
         )
@@ -119,11 +234,11 @@ fun defaultWorkTypeConfigs(types: List<String>): List<WorkTypeAlarmConfig> {
 
 fun defaultPrimaryTime(type: String): String {
     return when (normalizeWorkType(type)) {
-        "주간" -> "06:30"
-        "야간" -> "20:30"
-        "당직" -> "08:30"
-        "휴가" -> "09:30"
-        "휴무", "휴일", "비번" -> "08:00"
+        WORK_TYPE_DAY -> "06:30"
+        WORK_TYPE_NIGHT -> "20:30"
+        WORK_TYPE_DUTY -> "08:30"
+        WORK_TYPE_VACATION -> "09:30"
+        WORK_TYPE_REST, WORK_TYPE_HOLIDAY, WORK_TYPE_OFF -> "08:00"
         else -> "07:00"
     }
 }
@@ -140,7 +255,7 @@ fun buildWorkTemplateRotation(
     sequence: List<String>,
     todayIndex: Int
 ): BuiltWorkRotation {
-    val seq = sequence.ifEmpty { listOf("주간") }
+    val seq = sequence.ifEmpty { listOf(WORK_TYPE_DAY) }
     val period = seq.size.coerceAtLeast(1)
     val start = todayIndex.coerceIn(0, period - 1)
     val intervalWeeks = normalizeIntervalWeeks(lcm(period, 7) / 7)
@@ -172,7 +287,9 @@ fun buildWeeklyPatternForType(
     }
     return weeks.map { it.toSet() }
 }
+
 fun buildWorkPreview(
+    resources: Resources,
     sequence: List<String>,
     todayIndex: Int,
     days: Int,
@@ -184,27 +301,31 @@ fun buildWorkPreview(
     return (0 until days).map { d ->
         val date = anchor.plusDays(d.toLong())
         val type = sequence[(start + d) % period]
-        "${date.format(DateTimeFormatter.ofPattern("MM/dd"))}  $type"
+        resources.getString(
+            R.string.page_models_work_preview_line_format,
+            date.format(DateTimeFormatter.ofPattern("MM/dd")),
+            type
+        )
     }
 }
 
 fun workTypeColor(type: String): Color {
     return when (normalizeWorkType(type)) {
-        "주간" -> Color(0xFF1565C0)
-        "야간" -> Color(0xFFC62828)
-        "당직" -> Color(0xFFEF6C00)
-        "비번", "휴무", "휴가", "휴일" -> Color(0xFF616161)
+        WORK_TYPE_DAY -> Color(0xFF1565C0)
+        WORK_TYPE_NIGHT -> Color(0xFFC62828)
+        WORK_TYPE_DUTY -> Color(0xFFEF6C00)
+        WORK_TYPE_OFF, WORK_TYPE_REST, WORK_TYPE_VACATION, WORK_TYPE_HOLIDAY -> Color(0xFF616161)
         else -> Color(0xFF2E7D32)
     }
 }
 
-fun workTypeColorName(type: String): String {
+fun workTypeColorName(resources: Resources, type: String): String {
     return when (normalizeWorkType(type)) {
-        "주간" -> "파랑"
-        "야간" -> "빨강"
-        "당직" -> "주황"
-        "비번", "휴무", "휴가", "휴일" -> "회색"
-        else -> "초록"
+        WORK_TYPE_DAY -> resources.getString(R.string.page_models_color_blue)
+        WORK_TYPE_NIGHT -> resources.getString(R.string.page_models_color_red)
+        WORK_TYPE_DUTY -> resources.getString(R.string.page_models_color_orange)
+        WORK_TYPE_OFF, WORK_TYPE_REST, WORK_TYPE_VACATION, WORK_TYPE_HOLIDAY -> resources.getString(R.string.page_models_color_gray)
+        else -> resources.getString(R.string.page_models_color_green)
     }
 }
 
@@ -223,46 +344,68 @@ private fun lcm(a: Int, b: Int): Int {
     return kotlin.math.abs(a / gcd(a, b) * b)
 }
 
-fun dayOfWeekLabel(day: DayOfWeek): String {
+fun dayOfWeekLabel(resources: Resources, day: DayOfWeek): String {
     return when (day) {
-        DayOfWeek.MONDAY -> "월"
-        DayOfWeek.TUESDAY -> "화"
-        DayOfWeek.WEDNESDAY -> "수"
-        DayOfWeek.THURSDAY -> "목"
-        DayOfWeek.FRIDAY -> "금"
-        DayOfWeek.SATURDAY -> "토"
-        DayOfWeek.SUNDAY -> "일"
+        DayOfWeek.MONDAY -> resources.getString(R.string.shift_day_mon)
+        DayOfWeek.TUESDAY -> resources.getString(R.string.shift_day_tue)
+        DayOfWeek.WEDNESDAY -> resources.getString(R.string.shift_day_wed)
+        DayOfWeek.THURSDAY -> resources.getString(R.string.shift_day_thu)
+        DayOfWeek.FRIDAY -> resources.getString(R.string.shift_day_fri)
+        DayOfWeek.SATURDAY -> resources.getString(R.string.shift_day_sat)
+        DayOfWeek.SUNDAY -> resources.getString(R.string.shift_day_sun)
     }
 }
 
-fun inferShiftPatternBadge(preset: RotationPreset): String {
+fun inferShiftPatternBadge(resources: Resources, preset: RotationPreset): String {
+    return when (val key = inferShiftPatternBadgeKey(preset)) {
+        ShiftPatternBadgeKey.None -> resources.getString(R.string.page_models_shift_pattern_none)
+        ShiftPatternBadgeKey.Rest -> resources.getString(R.string.page_models_shift_pattern_rest)
+        ShiftPatternBadgeKey.Daily -> resources.getString(R.string.page_models_shift_pattern_daily)
+        ShiftPatternBadgeKey.DutyOff -> resources.getString(R.string.page_models_shift_pattern_duty_off)
+        ShiftPatternBadgeKey.TwoDayCycle -> resources.getString(R.string.page_models_shift_pattern_two_day_cycle)
+        ShiftPatternBadgeKey.DayDutyOff -> resources.getString(R.string.page_models_shift_pattern_day_duty_off)
+        ShiftPatternBadgeKey.DayNightOff -> resources.getString(R.string.page_models_shift_pattern_day_night_off)
+        ShiftPatternBadgeKey.ThreeDayCycle -> resources.getString(R.string.page_models_shift_pattern_three_day_cycle)
+        ShiftPatternBadgeKey.DoubleDayDoubleNight -> resources.getString(R.string.page_models_shift_pattern_double_day_double_night)
+        ShiftPatternBadgeKey.FourTeamThreeShift -> resources.getString(R.string.page_models_shift_pattern_four_team_three_shift)
+        ShiftPatternBadgeKey.DayNightTwoShift -> resources.getString(R.string.page_models_shift_pattern_day_night_two_shift)
+        ShiftPatternBadgeKey.Weekday -> resources.getString(R.string.page_models_shift_pattern_weekday)
+        ShiftPatternBadgeKey.WeeklyFive -> resources.getString(R.string.page_models_shift_pattern_weekly_five)
+        ShiftPatternBadgeKey.Weekend -> resources.getString(R.string.page_models_shift_pattern_weekend)
+        is ShiftPatternBadgeKey.WeeklyCount -> resources.getString(R.string.page_models_shift_pattern_weekly_count_format, key.activeCount)
+        is ShiftPatternBadgeKey.HalfRotation -> resources.getString(R.string.page_models_shift_pattern_half_rotation_format, key.period)
+        is ShiftPatternBadgeKey.Rotation -> resources.getString(R.string.page_models_shift_pattern_rotation_format, key.period)
+    }
+}
+
+private fun inferShiftPatternBadgeKey(preset: RotationPreset): ShiftPatternBadgeKey {
     val cycle = buildPresetCycle(preset)
-    if (cycle.isEmpty()) return "패턴 없음"
+    if (cycle.isEmpty()) return ShiftPatternBadgeKey.None
 
     val period = findRepeatingPeriod(cycle)
     val base = cycle.take(period)
     val activeCount = base.count { it }
 
-    if (activeCount == 0) return "휴무형"
-    if (activeCount == period) return "매일형"
+    if (activeCount == 0) return ShiftPatternBadgeKey.Rest
+    if (activeCount == period) return ShiftPatternBadgeKey.Daily
 
     return when (period) {
-        2 -> if (activeCount == 1) "당비당비" else "2일 순환형"
-        3 -> if (activeCount == 1) "주당비/주야비" else if (activeCount == 2) "주야비" else "3일 순환형"
+        2 -> if (activeCount == 1) ShiftPatternBadgeKey.DutyOff else ShiftPatternBadgeKey.TwoDayCycle
+        3 -> if (activeCount == 1) ShiftPatternBadgeKey.DayDutyOff else if (activeCount == 2) ShiftPatternBadgeKey.DayNightOff else ShiftPatternBadgeKey.ThreeDayCycle
         4 -> when {
-            patternKey(base) in setOf("1100", "0011", "0110", "1001") -> "주주야야(2교대)"
-            activeCount == 3 -> "4조3교대"
-            activeCount == 2 -> "주야(2교대)"
-            else -> "4일 순환형"
+            patternKey(base) in setOf("1100", "0011", "0110", "1001") -> ShiftPatternBadgeKey.DoubleDayDoubleNight
+            activeCount == 3 -> ShiftPatternBadgeKey.FourTeamThreeShift
+            activeCount == 2 -> ShiftPatternBadgeKey.DayNightTwoShift
+            else -> ShiftPatternBadgeKey.Rotation(period)
         }
-        7 -> inferWeeklyBadge(preset, base)
+        7 -> inferWeeklyBadgeKey(preset, base)
         else -> {
-            if (activeCount * 2 == period) "${period}일 반반 순환형" else "${period}일 순환형"
+            if (activeCount * 2 == period) ShiftPatternBadgeKey.HalfRotation(period) else ShiftPatternBadgeKey.Rotation(period)
         }
     }
 }
 
-private fun inferWeeklyBadge(preset: RotationPreset, base: List<Boolean>): String {
+private fun inferWeeklyBadgeKey(preset: RotationPreset, base: List<Boolean>): ShiftPatternBadgeKey {
     val activeCount = base.count { it }
     if (activeCount == 5 && hasConsecutiveOff(base, 2)) {
         val firstWeek = preset.weekPatterns.firstOrNull().orEmpty()
@@ -274,19 +417,19 @@ private fun inferWeeklyBadge(preset: RotationPreset, base: List<Boolean>): Strin
                 DayOfWeek.FRIDAY
             )
         ) {
-            return "주중형(월~금)"
+            return ShiftPatternBadgeKey.Weekday
         }
-        return "주5일형"
+        return ShiftPatternBadgeKey.WeeklyFive
     }
 
     if (activeCount == 2) {
         val firstWeek = preset.weekPatterns.firstOrNull().orEmpty()
         if (firstWeek == setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)) {
-            return "주말형"
+            return ShiftPatternBadgeKey.Weekend
         }
     }
 
-    return "주${activeCount}회형"
+    return ShiftPatternBadgeKey.WeeklyCount(activeCount)
 }
 
 private fun hasConsecutiveOff(cycle: List<Boolean>, need: Int): Boolean {
@@ -336,37 +479,40 @@ private fun patternKey(cycle: List<Boolean>): String {
     return cycle.joinToString(separator = "") { if (it) "1" else "0" }
 }
 
-fun formatAlarmLogType(type: AlarmLogType): String {
+fun formatAlarmLogType(resources: Resources, type: AlarmLogType): String {
     return when (type) {
-        AlarmLogType.RING_START -> "울림 시작"
-        AlarmLogType.STOP -> "끄기"
-        AlarmLogType.SNOOZE_SCHEDULED -> "스누즈 예약"
-        AlarmLogType.SNOOZE_BLOCKED -> "스누즈 차단"
-        AlarmLogType.ONE_MORE_SCHEDULED -> "마지막 1회 예약"
-        AlarmLogType.ONE_MORE_SKIPPED -> "마지막 1회 미예약"
-        AlarmLogType.MANUAL_VACATION_SET -> "휴가 처리"
-        AlarmLogType.MANUAL_VACATION_CLEAR -> "휴가 해제"
-        AlarmLogType.MANUAL_SKIP_SET -> "스킵 처리"
-        AlarmLogType.MANUAL_SKIP_CLEAR -> "스킵 해제"
-        AlarmLogType.MANUAL_SHIFT_CHANGE -> "근무 변경"
-        AlarmLogType.MANUAL_UNDO -> "실행 취소"
-        AlarmLogType.MANUAL_RECOVERY_ACTION -> "복구 조치"
+        AlarmLogType.RING_START -> resources.getString(R.string.page_models_alarm_log_ring_start)
+        AlarmLogType.STOP -> resources.getString(R.string.page_models_alarm_log_stop)
+        AlarmLogType.SNOOZE_SCHEDULED -> resources.getString(R.string.page_models_alarm_log_snooze_scheduled)
+        AlarmLogType.SNOOZE_BLOCKED -> resources.getString(R.string.page_models_alarm_log_snooze_blocked)
+        AlarmLogType.ONE_MORE_SCHEDULED -> resources.getString(R.string.page_models_alarm_log_one_more_scheduled)
+        AlarmLogType.ONE_MORE_SKIPPED -> resources.getString(R.string.page_models_alarm_log_one_more_skipped)
+        AlarmLogType.MANUAL_VACATION_SET -> resources.getString(R.string.page_models_alarm_log_manual_vacation_set)
+        AlarmLogType.MANUAL_VACATION_CLEAR -> resources.getString(R.string.page_models_alarm_log_manual_vacation_clear)
+        AlarmLogType.MANUAL_SKIP_SET -> resources.getString(R.string.page_models_alarm_log_manual_skip_set)
+        AlarmLogType.MANUAL_SKIP_CLEAR -> resources.getString(R.string.page_models_alarm_log_manual_skip_clear)
+        AlarmLogType.MANUAL_SHIFT_CHANGE -> resources.getString(R.string.page_models_alarm_log_manual_shift_change)
+        AlarmLogType.MANUAL_UNDO -> resources.getString(R.string.page_models_alarm_log_manual_undo)
+        AlarmLogType.MANUAL_RECOVERY_ACTION -> resources.getString(R.string.page_models_alarm_log_manual_recovery_action)
     }
 }
 
-fun formatTimeUntil(target: LocalDateTime, now: LocalDateTime = LocalDateTime.now()): String {
+fun formatTimeUntil(
+    resources: Resources,
+    target: LocalDateTime,
+    now: LocalDateTime = LocalDateTime.now()
+): String {
     val totalMinutes = java.time.Duration.between(now, target).toMinutes().coerceAtLeast(0)
-    if (totalMinutes == 0L) return "곧"
+    if (totalMinutes == 0L) return resources.getString(R.string.page_models_time_until_soon)
 
     val days = totalMinutes / (24 * 60)
     val hours = (totalMinutes % (24 * 60)) / 60
     val minutes = totalMinutes % 60
     val parts = mutableListOf<String>()
 
-    if (days > 0) parts += "${days}일"
-    if (hours > 0) parts += "${hours}시간"
-    if (minutes > 0) parts += "${minutes}분"
+    if (days > 0) parts += resources.getString(R.string.page_models_time_until_days_format, days)
+    if (hours > 0) parts += resources.getString(R.string.page_models_time_until_hours_format, hours)
+    if (minutes > 0) parts += resources.getString(R.string.page_models_time_until_minutes_format, minutes)
 
     return parts.joinToString(" ")
 }
-

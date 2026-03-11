@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.recovery
+package com.example.shiftalarmmvp.recovery
 
 import android.content.Context
 import java.time.Instant
@@ -37,19 +37,19 @@ data class SelfTestStatus(
         FAILED
     }
 
-    fun statusLabel(): String {
+    fun statusLabel(texts: SelfTestStatusStrings): String {
         return when (lastEvent) {
-            Event.NONE -> "테스트 이력 없음"
-            Event.SCHEDULED -> "테스트 예약됨"
-            Event.TRIGGERED -> "알림 감지됨"
-            Event.PASSED -> "알림 확인 완료"
-            Event.UNCERTAIN -> "확인 못함"
-            Event.FAILED -> "실패 기록됨"
-            Event.CANCELED -> "테스트 취소됨"
+            Event.NONE -> texts.statusNone
+            Event.SCHEDULED -> texts.statusScheduled
+            Event.TRIGGERED -> texts.statusTriggered
+            Event.PASSED -> texts.statusPassed
+            Event.UNCERTAIN -> texts.statusUncertain
+            Event.FAILED -> texts.statusFailed
+            Event.CANCELED -> texts.statusCanceled
         }
     }
 
-    fun detailText(): String {
+    fun detailText(texts: SelfTestStatusStrings): String {
         val target = when (lastEvent) {
             Event.SCHEDULED -> if (triggerAtMillis > 0L) triggerAtMillis else scheduledAtMillis
             Event.TRIGGERED -> if (triggeredAtMillis > 0L) triggeredAtMillis else triggerAtMillis
@@ -64,11 +64,13 @@ data class SelfTestStatus(
                 .atZone(ZoneId.systemDefault())
                 .format(SELF_TEST_TIME_FORMATTER)
         } else {
-            "-"
+            texts.detailNone
         }
     }
 
-    fun homeSummary(): String = "2분 테스트 ${statusLabel()} · ${detailText()}"
+    fun homeSummary(texts: SelfTestStatusStrings): String {
+        return texts.homeSummaryFormat.format(statusLabel(texts), detailText(texts))
+    }
 }
 
 class SelfTestStatusStore(context: Context) {

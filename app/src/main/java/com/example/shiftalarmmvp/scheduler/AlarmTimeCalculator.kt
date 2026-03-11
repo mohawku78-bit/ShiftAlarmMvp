@@ -1,5 +1,6 @@
-﻿package com.example.shiftalarmmvp.scheduler
+package com.example.shiftalarmmvp.scheduler
 
+import com.example.shiftalarmmvp.data.AlarmDateOverrides
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import java.time.DayOfWeek
@@ -39,29 +40,37 @@ object AlarmTimeCalculator {
 
     fun isScheduledOnDate(rule: AlarmRule, date: LocalDate): Boolean {
         if (!rule.enabled) return false
-        if (rule.skipDateEpochDays.contains(date)) return false
-        if (rule.addDateEpochDays.contains(date)) return true
 
-        val slot = weekSlot(date, rule.anchorDate, rule.intervalWeeks) ?: return false
+        val overrides = AlarmDateOverrides.of(
+            skipDates = rule.skipDateEpochDays,
+            addDates = rule.addDateEpochDays
+        )
+        if (date in overrides.skipDates) return false
+        if (date in overrides.addDates) return true
+
+        val slot = weekSlot(date, rule.anchorDate, rule.intervalWeeks)
         val weekDays = rule.weeklyPattern.getOrNull(slot).orEmpty()
         return date.dayOfWeek in weekDays
     }
 
-    private fun weekSlot(date: LocalDate, anchorDate: LocalDate, intervalWeeks: Int): Int? {
+    private fun weekSlot(date: LocalDate, anchorDate: LocalDate, intervalWeeks: Int): Int {
         val interval = normalizeIntervalWeeks(intervalWeeks)
         val anchorWeekStart = anchorDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val dateWeekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weeksBetween = ChronoUnit.WEEKS.between(anchorWeekStart, dateWeekStart)
-        if (weeksBetween < 0) return null
-        return (weeksBetween % interval.toLong()).toInt()
+        return Math.floorMod(weeksBetween, interval.toLong()).toInt()
     }
 
     private fun searchWindowDays(rule: AlarmRule, startDate: LocalDate): Int {
         val cycleDays = normalizeIntervalWeeks(rule.intervalWeeks) * 7
-        val upcomingAddDateOffset = rule.addDateEpochDays
+        val upcomingAddDateOffset = AlarmDateOverrides.of(
+            skipDates = rule.skipDateEpochDays,
+            addDates = rule.addDateEpochDays
+        ).addDates
             .filter { !it.isBefore(startDate) }
             .minOfOrNull { ChronoUnit.DAYS.between(startDate, it).toInt() + 1 }
             ?: 0
         return maxOf(120, cycleDays, upcomingAddDateOffset)
     }
 }
+

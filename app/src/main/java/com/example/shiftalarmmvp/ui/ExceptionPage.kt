@@ -1,17 +1,19 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
 import java.time.LocalDate
@@ -25,6 +27,7 @@ fun ExceptionPage(
     onOpenManage: () -> Unit,
     onOpenEditor: () -> Unit
 ) {
+    val resources = LocalContext.current.resources
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -34,17 +37,17 @@ fun ExceptionPage(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("예외 처리", style = MaterialTheme.typography.titleMedium)
-                Text("오늘 스킵/내일 추가를 빠르게 처리합니다.")
+                Text(stringResource(R.string.exception_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.exception_description))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     PrimaryActionButton(onClick = onOpenEditor, modifier = Modifier.weight(1f)) {
-                        Text("새 알람 추가")
+                        Text(stringResource(R.string.exception_add_alarm))
                     }
                     NeutralActionButton(onClick = onOpenManage, modifier = Modifier.weight(1f)) {
-                        Text("관리 화면")
+                        Text(stringResource(R.string.exception_manage_screen))
                     }
                 }
             }
@@ -53,7 +56,7 @@ fun ExceptionPage(
         if (alarms.isEmpty()) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text("등록된 알람이 없습니다.")
+                    Text(stringResource(R.string.exception_empty))
                 }
             }
         } else {
@@ -67,9 +70,13 @@ fun ExceptionPage(
                 val tomorrowAdded = LocalDate.now().plusDays(1) in alarm.addDateEpochDays
                 val next = AlarmTimeCalculator.nextTrigger(alarm)
                 val nextLabel = if (next == null) {
-                    "없음"
+                    stringResource(R.string.common_none)
                 } else {
-                    "${next.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))} (${formatTimeUntil(next)} 후)"
+                    stringResource(
+                        R.string.exception_next_label_format,
+                        next.format(DateTimeFormatter.ofPattern("MM-dd HH:mm")),
+                        formatTimeUntil(resources, next)
+                    )
                 }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -78,16 +85,28 @@ fun ExceptionPage(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(label, style = MaterialTheme.typography.titleSmall)
-                        Text("다음 울림: $nextLabel")
+                        Text(stringResource(R.string.exception_next_alarm, nextLabel))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             SecondaryActionButton(onClick = { onToggleTodaySkip(alarm) }, modifier = Modifier.weight(1f)) {
-                                Text(if (skippedToday) "오늘 스킵 취소" else "오늘 스킵")
+                                Text(
+                                    if (skippedToday) {
+                                        stringResource(R.string.exception_today_skip_cancel)
+                                    } else {
+                                        stringResource(R.string.exception_today_skip)
+                                    }
+                                )
                             }
                             SecondaryActionButton(onClick = { onToggleTomorrowAdd(alarm) }, modifier = Modifier.weight(1f)) {
-                                Text(if (tomorrowAdded) "내일 추가 취소" else "내일 추가")
+                                Text(
+                                    if (tomorrowAdded) {
+                                        stringResource(R.string.exception_tomorrow_add_cancel)
+                                    } else {
+                                        stringResource(R.string.exception_tomorrow_add)
+                                    }
+                                )
                             }
                         }
                     }
@@ -96,4 +115,3 @@ fun ExceptionPage(
         }
     }
 }
-

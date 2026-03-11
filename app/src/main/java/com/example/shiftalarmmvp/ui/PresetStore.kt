@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import com.example.shiftalarmmvp.data.normalizeWeekPatterns
@@ -85,6 +85,10 @@ class RotationPresetStore(context: android.content.Context) {
 
     fun exportJson(): String {
         return serializeToJson(load())
+    }
+
+    fun replaceAll(items: List<RotationPreset>) {
+        save(items)
     }
 
     fun importJson(raw: String, merge: Boolean): Int {

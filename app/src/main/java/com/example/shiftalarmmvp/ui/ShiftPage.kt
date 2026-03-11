@@ -1,7 +1,10 @@
 package com.example.shiftalarmmvp.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -20,23 +23,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.shiftalarmmvp.R
 import java.time.LocalDate
 import java.time.LocalTime
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import java.time.YearMonth
 
 @Composable
@@ -61,6 +56,8 @@ fun ShiftPage(
     infiniteRotationEnabled: Boolean,
     onInfiniteRotationEnabledChange: (Boolean) -> Unit,
     onAutoBuild: () -> Unit,
+    wizardState: FirstSetupWizardState,
+    onWizardStateChange: (FirstSetupWizardState) -> Unit,
     showFirstSetupWizard: Boolean,
     onCompleteFirstSetup: () -> Unit,
     onHideFirstSetupWizard: () -> Unit,
@@ -71,51 +68,57 @@ fun ShiftPage(
     anchorDate: LocalDate,
     onAnchorDateChange: (LocalDate) -> Unit,
 ) {
-    var wizardStep by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
-    var selectedTemplate by remember(showFirstSetupWizard, selectedCategory) { mutableStateOf<QuickShiftTemplate?>(null) }
-    var showAdvanced by rememberSaveable { mutableStateOf(false) }
-    var showStep1Advanced by rememberSaveable(showFirstSetupWizard) { mutableStateOf(false) }
-    var selectedStep1TypeIndex by rememberSaveable(showFirstSetupWizard) { mutableIntStateOf(0) }
+    val normalizedWizardState = wizardState.normalized(workTypeConfigs.size)
+    val wizardStep = normalizedWizardState.step
+    val showAdvanced = normalizedWizardState.showAdvanced
+    val showStep1Advanced = normalizedWizardState.showStep1Advanced
+    val selectedStep1TypeIndex = normalizedWizardState.selectedStep1TypeIndex
+    val selectedAlarmSlot = normalizedWizardState.selectedAlarmSlot
+
+    fun updateWizardState(transform: (FirstSetupWizardState) -> FirstSetupWizardState) {
+        onWizardStateChange(transform(normalizedWizardState).normalized(workTypeConfigs.size))
+    }
 
     BackHandler(enabled = showFirstSetupWizard && wizardStep > 0) {
-        wizardStep -= 1
+        updateWizardState { it.back() }
     }
 
     val representativeTemplates = quickTemplates.filter {
-        it.label in setOf("주간/당직/비번", "주/야/비", "당직/비번", "격일", "주5일")
+        it.id in setOf(
+            QUICK_TEMPLATE_ID_DAY_DUTY_OFF,
+            QUICK_TEMPLATE_ID_DAY_NIGHT_OFF,
+            QUICK_TEMPLATE_ID_DUTY_OFF,
+            QUICK_TEMPLATE_ID_EVERY_OTHER_DAY
+        )
     }.ifEmpty { quickTemplates.take(4) }
     val categoryTemplates: List<QuickShiftTemplate> = if (selectedCategory == ShiftCategory.CUSTOM) emptyList() else representativeTemplates
-    val canProceedFromStep0 = if (selectedCategory == ShiftCategory.CUSTOM) {
-        rotationSequence.isNotEmpty()
-    } else {
-        selectedTemplate != null || categoryTemplates.isNotEmpty()
+    val selectedTemplate = categoryTemplates.firstOrNull { it.id == normalizedWizardState.selectedTemplateId }
+        ?: categoryTemplates.firstOrNull()
+    val usesCustomPattern = selectedCategory == ShiftCategory.CUSTOM
+    val canAdvanceWizard = canAdvanceFirstSetupWizard(
+        step = wizardStep,
+        usesCustomPattern = usesCustomPattern,
+        hasCustomRotation = rotationSequence.isNotEmpty(),
+        hasPresetTemplate = selectedTemplate != null || categoryTemplates.isNotEmpty()
+    )
+    val shouldApplyQuickTemplate = shouldApplyQuickTemplateOnAdvance(
+        step = wizardStep,
+        usesCustomPattern = usesCustomPattern
+    )
+
+    fun advanceWizard() {
+        if (!canAdvanceWizard) return
+        if (shouldApplyQuickTemplate) {
+            val chosen = selectedTemplate ?: categoryTemplates.firstOrNull() ?: return
+            onApplyQuickTemplate(chosen)
+        }
+        updateWizardState { it.next() }
     }
     val wizardLastStep = 2
     val wizardTotalSteps = wizardLastStep + 1
 
-    LaunchedEffect(selectedCategory, categoryTemplates) {
-        val current = selectedTemplate
-        if (categoryTemplates.isEmpty()) {
-            selectedTemplate = null
-        } else if (current == null || categoryTemplates.none { it.label == current.label }) {
-            selectedTemplate = categoryTemplates.first()
-        }
-    }
 
-    LaunchedEffect(showFirstSetupWizard) {
-        if (showFirstSetupWizard) {
-            showAdvanced = false
-            showStep1Advanced = false
-        }
-    }
 
-    LaunchedEffect(workTypeConfigs.size) {
-        selectedStep1TypeIndex = if (workTypeConfigs.isEmpty()) {
-            0
-        } else {
-            selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
-        }
-    }
 
     if (!showFirstSetupWizard) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -126,17 +129,23 @@ fun ShiftPage(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 PrimaryActionButton(onClick = onReopenFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                    Text("근무패턴 다시 설정")
+                    Text(stringResource(R.string.shift_reopen_setup))
                 }
-                NeutralActionButton(onClick = { showAdvanced = !showAdvanced }, enabled = !showFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                    Text(if (showAdvanced) "고급 설정 숨기기" else "고급 설정 보기")
+                NeutralActionButton(
+                    onClick = { updateWizardState { it.copy(showAdvanced = !showAdvanced) } },
+                    enabled = !showFirstSetupWizard,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        if (showAdvanced) {
+                            stringResource(R.string.shift_hide_advanced)
+                        } else {
+                            stringResource(R.string.shift_show_advanced)
+                        }
+                    )
                 }
             }
         }
-    }
-
-    if (wizardStep > wizardLastStep) {
-        wizardStep = wizardLastStep
     }
 
     if (showFirstSetupWizard) {
@@ -147,31 +156,31 @@ fun ShiftPage(
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text("교대근무 맞춤 설정", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.shift_wizard_title), style = MaterialTheme.typography.titleMedium)
                 }
-                Text("${wizardStep + 1}/$wizardTotalSteps 단계")
+                Text(stringResource(R.string.shift_wizard_step_format, wizardStep + 1, wizardTotalSteps))
 
                 when (wizardStep) {
                     0 -> {
-                        Text("대표근무를 고르거나 직접 패턴을 입력하세요.")
+                        Text(stringResource(R.string.shift_step_pattern_intro))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            CategoryButton("대표근무", selectedCategory != ShiftCategory.CUSTOM) {
+                            CategoryButton(stringResource(R.string.shift_category_representative), selectedCategory != ShiftCategory.CUSTOM) {
                                 onSelectedCategoryChange(ShiftCategory.THREE_SHIFT)
-                                if (selectedTemplate == null || categoryTemplates.none { it.label == selectedTemplate?.label }) {
-                                    selectedTemplate = categoryTemplates.firstOrNull()
+                                updateWizardState {
+                                    it.copy(selectedTemplateId = representativeTemplates.firstOrNull()?.id)
                                 }
                             }
-                            CategoryButton("직접 설정", selectedCategory == ShiftCategory.CUSTOM) {
+                            CategoryButton(stringResource(R.string.shift_category_custom), selectedCategory == ShiftCategory.CUSTOM) {
                                 onSelectedCategoryChange(ShiftCategory.CUSTOM)
-                                selectedTemplate = null
+                                updateWizardState { it.copy(selectedTemplateId = null) }
                             }
                         }
 
                         if (selectedCategory != ShiftCategory.CUSTOM) {
-                            Text("대표근무 선택")
+                            Text(stringResource(R.string.shift_template_select))
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 categoryTemplates.forEach { template ->
-                                    val selected = selectedTemplate?.label == template.label
+                                    val selected = selectedTemplate?.id == template.id
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
@@ -185,25 +194,34 @@ fun ShiftPage(
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(template.label, style = MaterialTheme.typography.titleSmall)
-                                                Text(template.sequence.joinToString(" → "))
+                                                Text(stringResource(template.labelResId), style = MaterialTheme.typography.titleSmall)
+                                                Text(template.sequence.joinToString(stringResource(R.string.shift_template_sequence_separator)))
                                             }
-                                            Button(onClick = { selectedTemplate = template }, colors = segmentedActionButtonColors(selected)) {
-                                                Text(if (selected) "선택됨" else "선택")
+                                            Button(
+                                                onClick = { updateWizardState { it.copy(selectedTemplateId = template.id) } },
+                                                colors = segmentedActionButtonColors(selected)
+                                            ) {
+                                                Text(
+                                                    if (selected) {
+                                                        stringResource(R.string.shift_template_selected)
+                                                    } else {
+                                                        stringResource(R.string.shift_template_select_action)
+                                                    }
+                                                )
                                             }
                                         }
                                     }
                                 }
                             }
 
-                            Text("월간 미리보기는 고급 설정에서 확인할 수 있어요.", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.shift_monthly_preview_hint), style = MaterialTheme.typography.bodySmall)
                         } else {
-                            Text("직접 패턴 입력")
+                            Text(stringResource(R.string.shift_custom_pattern_input))
                             val appendableTypes = workTypeConfigs
                                 .map { normalizeWorkType(it.type) }
                                 .filter { it.isNotBlank() }
                                 .distinct()
-                                .ifEmpty { listOf("주간", "당직", "비번", "휴무") }
+                                .ifEmpty { listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF, WORK_TYPE_REST) }
 
                             appendableTypes.chunked(4).forEach { rowItems ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -221,31 +239,32 @@ fun ShiftPage(
                                 }
                             }
 
-                            Text("입력 순서")
-                            Text(
-                                if (rotationSequence.isEmpty()) "[ + ] 버튼으로 순서를 만드세요."
-                                else rotationSequence.mapIndexed { i, type -> "${i + 1}.$type" }.joinToString("  ->  ")
-                            )
+                            Text(stringResource(R.string.shift_input_order))
+                            Text(rotationSequenceSummary(rotationSequence, R.string.shift_wizard_sequence_empty))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) { Text("한 칸 삭제") }
-                                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) { Text("전체 비우기") }
+                                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.shift_delete_one_step))
+                                }
+                                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.shift_clear_sequence))
+                                }
                             }
 
-                            Text("월간 미리보기는 고급 설정에서 확인할 수 있어요.", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.shift_monthly_preview_hint), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     1 -> {
-                        Text("빠른 시작: 근무별 1차 알람만 먼저 맞추세요.")
+                        Text(stringResource(R.string.shift_step_alarm_intro))
                         Text(
-                            "2차 알람은 아래 상세 설정에서 필요할 때만 켜세요.",
+                            stringResource(R.string.shift_step_alarm_hint),
                             style = MaterialTheme.typography.bodySmall
                         )
                         if (workTypeConfigs.isEmpty()) {
-                            Text("등록된 근무 유형이 없습니다.")
+                            Text(stringResource(R.string.shift_no_work_types))
                         } else {
                             val selectedConfigIndex = selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
                             val selectedConfig = workTypeConfigs[selectedConfigIndex]
-                            Text("근무 유형 선택")
+                            Text(stringResource(R.string.shift_select_work_type))
                             workTypeConfigs.mapIndexed { index, config -> index to config.type }
                                 .chunked(4)
                                 .forEach { rowItems ->
@@ -253,7 +272,7 @@ fun ShiftPage(
                                         rowItems.forEach { (index, type) ->
                                             val selected = selectedConfigIndex == index
                                             Button(
-                                                onClick = { selectedStep1TypeIndex = index },
+                                                onClick = { updateWizardState { it.copy(selectedStep1TypeIndex = index) } },
                                                 modifier = Modifier.weight(1f),
                                                 colors = segmentedActionButtonColors(selected)
                                             ) {
@@ -271,7 +290,7 @@ fun ShiftPage(
                                 ?: LocalTime.of(7, 0)
                             val secondaryEnabled = selectedConfig.secondaryTime.isNotBlank()
                             val secondaryDisplay = parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
-                            var selectedAlarmSlot by rememberSaveable(selectedConfigIndex) { mutableIntStateOf(0) }
+
                             val editingSecondary = showStep1Advanced && selectedAlarmSlot == 1 && secondaryEnabled
                             val activeTime = if (editingSecondary) secondaryDisplay else primaryDisplay
 
@@ -279,14 +298,14 @@ fun ShiftPage(
                                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(selectedConfig.type, style = MaterialTheme.typography.titleMedium)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                        Text("알람 사용")
+                                        Text(stringResource(R.string.shift_alarm_enabled))
                                         Switch(
                                             checked = selectedConfig.enabled,
                                             onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
                                         )
                                     }
 
-                                    Text("출근 알람(1차)")
+                                    Text(stringResource(R.string.shift_primary_alarm_title))
                                     Text(
                                         String.format("%02d:%02d", primaryDisplay.hour, primaryDisplay.minute),
                                         style = MaterialTheme.typography.headlineMedium
@@ -297,32 +316,18 @@ fun ShiftPage(
                                             onConfigPrimaryChange(selectedConfigIndex, String.format("%02d:%02d", picked.hour, picked.minute))
                                         }
                                     )
-                                    val quickCandidates = linkedSetOf(
-                                        "06:00", "07:00", "08:00", "09:00",
-                                        selectedConfig.primaryTime.ifBlank { "07:00" }
-                                    ).filter { parseHm(it) != null }
-                                    quickCandidates.chunked(4).forEach { row ->
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            row.forEach { candidate ->
-                                                Button(
-                                                    onClick = { onConfigPrimaryChange(selectedConfigIndex, candidate) },
-                                                    modifier = Modifier.weight(1f),
-                                                    colors = segmentedActionButtonColors(selectedConfig.primaryTime == candidate)
-                                                ) {
-                                                    Text(candidate)
-                                                }
-                                            }
-                                            repeat(4 - row.size) {
-                                                Spacer(modifier = Modifier.weight(1f))
-                                            }
-                                        }
-                                    }
 
                                     NeutralActionButton(
-                                        onClick = { showStep1Advanced = !showStep1Advanced },
+                                        onClick = { updateWizardState { it.copy(showStep1Advanced = !showStep1Advanced) } },
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text(if (showStep1Advanced) "2차/상세 설정 숨기기" else "2차/상세 설정 보기")
+                                        Text(
+                                            if (showStep1Advanced) {
+                                                stringResource(R.string.shift_hide_secondary_settings)
+                                            } else {
+                                                stringResource(R.string.shift_show_secondary_settings)
+                                            }
+                                        )
                                     }
 
                                     if (showStep1Advanced) {
@@ -341,15 +346,15 @@ fun ShiftPage(
                                                     modifier = Modifier.fillMaxWidth()
                                                 ) {
                                                     Button(
-                                                        onClick = { selectedAlarmSlot = 0 },
+                                                        onClick = { updateWizardState { it.copy(selectedAlarmSlot = 0) } },
                                                         modifier = Modifier.weight(1f),
                                                         colors = segmentedActionButtonColors(!editingSecondary)
                                                     ) {
-                                                        Text("1차")
+                                                        Text(stringResource(R.string.shift_alarm_slot_primary))
                                                     }
                                                     Button(
                                                         onClick = {
-                                                            selectedAlarmSlot = 1
+                                                            updateWizardState { it.copy(selectedAlarmSlot = 1) }
                                                             if (!secondaryEnabled) {
                                                                 val defaultSecond = selectedConfig.secondaryTime.ifBlank {
                                                                     selectedConfig.primaryTime.ifBlank {
@@ -366,7 +371,7 @@ fun ShiftPage(
                                                         modifier = Modifier.weight(1f),
                                                         colors = segmentedActionButtonColors(editingSecondary)
                                                     ) {
-                                                        Text("2차")
+                                                        Text(stringResource(R.string.shift_alarm_slot_secondary))
                                                     }
                                                 }
 
@@ -374,7 +379,16 @@ fun ShiftPage(
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                     modifier = Modifier.fillMaxWidth()
                                                 ) {
-                                                    Text(if (secondaryEnabled) "2차 알람 ON" else "2차 알람 OFF")
+                                                    Text(
+                                                        stringResource(
+                                                            R.string.shift_secondary_alarm_status_format,
+                                                            if (secondaryEnabled) {
+                                                                stringResource(R.string.common_on)
+                                                            } else {
+                                                                stringResource(R.string.common_off)
+                                                            }
+                                                        )
+                                                    )
                                                     Switch(
                                                         checked = secondaryEnabled,
                                                         onCheckedChange = { checked ->
@@ -389,16 +403,22 @@ fun ShiftPage(
                                                                     }
                                                                 }
                                                                 onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
-                                                                selectedAlarmSlot = 1
+                                                                updateWizardState { it.copy(selectedAlarmSlot = 1) }
                                                             } else {
                                                                 onConfigSecondaryChange(selectedConfigIndex, "")
-                                                                selectedAlarmSlot = 0
+                                                                updateWizardState { it.copy(selectedAlarmSlot = 0) }
                                                             }
                                                         }
                                                     )
                                                 }
 
-                                                Text(if (editingSecondary) "2차 메인 시간" else "1차 메인 시간")
+                                                Text(
+                                                    if (editingSecondary) {
+                                                        stringResource(R.string.shift_secondary_main_time)
+                                                    } else {
+                                                        stringResource(R.string.shift_primary_main_time)
+                                                    }
+                                                )
                                                 Text(
                                                     String.format("%02d:%02d", activeTime.hour, activeTime.minute),
                                                     style = MaterialTheme.typography.headlineMedium
@@ -422,8 +442,12 @@ fun ShiftPage(
                         }
                     }
                     2 -> {
-                        Text("기준일과 오늘 위치를 확인하세요")
-                        DatePickerButton(label = "기준일", date = anchorDate, onDatePicked = onAnchorDateChange)
+                        Text(stringResource(R.string.shift_step_anchor_intro))
+                        DatePickerButton(
+                            label = stringResource(R.string.shift_anchor_date),
+                            date = anchorDate,
+                            onDatePicked = onAnchorDateChange
+                        )
                         if (rotationSequence.isNotEmpty()) {
                             val sequenceItems = rotationSequence.mapIndexed { index, type -> index to type }
                             sequenceItems.chunked(3).forEach { rowItems ->
@@ -435,7 +459,7 @@ fun ShiftPage(
                                             modifier = Modifier.weight(1f),
                                             colors = segmentedActionButtonColors(selected)
                                         ) {
-                                            Text("${index + 1}:$type")
+                                            Text(stringResource(R.string.shift_rotation_position_format, index + 1, type))
                                         }
                                     }
                                     repeat(3 - rowItems.size) {
@@ -447,8 +471,8 @@ fun ShiftPage(
                     }
 
                     else -> {
-                        Text("설정을 확정하면 새 패턴 기준으로 자동 생성이 진행됩니다.")
-                        Text("기존 알람은 즉시 삭제되지 않습니다.")
+                        Text(stringResource(R.string.shift_completion_message))
+                        Text(stringResource(R.string.shift_existing_alarm_hint))
                         if (!showFirstSetupWizard && autoBuildFeedback.isNotBlank()) {
                             Text(autoBuildFeedback, color = MaterialTheme.colorScheme.primary)
                         }
@@ -458,40 +482,25 @@ fun ShiftPage(
                 if (!showAdvanced) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         if (wizardStep > 0) {
-                            NeutralActionButton(onClick = { wizardStep -= 1 }, modifier = Modifier.weight(1f)) {
-                                Text("이전")
+                            NeutralActionButton(onClick = { updateWizardState { it.back() } }, modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.shift_previous))
                             }
                         }
 
                         if (wizardStep < wizardLastStep) {
                             PrimaryActionButton(
-                                onClick = {
-                                    if (wizardStep == 0) {
-                                        if (selectedCategory == ShiftCategory.CUSTOM) {
-                                            if (rotationSequence.isEmpty()) {
-                                                return@PrimaryActionButton
-                                            }
-                                        } else {
-                                            val chosen = selectedTemplate ?: categoryTemplates.firstOrNull()
-                                            if (chosen == null) {
-                                                return@PrimaryActionButton
-                                            }
-                                            onApplyQuickTemplate(chosen)
-                                        }
-                                    }
-                                    wizardStep = (wizardStep + 1).coerceAtMost(wizardLastStep)
-                                },
-                                enabled = wizardStep != 0 || canProceedFromStep0,
+                                onClick = { advanceWizard() },
+                                enabled = canAdvanceWizard,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("다음")
+                                Text(stringResource(R.string.shift_next))
                             }
                         } else {
                             PrimaryActionButton(onClick = onCompleteFirstSetup, modifier = Modifier.weight(1f)) {
-                                Text("확정")
+                                Text(stringResource(R.string.shift_confirm))
                             }
                             NeutralActionButton(onClick = onHideFirstSetupWizard, modifier = Modifier.weight(1f)) {
-                                Text("닫기")
+                                Text(stringResource(R.string.shift_close))
                             }
                         }
                     }
@@ -506,25 +515,29 @@ fun ShiftPage(
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Settings, contentDescription = null)
-                Text("고급 패턴 편집", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.shift_advanced_title), style = MaterialTheme.typography.titleMedium)
             }
 
             OutlinedTextField(
                 value = customWorkTypeInput,
                 onValueChange = { onCustomWorkTypeInputChange(it.take(12)) },
-                label = { Text("근무 유형 이름") },
+                label = { Text(stringResource(R.string.shift_work_type_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SecondaryActionButton(onClick = onAddType, modifier = Modifier.weight(1f)) { Text("유형 추가") }
-                NeutralActionButton(onClick = onResetDefaults, modifier = Modifier.weight(1f)) { Text("기본값") }
+                SecondaryActionButton(onClick = onAddType, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.shift_add_type))
+                }
+                NeutralActionButton(onClick = onResetDefaults, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.shift_defaults))
+                }
             }
 
             if (workTypeConfigs.isNotEmpty()) {
                 val rotationAppendableConfigs = workTypeConfigs
 
-                Text("등록된 근무 유형")
+                Text(stringResource(R.string.shift_registered_work_types))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     rotationAppendableConfigs.forEach { cfg ->
                         NeutralActionButton(onClick = { onAppendRotationType(cfg.type) }) {
@@ -533,60 +546,77 @@ fun ShiftPage(
                     }
                 }
 
-                Text("유형 관리")
+                Text(stringResource(R.string.shift_manage_types))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     rotationAppendableConfigs.forEach { cfg ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             SecondaryActionButton(onClick = { onAppendRotationType(cfg.type) }, modifier = Modifier.weight(1f)) {
-                                Text("${cfg.type} 추가")
+                                Text(stringResource(R.string.shift_append_type_format, cfg.type))
                             }
                             DangerActionButton(onClick = { onDeleteConfigType(cfg.type) }, modifier = Modifier.weight(1f)) {
-                                Text("${cfg.type} 삭제")
+                                Text(stringResource(R.string.shift_delete_type_format, cfg.type))
                             }
                         }
                     }
                 }
             }
 
-            Text("로테이션")
-            Text(
-                if (rotationSequence.isEmpty()) "[ + ] 버튼으로 로테이션을 채우세요."
-                else rotationSequence.mapIndexed { i, type -> "${i + 1}.$type" }.joinToString("  ->  ")
-            )
+            Text(stringResource(R.string.shift_rotation_title))
+            Text(rotationSequenceSummary(rotationSequence, R.string.shift_rotation_empty))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) { Text("마지막 삭제") }
-                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) { Text("로테이션 비우기") }
+                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.shift_delete_last))
+                }
+                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.shift_clear_rotation))
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Text("무한 반복")
+                Text(stringResource(R.string.shift_infinite_rotation))
                 Switch(checked = infiniteRotationEnabled, onCheckedChange = onInfiniteRotationEnabledChange)
-                Text(if (infiniteRotationEnabled) "ON" else "OFF")
+                Text(
+                    if (infiniteRotationEnabled) {
+                        stringResource(R.string.common_on)
+                    } else {
+                        stringResource(R.string.common_off)
+                    }
+                )
                 Spacer(modifier = Modifier.width(4.dp))
             }
 
             if (showFirstSetupWizard) {
                 val progressLabel = if (wizardStep < wizardLastStep) {
-                    "${wizardStep + 2}단계로 진행"
+                    stringResource(R.string.shift_progress_to_step_format, wizardStep + 2)
                 } else {
-                    "빠른 시작 확정"
+                    stringResource(R.string.shift_finish_quick_start)
                 }
-                PrimaryActionButton(
-                    onClick = {
-                        if (wizardStep < wizardLastStep) {
-                            wizardStep = (wizardStep + 1).coerceAtMost(wizardLastStep)
-                            showAdvanced = false
-                        } else {
-                            onCompleteFirstSetup()
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    if (wizardStep > 0) {
+                        NeutralActionButton(
+                            onClick = { updateWizardState { it.back() } },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.shift_previous))
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(progressLabel)
+                    }
+                    PrimaryActionButton(
+                        onClick = {
+                            if (wizardStep < wizardLastStep) {
+                                advanceWizard()
+                            } else {
+                                onCompleteFirstSetup()
+                            }
+                        },
+                        enabled = wizardStep >= wizardLastStep || canAdvanceWizard,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(progressLabel)
+                    }
                 }
             } else {
                 PrimaryActionButton(onClick = onAutoBuild, modifier = Modifier.fillMaxWidth()) {
-                    Text("자동 생성")
+                    Text(stringResource(R.string.shift_auto_build))
                 }
             }
 
@@ -608,22 +638,81 @@ private fun RowScope.CategoryButton(
     }
 }
 
+private enum class ShiftBadge {
+    DAY,
+    NIGHT,
+    DUTY,
+    OFF,
+    REST,
+    WORK
+}
+
+@Composable
+private fun rotationSequenceSummary(rotationSequence: List<String>, emptyTextResId: Int): String {
+    if (rotationSequence.isEmpty()) return stringResource(emptyTextResId)
+    val separator = stringResource(R.string.shift_rotation_separator)
+    return rotationSequence.mapIndexed { index, type ->
+        stringResource(R.string.shift_rotation_item_format, index + 1, type)
+    }.joinToString(separator)
+}
+
+private fun knownShiftBadge(type: String): ShiftBadge? {
+    return when (normalizeWorkType(type.trim())) {
+        WORK_TYPE_DAY -> ShiftBadge.DAY
+        WORK_TYPE_NIGHT -> ShiftBadge.NIGHT
+        WORK_TYPE_DUTY -> ShiftBadge.DUTY
+        WORK_TYPE_OFF -> ShiftBadge.OFF
+        WORK_TYPE_REST, WORK_TYPE_HOLIDAY, WORK_TYPE_VACATION -> ShiftBadge.REST
+        else -> null
+    }
+}
+
+@Composable
 private fun step1TypeChipLabel(type: String): String {
     val normalized = type.trim()
-    return when (normalized) {
-        "\uC8FC\uAC04" -> "\uC8FC"
-        "\uC57C\uAC04" -> "\uC57C"
-        "\uB2F9\uC9C1" -> "\uB2F9"
-        "\uBE44\uBC88" -> "\uBE44"
-        "\uD734\uBB34", "\uD734\uC77C", "\uD734\uAC00" -> "\uD734"
-        else -> normalized
+    return when (knownShiftBadge(normalized)) {
+        ShiftBadge.DAY -> stringResource(R.string.shift_work_type_short_day)
+        ShiftBadge.NIGHT -> stringResource(R.string.shift_work_type_short_night)
+        ShiftBadge.DUTY -> stringResource(R.string.shift_work_type_short_duty)
+        ShiftBadge.OFF -> stringResource(R.string.shift_work_type_short_off)
+        ShiftBadge.REST -> stringResource(R.string.shift_work_type_short_rest)
+        ShiftBadge.WORK, null -> normalized
     }
+}
+
+private fun previewTypeBadge(type: String): ShiftBadge {
+    return knownShiftBadge(type) ?: ShiftBadge.WORK
+}
+
+@Composable
+private fun previewBadgeLabel(badge: ShiftBadge): String {
+    return when (badge) {
+        ShiftBadge.DAY -> stringResource(R.string.shift_preview_badge_day)
+        ShiftBadge.NIGHT -> stringResource(R.string.shift_preview_badge_night)
+        ShiftBadge.DUTY -> stringResource(R.string.shift_preview_badge_duty)
+        ShiftBadge.OFF -> stringResource(R.string.shift_preview_badge_off)
+        ShiftBadge.REST -> stringResource(R.string.shift_preview_badge_rest)
+        ShiftBadge.WORK -> stringResource(R.string.shift_preview_badge_work)
+    }
+}
+
+@Composable
+private fun previewDayLabels(): List<String> {
+    return listOf(
+        stringResource(R.string.shift_day_mon),
+        stringResource(R.string.shift_day_tue),
+        stringResource(R.string.shift_day_wed),
+        stringResource(R.string.shift_day_thu),
+        stringResource(R.string.shift_day_fri),
+        stringResource(R.string.shift_day_sat),
+        stringResource(R.string.shift_day_sun)
+    )
 }
 
 @Composable
 private fun WorkPreviewCalendar(previewDays: List<Pair<LocalDate, String>>) {
     if (previewDays.isEmpty()) {
-        Text("미리보기 없음")
+        Text(stringResource(R.string.shift_preview_empty))
         return
     }
 
@@ -640,7 +729,10 @@ private fun WorkPreviewCalendar(previewDays: List<Pair<LocalDate, String>>) {
 
     monthList.forEach { month ->
         Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-            Text("${month.year}년 ${month.monthValue}월", style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.shift_preview_month_format, month.year, month.monthValue),
+                style = MaterialTheme.typography.titleSmall
+            )
             PreviewMonthGrid(month = month, previewMap = previewMap, startDate = startDate, endDate = endDate)
         }
     }
@@ -653,7 +745,7 @@ private fun PreviewMonthGrid(
     startDate: LocalDate,
     endDate: LocalDate
 ) {
-    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일")
+    val dayLabels = previewDayLabels()
     val firstDay = month.atDay(1)
     val leading = firstDay.dayOfWeek.value - 1
     val dates = mutableListOf<LocalDate?>()
@@ -717,49 +809,24 @@ private fun PreviewMonthGrid(
     }
 }
 
-private fun previewTypeBadge(type: String): String {
-    return when (normalizeWorkType(type)) {
-        "주간" -> "주"
-        "야간" -> "야"
-        "당직" -> "당"
-        "비번" -> "비"
-        "휴무", "휴일", "휴가" -> "휴"
-        else -> "근"
-    }
-}
-
-private fun previewBadgeLabel(badge: String): String {
+private fun previewBadgeBackgroundColor(badge: ShiftBadge): Color {
     return when (badge) {
-        "주" -> "▲ 주"
-        "야" -> "■ 야"
-        "당" -> "◆ 당"
-        "비" -> "● 비"
-        "휴" -> "○ 휴"
-        else -> "• 근"
+        ShiftBadge.DAY -> Color(0xFFD9E8FA)
+        ShiftBadge.NIGHT -> Color(0xFFFFE3C8)
+        ShiftBadge.DUTY -> Color(0xFFFFE9D6)
+        ShiftBadge.OFF -> Color(0xFFE3E8EE)
+        ShiftBadge.REST -> Color(0xFFEEF1F4)
+        ShiftBadge.WORK -> Color(0xFFE2F0EA)
     }
 }
 
-private fun previewBadgeBackgroundColor(badge: String): Color {
+private fun previewBadgeColor(badge: ShiftBadge): Color {
     return when (badge) {
-        "주" -> Color(0xFFD9E8FA)
-        "야" -> Color(0xFFFFE3C8)
-        "당" -> Color(0xFFFFE9D6)
-        "비" -> Color(0xFFE3E8EE)
-        "휴" -> Color(0xFFEEF1F4)
-        else -> Color(0xFFE2F0EA)
+        ShiftBadge.DAY -> Color(0xFF1E4E8C)
+        ShiftBadge.NIGHT -> Color(0xFF9A5400)
+        ShiftBadge.DUTY -> Color(0xFF8A3E00)
+        ShiftBadge.OFF -> Color(0xFF4F6375)
+        ShiftBadge.REST -> Color(0xFF5B6670)
+        ShiftBadge.WORK -> Color(0xFF4D6B5C)
     }
 }
-
-private fun previewBadgeColor(badge: String): Color {
-    return when (badge) {
-        "주" -> Color(0xFF1E4E8C)
-        "야" -> Color(0xFF9A5400)
-        "당" -> Color(0xFF8A3E00)
-        "비" -> Color(0xFF4F6375)
-        "휴" -> Color(0xFF5B6670)
-        else -> Color(0xFF4D6B5C)
-    }
-}
-
-
-

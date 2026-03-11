@@ -90,10 +90,10 @@ class AlarmAlertActivity : ComponentActivity() {
                     if (label.isNotBlank()) {
                         Text(label, modifier = Modifier.padding(top = 8.dp))
                     }
-                    Text("ID: $alarmId", modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
+                    Text(getString(R.string.alert_alarm_id_format, alarmId), modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
 
                     val hintText = when {
-                        isSelfTestAlarm -> "2분 테스트 알람이 울렸다면 '끄기'를 눌러 완료하세요."
+                        isSelfTestAlarm -> getString(R.string.alert_self_test_hint)
                         canSnooze && hasLimit -> getString(
                             R.string.notification_snooze_count,
                             snoozeMinutes,

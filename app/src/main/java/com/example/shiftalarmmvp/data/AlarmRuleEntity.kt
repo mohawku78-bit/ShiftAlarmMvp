@@ -92,6 +92,10 @@ fun AlarmRuleEntity.toDomain(): AlarmRule {
     val interval = normalizeIntervalWeeks(intervalWeeks)
     val slots = weeklyPatternCsv.split("|")
     val pattern = normalizeWeekPatterns(interval, slots.map(::parseWeekdays))
+    val overrides = AlarmDateOverrides.of(
+        skipDates = parseDateSet(skipDateEpochDays),
+        addDates = parseDateSet(addDateEpochDays)
+    )
 
     val safeSoundType = runCatching { AlarmSoundType.valueOf(soundType) }.getOrDefault(AlarmSoundType.ALARM)
 
@@ -109,8 +113,8 @@ fun AlarmRuleEntity.toDomain(): AlarmRule {
         customSoundUri = customSoundUri,
         volumePercent = volumePercent.coerceIn(0, 100),
         vibrationEnabled = vibrationEnabled,
-        skipDateEpochDays = parseDateSet(skipDateEpochDays),
-        addDateEpochDays = parseDateSet(addDateEpochDays),
+        skipDateEpochDays = overrides.skipDates,
+        addDateEpochDays = overrides.addDates,
         enabled = enabled
     )
 }
@@ -118,6 +122,7 @@ fun AlarmRuleEntity.toDomain(): AlarmRule {
 fun AlarmRule.toEntity(): AlarmRuleEntity {
     val interval = normalizeIntervalWeeks(intervalWeeks)
     val normalized = normalizeWeekPatterns(interval, weeklyPattern)
+    val overrides = normalizedDateOverrides()
 
     return AlarmRuleEntity(
         id = id,
@@ -133,8 +138,9 @@ fun AlarmRule.toEntity(): AlarmRuleEntity {
         customSoundUri = customSoundUri,
         volumePercent = volumePercent.coerceIn(0, 100),
         vibrationEnabled = vibrationEnabled,
-        skipDateEpochDays = serializeDateSet(skipDateEpochDays),
-        addDateEpochDays = serializeDateSet(addDateEpochDays),
+        skipDateEpochDays = serializeDateSet(overrides.skipDates),
+        addDateEpochDays = serializeDateSet(overrides.addDates),
         enabled = enabled
     )
 }
+

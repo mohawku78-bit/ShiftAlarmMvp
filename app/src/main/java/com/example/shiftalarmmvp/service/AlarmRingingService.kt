@@ -22,6 +22,7 @@ import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmActionReceiver
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
+import com.example.shiftalarmmvp.recovery.alarmServiceStrings
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
 import com.example.shiftalarmmvp.ui.AlarmLogStore
@@ -46,6 +47,7 @@ class AlarmRingingService : Service() {
         }.getOrDefault(AlarmSoundType.ALARM)
         val volumePercent = (intent?.getIntExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, 100) ?: 100).coerceIn(0, 100)
         val vibrationEnabled = intent?.getBooleanExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, true) ?: true
+        val texts = alarmServiceStrings(resources)
 
         when (action) {
             ACTION_START -> {
@@ -63,7 +65,7 @@ class AlarmRingingService : Service() {
             }
 
             ACTION_STOP -> {
-                AlarmLogStore(this).append(alarmId, label, AlarmLogType.STOP, "사용자 끄기")
+                AlarmLogStore(this).append(alarmId, label, AlarmLogType.STOP, texts.logStopUser)
                 stopRingingAndSelf()
             }
 
@@ -84,7 +86,7 @@ class AlarmRingingService : Service() {
                     alarmId = alarmId,
                     label = label,
                     type = if (scheduled) AlarmLogType.SNOOZE_SCHEDULED else AlarmLogType.SNOOZE_BLOCKED,
-                    detail = "${snoozeMinutes}분, ${snoozeCurrentCount + 1}회차"
+                    detail = texts.logSnoozeDetailFormat.format(snoozeMinutes, snoozeCurrentCount + 1)
                 )
                 stopRingingAndSelf()
             }
@@ -110,7 +112,7 @@ class AlarmRingingService : Service() {
                     alarmId = alarmId,
                     label = label,
                     type = if (scheduled) AlarmLogType.ONE_MORE_SCHEDULED else AlarmLogType.ONE_MORE_SKIPPED,
-                    detail = "${snoozeMinutes}분"
+                    detail = texts.logOneMoreDetailFormat.format(snoozeMinutes)
                 )
                 stopRingingAndSelf()
             }
@@ -325,10 +327,11 @@ class AlarmRingingService : Service() {
         volumePercent: Int,
         vibrationEnabled: Boolean
     ): Notification {
+        val texts = alarmServiceStrings(resources)
         val manager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Ringing Alarm",
+            texts.channelName,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             setSound(null, null)
@@ -395,7 +398,7 @@ class AlarmRingingService : Service() {
 
         val isSelfTestAlarm = alarmId == 999_999L
         if (isSelfTestAlarm) {
-            builder.setSubText("2분 테스트 알람 · 울림 확인 후 끄기를 누르세요.")
+            builder.setSubText(texts.selfTestSubText)
         } else {
             val hasLimit = snoozeMaxCount > 0
             val canSnooze = !hasLimit || currentSnoozeCount < snoozeMaxCount

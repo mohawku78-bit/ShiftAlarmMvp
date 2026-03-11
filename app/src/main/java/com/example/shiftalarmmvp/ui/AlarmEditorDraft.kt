@@ -1,9 +1,12 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
+import android.content.res.Resources
+import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import com.example.shiftalarmmvp.data.normalizeWeekPatterns
+import com.example.shiftalarmmvp.data.normalizedDateOverrides
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -31,11 +34,11 @@ fun AlarmRule.normalizedWeeklyPattern(): List<Set<DayOfWeek>> {
     return normalizeWeekPatterns(intervalWeeks, weeklyPattern)
 }
 
-fun AlarmRule.duplicateLabel(): String {
+fun AlarmRule.duplicateLabel(resources: Resources): String {
     return if (label.isBlank()) {
-        "알람 복사본"
+        resources.getString(R.string.editor_duplicate_label_empty)
     } else {
-        "${label} 복사본".take(24)
+        resources.getString(R.string.editor_duplicate_label_format, label).take(24)
     }
 }
 
@@ -47,6 +50,7 @@ fun AlarmRule.toEditorDraft(
     exceptionDate: LocalDate = LocalDate.now()
 ): AlarmEditorDraft {
     val normalizedInterval = normalizeIntervalWeeks(intervalWeeks)
+    val overrides = normalizedDateOverrides()
     return AlarmEditorDraft(
         editingAlarmId = editingAlarmId,
         editingEnabled = editingEnabled,
@@ -61,8 +65,8 @@ fun AlarmRule.toEditorDraft(
         selectedSnoozeMinutes = snoozeMinutes,
         selectedSnoozeMaxCount = snoozeMaxCount,
         vibrationEnabled = vibrationEnabled,
-        skipDates = skipDateEpochDays,
-        addDates = addDateEpochDays,
+        skipDates = overrides.skipDates,
+        addDates = overrides.addDates,
         exceptionDate = exceptionDate
     )
 }

@@ -8,6 +8,7 @@ import com.example.shiftalarmmvp.data.AlarmDatabase
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.data.toDomain
 import com.example.shiftalarmmvp.recovery.SelfTestStatusStore
+import com.example.shiftalarmmvp.recovery.alarmReceiverStrings
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.service.AlarmRingingService
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
@@ -23,6 +24,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarmId = safeIntent.getLongExtra(EXTRA_ALARM_ID, -1L)
         if (alarmId <= 0) return
 
+        val texts = alarmReceiverStrings(context.resources)
         val currentSnoozeCount = safeIntent.getIntExtra(EXTRA_SNOOZE_CURRENT_COUNT, 0)
         val snoozeMaxFromIntent = safeIntent.getIntExtra(EXTRA_SNOOZE_MAX_COUNT, Int.MIN_VALUE)
         val incomingSnoozeMinutes = safeIntent.getIntExtra(EXTRA_SNOOZE_MINUTES, Int.MIN_VALUE)
@@ -61,7 +63,11 @@ class AlarmReceiver : BroadcastReceiver() {
                         alarmId = alarmId,
                         label = alarm.label,
                         type = AlarmLogType.RING_START,
-                        detail = if (currentSnoozeCount > 0) "스누즈 ${currentSnoozeCount}회차" else "정규 알람"
+                        detail = if (currentSnoozeCount > 0) {
+                            texts.ringStartSnoozeFormat.format(currentSnoozeCount)
+                        } else {
+                            texts.ringStartRegular
+                        }
                     )
                     AlarmScheduler(context).schedule(alarm)
                 } else if (alarmId == 999_999L) {
@@ -71,7 +77,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     startRingingService(
                         context = context,
                         alarmId = alarmId,
-                        label = if (testLabel.isBlank()) "테스트 알람" else testLabel,
+                        label = if (testLabel.isBlank()) texts.testAlarmFallback else testLabel,
                         soundType = testSoundType,
                         customSoundUri = testCustomSoundUri,
                         volumePercent = testVolumePercent,

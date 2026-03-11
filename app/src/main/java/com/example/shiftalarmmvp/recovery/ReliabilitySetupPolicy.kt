@@ -5,12 +5,15 @@ import android.os.Build
 internal data class ReliabilitySetupSignals(
     val exactReady: Boolean,
     val notificationReady: Boolean,
-    val batteryReady: Boolean
+    val batteryReady: Boolean,
+    val nextAlarmRegisteredReady: Boolean = true,
+    val shouldCheckAlarmRegistration: Boolean = false
 )
 
 internal enum class ReliabilitySetupIssue {
     EXACT_ALARM,
     NOTIFICATION_PERMISSION,
+    ALARM_REGISTRATION,
     BATTERY_OPTIMIZATION
 }
 
@@ -43,6 +46,7 @@ internal data class ReliabilitySetupUiModel(
 internal object ReliabilitySetupPolicy {
     fun build(
         signals: ReliabilitySetupSignals,
+        texts: ReliabilitySetupStrings,
         sdkInt: Int = Build.VERSION.SDK_INT
     ): ReliabilitySetupUiModel {
         val specs = mutableListOf<StepSpec>()
@@ -50,12 +54,12 @@ internal object ReliabilitySetupPolicy {
         if (sdkInt >= Build.VERSION_CODES.S) {
             specs += StepSpec(
                 issue = ReliabilitySetupIssue.EXACT_ALARM,
-                title = "정확 알람 권한",
+                title = texts.exactAlarmTitle,
                 ready = signals.exactReady,
-                readyStatus = "정확 알람: 준비됨",
-                pendingStatus = "정확 알람: 권한 필요",
-                detailText = "Android 12 이상에서는 정확한 시간에 깨우려면 정확 알람 권한이 필요합니다.",
-                actionLabel = "정확 알람 켜기",
+                readyStatus = texts.exactAlarmReadyStatus,
+                pendingStatus = texts.exactAlarmPendingStatus,
+                detailText = texts.exactAlarmDetail,
+                actionLabel = texts.exactAlarmAction,
                 action = HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS
             )
         }
@@ -63,25 +67,38 @@ internal object ReliabilitySetupPolicy {
         if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
             specs += StepSpec(
                 issue = ReliabilitySetupIssue.NOTIFICATION_PERMISSION,
-                title = "알림 권한",
+                title = texts.notificationTitle,
                 ready = signals.notificationReady,
-                readyStatus = "알림 권한: 허용됨",
-                pendingStatus = "알림 권한: 허용 필요",
-                detailText = "알림 권한이 꺼져 있으면 알람 표시와 상태 피드백이 제한됩니다.",
-                actionLabel = "알림 켜기",
+                readyStatus = texts.notificationReadyStatus,
+                pendingStatus = texts.notificationPendingStatus,
+                detailText = texts.notificationDetail,
+                actionLabel = texts.notificationAction,
                 action = HomeReliabilityAction.REQUEST_NOTIFICATION_PERMISSION
+            )
+        }
+
+        if (signals.shouldCheckAlarmRegistration) {
+            specs += StepSpec(
+                issue = ReliabilitySetupIssue.ALARM_REGISTRATION,
+                title = texts.alarmRegistrationTitle,
+                ready = signals.nextAlarmRegisteredReady,
+                readyStatus = texts.alarmRegistrationReadyStatus,
+                pendingStatus = texts.alarmRegistrationPendingStatus,
+                detailText = texts.alarmRegistrationDetail,
+                actionLabel = texts.alarmRegistrationAction,
+                action = HomeReliabilityAction.RESCHEDULE_ALARMS
             )
         }
 
         if (sdkInt >= Build.VERSION_CODES.M) {
             specs += StepSpec(
                 issue = ReliabilitySetupIssue.BATTERY_OPTIMIZATION,
-                title = "배터리 최적화 예외",
+                title = texts.batteryTitle,
                 ready = signals.batteryReady,
-                readyStatus = "배터리 최적화: 예외 적용",
-                pendingStatus = "배터리 최적화: 예외 권장",
-                detailText = "제조사 절전 설정이 알람을 늦출 수 있어 배터리 예외 설정을 권장합니다.",
-                actionLabel = "배터리 예외 설정",
+                readyStatus = texts.batteryReadyStatus,
+                pendingStatus = texts.batteryPendingStatus,
+                detailText = texts.batteryDetail,
+                actionLabel = texts.batteryAction,
                 action = HomeReliabilityAction.OPEN_BATTERY_SETTINGS
             )
         }
@@ -104,9 +121,13 @@ internal object ReliabilitySetupPolicy {
         val primaryStep = steps.firstOrNull { !it.isResolved }
         val resolvedStepCount = steps.count { it.isResolved }
         val summaryText = when {
-            totalStepCount == 0 -> "이 기기는 추가 권한 설정이 필요하지 않습니다."
-            primaryStep == null -> "권한과 보호 설정이 모두 준비되었습니다."
-            else -> "준비 단계 $resolvedStepCount/$totalStepCount 완료 · ${primaryStep.title}부터 진행해 주세요."
+            totalStepCount == 0 -> texts.summaryNoExtraSteps
+            primaryStep == null -> texts.summaryAllReady
+            else -> texts.summaryProgressFormat.format(
+                resolvedStepCount,
+                totalStepCount,
+                primaryStep.title
+            )
         }
 
         return ReliabilitySetupUiModel(
@@ -130,10 +151,12 @@ internal object ReliabilitySetupPolicy {
     )
 }
 
-internal fun ReliabilitySetupStepUi.toHomeReliabilityUiModel(): HomeReliabilityUiModel {
+internal fun ReliabilitySetupStepUi.toHomeReliabilityUiModel(
+    texts: ReliabilitySetupStrings
+): HomeReliabilityUiModel {
     return HomeReliabilityUiModel(
         level = HomeReliabilityLevel.ACTION,
-        statusLabel = "조치 필요",
+        statusLabel = texts.statusActionNeeded,
         reasonText = detailText,
         primaryActionLabel = actionLabel,
         primaryAction = action
