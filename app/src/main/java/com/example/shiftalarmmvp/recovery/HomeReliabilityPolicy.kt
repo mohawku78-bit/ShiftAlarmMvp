@@ -36,35 +36,14 @@ data class HomeReliabilityUiModel(
 
 object HomeReliabilityPolicy {
     fun evaluate(signals: HomeReliabilitySignals): HomeReliabilityUiModel {
-        if (!signals.exactReady) {
-            return HomeReliabilityUiModel(
-                level = HomeReliabilityLevel.ACTION,
-                statusLabel = "조치 필요",
-                reasonText = "정확 알람 권한을 켜야 시간 오차를 줄일 수 있습니다.",
-                primaryActionLabel = "정확 알람 켜기",
-                primaryAction = HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS
+        val setupUi = ReliabilitySetupPolicy.build(
+            ReliabilitySetupSignals(
+                exactReady = signals.exactReady,
+                notificationReady = signals.notificationReady,
+                batteryReady = signals.batteryReady
             )
-        }
-
-        if (!signals.notificationReady) {
-            return HomeReliabilityUiModel(
-                level = HomeReliabilityLevel.ACTION,
-                statusLabel = "조치 필요",
-                reasonText = "알림 권한이 꺼져 있어 알람 표시가 제한됩니다.",
-                primaryActionLabel = "알림 켜기",
-                primaryAction = HomeReliabilityAction.REQUEST_NOTIFICATION_PERMISSION
-            )
-        }
-
-        if (!signals.batteryReady) {
-            return HomeReliabilityUiModel(
-                level = HomeReliabilityLevel.ACTION,
-                statusLabel = "조치 필요",
-                reasonText = "배터리 절전이 알람 지연을 만들 수 있습니다.",
-                primaryActionLabel = "배터리 예외 설정",
-                primaryAction = HomeReliabilityAction.OPEN_BATTERY_SETTINGS
-            )
-        }
+        )
+        setupUi.primaryStep?.let { return it.toHomeReliabilityUiModel() }
 
         if (signals.recoveryNeedsAttention) {
             return HomeReliabilityUiModel(

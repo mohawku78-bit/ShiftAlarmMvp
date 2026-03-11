@@ -99,6 +99,8 @@ import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.HomeReliabilityAction
 import com.example.shiftalarmmvp.recovery.HomeReliabilityPolicy
 import com.example.shiftalarmmvp.recovery.HomeReliabilitySignals
+import com.example.shiftalarmmvp.recovery.ReliabilitySetupPolicy
+import com.example.shiftalarmmvp.recovery.ReliabilitySetupSignals
 import com.example.shiftalarmmvp.recovery.NightlyReliabilityCheckStatus
 import com.example.shiftalarmmvp.recovery.ReliabilityPolicy
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
@@ -120,7 +122,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HOME_BANNER_VERSION = "060"
+private const val HOME_BANNER_VERSION = "063"
 private const val BATTERY_SETTINGS_LOG_TAG = "ShiftAlarmBattery"
 
 class MainActivity : ComponentActivity() {
@@ -359,10 +361,17 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val message = if (resolved) {
-            "$label 해결됨"
-        } else {
-            "$label 아직 필요"
+        val setupUi = ReliabilitySetupPolicy.build(
+            ReliabilitySetupSignals(
+                exactReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExact,
+                notificationReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || canPostNotifications,
+                batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimizationState
+            )
+        )
+        val message = when {
+            resolved && setupUi.primaryStep != null -> "$label 해결됨 · 다음: ${setupUi.primaryStep.title}"
+            resolved -> "권한과 보호 설정 준비 완료"
+            else -> "$label 아직 필요"
         }
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         pendingReliabilityFollowUpTarget = null
@@ -845,7 +854,6 @@ private fun AlarmScreen(
         panelExpanded = reliabilityPanelExpanded
     )
 
-    val requiresExactPermission = !exactReady
     val canSaveByPermission = canSave
     val previewRule = AlarmRule(
         id = editingAlarmId ?: 0,
@@ -1614,7 +1622,6 @@ private fun AlarmScreen(
                     skipDates = emptySet()
                     addDates = emptySet()
                 },
-                requiresExactPermission = requiresExactPermission
             )
         }
 

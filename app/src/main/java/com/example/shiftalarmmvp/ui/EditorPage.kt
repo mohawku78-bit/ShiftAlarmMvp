@@ -32,6 +32,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.shiftalarmmvp.data.AlarmSoundType
+import com.example.shiftalarmmvp.recovery.HomeReliabilityAction
+import com.example.shiftalarmmvp.recovery.ReliabilitySetupPolicy
+import com.example.shiftalarmmvp.recovery.ReliabilitySetupSignals
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -103,7 +106,6 @@ fun EditorPage(
     canSaveByPermission: Boolean,
     onSaveOrUpdate: () -> Unit,
     onCancelEdit: () -> Unit,
-    requiresExactPermission: Boolean,
     initialStep: Int? = null
 ) {
     var step by rememberSaveable(editingAlarmId) { mutableIntStateOf(0) }
@@ -360,51 +362,55 @@ fun EditorPage(
                 val exactReady = !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExact)
                 val batteryReady = !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimization)
                 val notificationReady = canPostNotifications
-                val allSetupReady = exactReady && batteryReady && notificationReady
+                val setupUi = ReliabilitySetupPolicy.build(
+                    ReliabilitySetupSignals(
+                        exactReady = exactReady,
+                        notificationReady = notificationReady,
+                        batteryReady = batteryReady
+                    )
+                )
+                val allSetupReady = setupUi.allReady
                 val next3Preview = next10Preview.take(3)
-                val reliabilitySummary = when {
-                    !exactReady || !notificationReady -> "현재 상태: 권한 보완 필요"
-                    !batteryReady -> "현재 상태: 동작 가능(지연 가능)"
-                    else -> "현재 상태: 정상"
-                }
-                val highlightedIssueLabel = when {
-                    !exactReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> "정확 알람 권한"
-                    !batteryReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> "배터리 최적화 예외"
-                    !notificationReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> "알림 권한"
-                    else -> null
+
+                fun runSetupAction(action: HomeReliabilityAction) {
+                    when (action) {
+                        HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS -> onOpenExactAlarmSettings()
+                        HomeReliabilityAction.REQUEST_NOTIFICATION_PERMISSION -> onRequestNotificationPermission()
+                        HomeReliabilityAction.OPEN_BATTERY_SETTINGS -> onOpenBatterySettings()
+                        else -> Unit
+                    }
                 }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("알람 신뢰도 점검", style = MaterialTheme.typography.titleSmall)
-                        Text(reliabilitySummary, style = MaterialTheme.typography.bodySmall)
-                        highlightedIssueLabel?.let { issue ->
+                        Text(setupUi.summaryText, style = MaterialTheme.typography.bodySmall)
+                        setupUi.primaryStep?.let { step ->
                             Card(modifier = Modifier.fillMaxWidth()) {
                                 Column(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("우선 조치", style = MaterialTheme.typography.labelLarge)
-                                    Text("$issue 먼저 해결하면 신뢰도를 빠르게 올릴 수 있습니다.", style = MaterialTheme.typography.bodySmall)
+                                    Text("우선 조치 ${step.stepNumber}/${step.totalStepCount}", style = MaterialTheme.typography.labelLarge)
+                                    Text(step.title, style = MaterialTheme.typography.titleSmall)
+                                    Text(step.detailText, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
-                        Text(if (exactReady) "정확 알람: 준비됨" else "정확 알람: 권한 필요")
-                        Text(if (batteryReady) "배터리 최적화: 예외 적용" else "배터리 최적화: 제한 중(지연 가능)")
-                        Text(if (notificationReady) "알림 권한: 허용됨" else "알림 권한: 허용 필요")
+                        setupUi.steps.forEach { step ->
+                            Text("${step.stepNumber}/${step.totalStepCount} ${step.statusText}")
+                        }
 
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            if (!exactReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                val title = if (highlightedIssueLabel == "정확 알람 권한") "우선 조치: 정확 알람 설정" else "정확 알람 설정"
-                                Button(onClick = onOpenExactAlarmSettings, modifier = Modifier.fillMaxWidth()) { Text(title) }
-                            }
-                            if (!batteryReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                val title = if (highlightedIssueLabel == "배터리 최적화 예외") "우선 조치: 배터리 설정" else "배터리 설정"
-                                Button(onClick = onOpenBatterySettings, modifier = Modifier.fillMaxWidth()) { Text(title) }
-                            }
-                            if (!notificationReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                val title = if (highlightedIssueLabel == "알림 권한") "우선 조치: 알림 권한 허용" else "알림 권한 허용"
-                                Button(onClick = onRequestNotificationPermission, modifier = Modifier.fillMaxWidth()) { Text(title) }
+                            setupUi.unresolvedSteps.forEach { step ->
+                                val title = if (step == setupUi.primaryStep) {
+                                    "우선 조치: ${step.actionLabel}"
+                                } else {
+                                    step.actionLabel
+                                }
+                                Button(onClick = { runSetupAction(step.action) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(title)
+                                }
                             }
                             Button(onClick = onRescheduleAllEnabled, modifier = Modifier.fillMaxWidth()) { Text("알람 재예약") }
                             Button(onClick = onOpenAppDetailSettings, modifier = Modifier.fillMaxWidth()) { Text("앱 정보") }
@@ -506,9 +512,7 @@ fun EditorPage(
                     }
                 }
 
-                if (requiresExactPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Text("정확 알람 권한이 꺼져 있어 근사 알람으로 동작할 수 있습니다. 가능하면 권한을 허용하세요.")
-                }
+
             }
         }
 
