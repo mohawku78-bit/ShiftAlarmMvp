@@ -15,16 +15,20 @@ data class ReliabilityOverviewLineUi(
 )
 
 data class ReliabilityOverviewUiModel(
+    val watchdogLine: ReliabilityOverviewLineUi,
+    val restorePostCheckLine: ReliabilityOverviewLineUi,
     val recoveryLine: ReliabilityOverviewLineUi,
     val latestRecoveryActionLine: ReliabilityOverviewLineUi,
     val selfTestLine: ReliabilityOverviewLineUi,
     val nightlyCheckLine: ReliabilityOverviewLineUi
 ) {
     val lines: List<ReliabilityOverviewLineUi>
-        get() = listOf(recoveryLine, latestRecoveryActionLine, selfTestLine, nightlyCheckLine)
+        get() = listOf(watchdogLine, restorePostCheckLine, recoveryLine, latestRecoveryActionLine, selfTestLine, nightlyCheckLine)
 }
 
 data class ReliabilityOverviewSignals(
+    val watchdogStatus: AlarmWatchdogStatus?,
+    val restorePostCheckStatus: RestorePostCheckStatus?,
     val recoveryStatus: RescheduleRecoveryState?,
     val latestRecoveryActionText: String?,
     val selfTestStatus: SelfTestStatus?,
@@ -36,12 +40,45 @@ object ReliabilityOverviewPolicy {
         signals: ReliabilityOverviewSignals,
         texts: RecoveryStrings
     ): ReliabilityOverviewUiModel {
+        val watchdogLine = signals.watchdogStatus?.let { status ->
+            ReliabilityOverviewLineUi(
+                key = "watchdog",
+                text = status.overviewText(texts.watchdog),
+                tone = when {
+                    status.needsAttention() -> ReliabilityOverviewTone.ACTION
+                    status.eventType == AlarmWatchdogEventType.CLEAN -> ReliabilityOverviewTone.SAFE
+                    else -> ReliabilityOverviewTone.INFO
+                }
+            )
+        } ?: ReliabilityOverviewLineUi(
+            key = "watchdog",
+            text = texts.overview.watchdogEmpty,
+            tone = ReliabilityOverviewTone.NEUTRAL
+        )
+
+        val restorePostCheckLine = signals.restorePostCheckStatus?.let { status ->
+            ReliabilityOverviewLineUi(
+                key = "restore_post_check",
+                text = status.overviewText(texts.restorePostCheck),
+                tone = if (status.isPending) {
+                    ReliabilityOverviewTone.ACTION
+                } else {
+                    ReliabilityOverviewTone.SAFE
+                }
+            )
+        } ?: ReliabilityOverviewLineUi(
+            key = "restore_post_check",
+            text = texts.overview.restorePostCheckEmpty,
+            tone = ReliabilityOverviewTone.NEUTRAL
+        )
+
         val recoveryLine = signals.recoveryStatus?.let { status ->
             ReliabilityOverviewLineUi(
                 key = "recovery",
                 text = status.homeOneLineSummary(texts.reschedule),
                 tone = when (status.outcome) {
                     RescheduleRecoveryState.Outcome.FULL_RECOVERY -> ReliabilityOverviewTone.SAFE
+                    RescheduleRecoveryState.Outcome.DEGRADED_RECOVERY,
                     RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> ReliabilityOverviewTone.ACTION
                     RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> ReliabilityOverviewTone.NEUTRAL
                 }
@@ -104,10 +141,13 @@ object ReliabilityOverviewPolicy {
         )
 
         return ReliabilityOverviewUiModel(
+            watchdogLine = watchdogLine,
+            restorePostCheckLine = restorePostCheckLine,
             recoveryLine = recoveryLine,
             latestRecoveryActionLine = latestRecoveryActionLine,
             selfTestLine = selfTestLine,
             nightlyCheckLine = nightlyCheckLine
         )
     }
-}
+}
+

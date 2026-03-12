@@ -1,80 +1,59 @@
 # TODO
 
-## 현재 스프린트
+## 현재 상태
+- 핵심 알람 신뢰성 기능은 대부분 완료 단계입니다.
+- 지금 남은 일은 새 엔진 기능 추가보다 최종 제품 QA와 사용자용 정리입니다.
+- 최근 마일스톤
+  - exact alarm lifecycle self-healing
+  - timezone / DST / wall-clock invalidation
+  - watchdog + trigger history + missed alarm recovery
+  - backup restore preview / confirm / apply
+  - restore post-check reliability contract
+  - shared reliability center summary
+  - first-setup wizard regression recovery
 
-### 1) 위저드 완주율 복구
-- 목표: 첫 설정 위저드가 3단계에서 앱 이탈 없이 끝까지 완료됨
-- 작업 범위
-  - `BackHandler` 기준으로 3->2, 2->1 단계 복귀 정확화
-  - 단계 이동 중 입력값 유지
-  - 1단계에서는 기존 시스템 뒤로가기 동작 유지
-- 완료 기준
-  - 새 알람/패턴 첫 설정을 3회 이상 반복해도 이탈 없이 완료됨
+## 다음 순서
 
-### 2) 패턴 모델 확장
-- 목표: 실제 교대 패턴을 앱 안에 왜곡 없이 담을 수 있음
-- 작업 범위
-  - 2~6 슬롯 같은 하드코딩 제한 조사 및 제거
-  - 가변 길이 패턴 모델 정리
-  - 특정 날짜 1회성 override 데이터 모델 설계
-  - 저장/로드/미리보기/스케줄 계산 회귀 테스트 추가
-- 완료 기준
-  - 장기 패턴과 예외 날짜가 저장/재진입/다음 알람 계산에서 일관되게 유지됨
+### 1. 최종 실기기 QA
+- [ ] 삼성에서 수동 `오늘 알람` 테스트 후 원래 근무표로 돌아왔을 때도 `next alarm registration`이 안정적으로 맞는지 다시 확인
+- [ ] seeded QA 상태가 아니라 실제 일상 흐름으로 앱 백업 복구를 한 번 더 검증
+- [ ] 실기기 상태 변화 뒤에도 Home `Alarm Check`와 Editor step 3가 같은 이유와 액션을 보여주는지 확인
 
-### 3) 신뢰도 패널을 제품 핵심으로 승격
-- 목표: 홈과 편집 화면이 “알람이 정말 안전한가”를 같은 기준으로 설명함
-- 작업 범위
-  - exact alarm 권한 상태
-  - `POST_NOTIFICATIONS` 권한 상태
-  - 다음 알람 실제 등록 여부
-  - 마지막 점검/복구 시각
-  - 배터리 제한 위험 여부
-  - 재설정/재예약 액션
-- 완료 기준
-  - 홈 요약과 편집 상세가 같은 상태 모델을 공유하고, 사용자가 다음 조치를 한 번에 이해할 수 있음
+### 2. 삼성 안내 문구 보강
+- [ ] `앱 정보 > 배터리 > 제한 없음`을 사용자 문구에 명시
+- [ ] 삼성 `백그라운드 앱 사용 제한` 화면에서 무엇을 해야 하는지 설명 추가
+- [ ] 배터리 / 특수 접근 설정에서 앱으로 돌아온 뒤 무엇을 다시 확인해야 하는지 안내 보강
 
-## 다음 스프린트
+### 3. 사용자용 용어 정리
+- [ ] `strings.xml`에서 기술적인 표현을 쉬운 한국어 UI 문구로 정리
+- [ ] 내부 코드명과 저장 스키마 이름은 유지
+- [ ] 문구가 쉬워져도 신뢰성 경고 톤은 유지
 
-### 4) 백업/복구
-- 목표: 기기 변경 전에도 안심하고 데이터를 옮길 수 있음
-- 범위: 로컬 export/import부터 시작하고, 패턴/override/알람 규칙/기준일/최소 로그를 함께 보존
+### 4. 디자인 / 레이아웃 정리
+- [ ] Home 정보 우선순위 `Today's Shift -> Next Alarm -> Alarm Check` 다시 확인
+- [ ] 카드 간격, 버튼 강조, 시각적 계층 정리
+- [ ] reliability center 가독성 개선
 
-### 5) 홈 재배치
-- 목표: 달력보다 `다음 알람`과 `신뢰도 요약`이 먼저 보임
-- 범위: `오늘 근무 / 다음 알람 / 신뢰도`를 상단 고정하고, 달력과 범례는 아래 또는 접힘 영역으로 재배치
+## 중요하지만 급하지 않은 항목
 
-### 6) 위젯
-- 목표: 앱을 열지 않아도 오늘 근무와 다음 알람 안전 상태를 바로 확인
-- 범위: 오늘 근무, 다음 알람 시각, 상태등(`안전 / 확인 필요 / 권한 필요`) 표시
+### Reliability / Platform
+- [ ] 삼성 외 OEM 배터리 QA
+- [ ] release checklist: privacy / data safety / QA matrix 정리
 
-## 아이디어
-- 제조사별 배터리 최적화 해제 가이드는 docs/android-battery-guides.draft.json 초안을 기준으로 보관하고, 실제 앱 반영 직전에 dontkillmyapp 기준으로 경로를 재검증
-- 캘린더는 양방향 sync보다 `읽기 오버레이` 또는 `export`부터 검토
-- 공유는 협업보다 `이미지/PDF 공유`부터 검토
-- 급여/오버타임은 코어 신뢰도 흐름이 안정된 뒤 실험
-- 팀 공유/클라우드 sync는 충돌/권한/삭제 동기화 비용을 감당할 시점 이후로 미룸
-- 전용 워치 앱은 좋은 알림 설계와 위젯 이후에 판단
+### Pattern / Data
+- [ ] legacy preset import fallback 동작 재검토
+- [ ] backup schema versioning / migration 규칙 보강 여부 결정
 
-## 코드 품질 개선
-- UI 문자열을 strings.xml로 분리
-- UTF-8 인코딩 문제 예방
-- 다국어 지원 기반 마련
-- 문자열 키 규칙: `home_*`, `editor_*`, `shift_*`, `reliability_*`, `battery_*`, `dialog_*`
-- 착수 시점: 위저드/패턴/신뢰도/백업 회귀가 안정된 뒤
+### Quality
+- [ ] manual QA 의존 구간의 pure Kotlin coverage 확장
+- [ ] release candidate용 최종 회귀 체크리스트 추가
 
-## 작업 착수 순서
-1. 위저드 완주율 복구
-2. 패턴 모델 확장
-3. 신뢰도 패널 승격
-4. 백업/복구
-5. 홈 재배치
-6. 위젯
-
-## 실행 체크리스트
-- [ ] `main` 기준으로 브랜치/헤드 확인
-- [ ] `README.md`의 프로젝트 소개와 `ARCHITECTURE.md`의 구조 설명을 다시 읽고 작업 범위를 고정
-- [ ] 위저드 완주율 복구 여부를 먼저 점검하고, 실패 시 다른 기능 작업보다 우선 수정
-- [ ] 패턴 모델의 하드코딩 제한(슬롯/주차/override 부재)을 조사하고 메모 남기기
-- [ ] 홈 신뢰도 패널에 exact alarm / notification / registered-next-alarm / battery risk가 모두 연결되는지 확인
-- [ ] 백업/export/위젯은 코어 흐름이 깨지지 않는 범위에서 다음 스프린트로만 진행
-- [ ] 변경 로그에 `작업일/작업 내용/검증 결과` 기록
+## 최근 완료
+- [x] shared enabled-alarm rescheduler로 exact permission, boot, time, timezone, restore, manual reschedule 통합
+- [x] exact alarm 불가 시 degraded fallback 경로 정리
+- [x] 자연 DST 경계 검증 완료
+- [x] watchdog + trigger history + missed-alarm self-healing 추가
+- [x] restore post-check를 shared reliability center로 연결
+- [x] 수동 재예약 피드백과 완료 처리 보강
+- [x] first-setup wizard back / close / select-then-next 회귀 복구
+- [x] 2분 테스트 예약 시각을 초 단위로 표시

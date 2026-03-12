@@ -1,6 +1,7 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,55 @@ import com.example.shiftalarmmvp.R
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
+
+private data class ProfessionPresetRecommendation(
+    @StringRes val titleResId: Int,
+    @StringRes val supportingResId: Int,
+    @StringRes val badgeResId: Int,
+    val accentColor: Color,
+    val category: ShiftCategory,
+    val templateId: String?,
+    val previewTypes: List<String>
+)
+
+private val PROFESSION_PRESET_RECOMMENDATIONS = listOf(
+    ProfessionPresetRecommendation(
+        titleResId = R.string.shift_profession_hospital_title,
+        supportingResId = R.string.shift_profession_hospital_support,
+        badgeResId = R.string.shift_profession_hospital_badge,
+        accentColor = Color(0xFFF472B6),
+        category = ShiftCategory.THREE_SHIFT,
+        templateId = QUICK_TEMPLATE_ID_DAY_NIGHT_OFF,
+        previewTypes = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT, WORK_TYPE_OFF)
+    ),
+    ProfessionPresetRecommendation(
+        titleResId = R.string.shift_profession_fire_title,
+        supportingResId = R.string.shift_profession_fire_support,
+        badgeResId = R.string.shift_profession_fire_badge,
+        accentColor = Color(0xFFEF4444),
+        category = ShiftCategory.TWO_SHIFT,
+        templateId = QUICK_TEMPLATE_ID_DUTY_OFF,
+        previewTypes = listOf(WORK_TYPE_DUTY, WORK_TYPE_OFF)
+    ),
+    ProfessionPresetRecommendation(
+        titleResId = R.string.shift_profession_factory_title,
+        supportingResId = R.string.shift_profession_factory_support,
+        badgeResId = R.string.shift_profession_factory_badge,
+        accentColor = Color(0xFFF59E0B),
+        category = ShiftCategory.TWO_SHIFT,
+        templateId = QUICK_TEMPLATE_ID_DAY_NIGHT,
+        previewTypes = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT)
+    ),
+    ProfessionPresetRecommendation(
+        titleResId = R.string.shift_profession_custom_title,
+        supportingResId = R.string.shift_profession_custom_support,
+        badgeResId = R.string.shift_profession_custom_badge,
+        accentColor = Color(0xFFA78BFA),
+        category = ShiftCategory.CUSTOM,
+        templateId = null,
+        previewTypes = listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF)
+    )
+)
 
 @Composable
 fun ShiftPage(
@@ -131,19 +181,23 @@ fun ShiftPage(
         dispatch(ShiftSetupAction.ChangeAnchorDate(it))
     }
 
-    BackHandler(enabled = showFirstSetupWizard && wizardStep > 0) {
-        dispatch(ShiftSetupAction.Back)
+    BackHandler(enabled = showFirstSetupWizard) {
+        if (wizardStep > 0) {
+            dispatch(ShiftSetupAction.Back)
+        } else {
+            onHideFirstSetupWizard()
+        }
     }
 
-    val representativeTemplates = quickTemplates.filter {
-        it.id in setOf(
-            QUICK_TEMPLATE_ID_DAY_DUTY_OFF,
-            QUICK_TEMPLATE_ID_DAY_NIGHT_OFF,
-            QUICK_TEMPLATE_ID_DUTY_OFF,
-            QUICK_TEMPLATE_ID_EVERY_OTHER_DAY
-        )
-    }.ifEmpty { quickTemplates.take(4) }
-    val categoryTemplates: List<QuickShiftTemplate> = if (selectedCategory == ShiftCategory.CUSTOM) emptyList() else representativeTemplates
+    val availableTemplates = quickTemplates.ifEmpty { QUICK_SHIFT_TEMPLATES }
+    fun templatesForWizardCategory(category: ShiftCategory): List<QuickShiftTemplate> {
+        return availableTemplates.filter { it.category == category }.ifEmpty { templatesForCategory(category) }
+    }
+    val categoryTemplates: List<QuickShiftTemplate> = if (selectedCategory == ShiftCategory.CUSTOM) {
+        emptyList()
+    } else {
+        templatesForWizardCategory(selectedCategory)
+    }
     fun onSelectedCategoryChange(category: ShiftCategory) {
         dispatch(
             ShiftSetupAction.SelectCategory(
@@ -151,20 +205,38 @@ fun ShiftPage(
                 selectedTemplateId = if (category == ShiftCategory.CUSTOM) {
                     null
                 } else {
-                    representativeTemplates.firstOrNull()?.id
+                    templatesForWizardCategory(category).firstOrNull()?.id
                 }
             )
         )
     }
 
+        fun onProfessionPresetSelected(preset: ProfessionPresetRecommendation) {
+        dispatch(
+            ShiftSetupAction.SelectCategory(
+                category = preset.category,
+                selectedTemplateId = preset.templateId
+            )
+        )
+    }
+
+    fun isProfessionPresetSelected(preset: ProfessionPresetRecommendation): Boolean {
+        return if (preset.templateId == null) {
+            selectedCategory == preset.category
+        } else {
+            selectedCategory == preset.category && normalizedWizardState.selectedTemplateId == preset.templateId
+        }
+    }
+
     val selectedTemplate = categoryTemplates.firstOrNull { it.id == normalizedWizardState.selectedTemplateId }
-        ?: categoryTemplates.firstOrNull()
     val usesCustomPattern = selectedCategory == ShiftCategory.CUSTOM
+    val hasSelectedWorkType = selectedStep1TypeIndex in workTypeConfigs.indices
     val canAdvanceWizard = canAdvanceFirstSetupWizard(
         step = wizardStep,
         usesCustomPattern = usesCustomPattern,
         hasCustomRotation = rotationSequence.isNotEmpty(),
-        hasPresetTemplate = selectedTemplate != null || categoryTemplates.isNotEmpty()
+        hasPresetTemplate = selectedTemplate != null,
+        hasSelectedWorkType = hasSelectedWorkType
     )
     val shouldApplyQuickTemplate = shouldApplyQuickTemplateOnAdvance(
         step = wizardStep,
@@ -226,27 +298,69 @@ fun ShiftPage(
     }
 
     if (showFirstSetupWizard) {
+        val wizardHeroTitle = when (wizardStep) {
+            0 -> stringResource(R.string.shift_step_pattern_title)
+            1 -> stringResource(R.string.shift_wizard_title)
+            else -> stringResource(R.string.shift_wizard_title)
+        }
+        val wizardHeroSupporting = when (wizardStep) {
+            0 -> stringResource(R.string.shift_step_pattern_support)
+            1 -> stringResource(R.string.shift_step_alarm_hint)
+            else -> stringResource(R.string.shift_completion_message)
+        }
+
         Card(
             modifier = Modifier.fillMaxWidth().testTag(ShiftSetupTestTags.WIZARD_ROOT),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text(stringResource(R.string.shift_wizard_title), style = MaterialTheme.typography.titleMedium)
-                }
-                Text(
-                    stringResource(R.string.shift_wizard_step_format, wizardStep + 1, wizardTotalSteps),
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                PatternWizardHeroCard(
+                    stepLabel = stringResource(R.string.shift_wizard_step_format, wizardStep + 1, wizardTotalSteps),
+                    title = wizardHeroTitle,
+                    supporting = wizardHeroSupporting,
+                    currentStep = wizardStep,
+                    totalSteps = wizardTotalSteps,
                     modifier = Modifier.testTag(ShiftSetupTestTags.STEP_LABEL)
                 )
 
                 when (wizardStep) {
                     0 -> {
-                        Text(stringResource(R.string.shift_step_pattern_intro))
+                        PatternWizardSectionCard(title = stringResource(R.string.shift_profession_section_title)) {
+                            Text(
+                                text = stringResource(R.string.shift_profession_section_support),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            PROFESSION_PRESET_RECOMMENDATIONS.chunked(2).forEach { rowItems ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    rowItems.forEach { preset ->
+                                        ProfessionPresetCard(
+                                            preset = preset,
+                                            selected = isProfessionPresetSelected(preset),
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { onProfessionPresetSelected(preset) }
+                                        )
+                                    }
+                                    repeat(2 - rowItems.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             CategoryButton(
-                                label = stringResource(R.string.shift_category_representative),
-                                selected = selectedCategory != ShiftCategory.CUSTOM,
+                                label = stringResource(R.string.shift_category_two_shift),
+                                selected = selectedCategory == ShiftCategory.TWO_SHIFT,
+                                onClick = { onSelectedCategoryChange(ShiftCategory.TWO_SHIFT) }
+                            )
+                            CategoryButton(
+                                label = stringResource(R.string.shift_category_three_shift),
+                                selected = selectedCategory == ShiftCategory.THREE_SHIFT,
                                 modifier = Modifier.testTag(ShiftSetupTestTags.CATEGORY_REPRESENTATIVE),
                                 onClick = { onSelectedCategoryChange(ShiftCategory.THREE_SHIFT) }
                             )
@@ -259,79 +373,79 @@ fun ShiftPage(
                         }
 
                         if (selectedCategory != ShiftCategory.CUSTOM) {
-                            Text(stringResource(R.string.shift_template_select))
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                categoryTemplates.forEachIndexed { index, template ->
-                                    val selected = selectedTemplate?.id == template.id
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                            PatternWizardSectionCard(title = stringResource(R.string.shift_template_select)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                    categoryTemplates.forEachIndexed { index, template ->
+                                        val selected = selectedTemplate?.id == template.id
+                                        PatternTemplateCard(
+                                            template = template,
+                                            selected = selected,
+                                            actionModifier = Modifier.testTag(ShiftSetupTestTags.template(index)),
+                                            onClick = {
+                                                if (selected) {
+                                                    advanceWizard()
+                                                } else {
+                                                    dispatch(ShiftSetupAction.SelectTemplate(template.id))
+                                                }
+                                            }
                                         )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(stringResource(template.labelResId), style = MaterialTheme.typography.titleSmall)
-                                                Text(template.sequence.joinToString(stringResource(R.string.shift_template_sequence_separator)))
-                                            }
-                                            Button(
-                                                onClick = { updateWizardState { it.copy(selectedTemplateId = template.id) } },
-                                                modifier = Modifier.testTag(ShiftSetupTestTags.template(index)),
-                                                colors = segmentedActionButtonColors(selected)
-                                            ) {
-                                                Text(
-                                                    if (selected) {
-                                                        stringResource(R.string.shift_template_selected)
-                                                    } else {
-                                                        stringResource(R.string.shift_template_select_action)
-                                                    }
-                                                )
-                                            }
-                                        }
                                     }
                                 }
                             }
 
                             Text(stringResource(R.string.shift_monthly_preview_hint), style = MaterialTheme.typography.bodySmall)
                         } else {
-                            Text(stringResource(R.string.shift_custom_pattern_input))
                             val appendableTypes = workTypeConfigs
                                 .map { normalizeWorkType(it.type) }
                                 .filter { it.isNotBlank() }
                                 .distinct()
                                 .ifEmpty { listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF, WORK_TYPE_REST) }
 
-                            appendableTypes.chunked(4).forEachIndexed { rowIndex, rowItems ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    rowItems.forEachIndexed { itemIndex, type ->
-                                        NeutralActionButton(
-                                            onClick = { onAppendRotationType(type) },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag(ShiftSetupTestTags.rotationType(rowIndex * 4 + itemIndex))
-                                        ) {
-                                            Text(type)
+                            PatternWizardSectionCard(title = stringResource(R.string.shift_custom_pattern_input)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                    appendableTypes.chunked(4).forEachIndexed { rowIndex, rowItems ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            rowItems.forEachIndexed { itemIndex, type ->
+                                                NeutralActionButton(
+                                                    onClick = { onAppendRotationType(type) },
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .testTag(ShiftSetupTestTags.rotationType(rowIndex * 4 + itemIndex))
+                                                ) {
+                                                    Text(type)
+                                                }
+                                            }
+                                            repeat(4 - rowItems.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
                                         }
                                     }
-                                    repeat(4 - rowItems.size) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                            }
 
-                            Text(stringResource(R.string.shift_input_order))
-                            Text(rotationSequenceSummary(rotationSequence, R.string.shift_wizard_sequence_empty))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.shift_delete_one_step))
-                                }
-                                DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.shift_clear_sequence))
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                                                shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
+                                            )
+                                            .padding(14.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.shift_input_order),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(rotationSequenceSummary(rotationSequence, R.string.shift_wizard_sequence_empty))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            NeutralActionButton(onClick = onDropLastRotation, modifier = Modifier.weight(1f)) {
+                                                Text(stringResource(R.string.shift_delete_one_step))
+                                            }
+                                            DangerActionButton(onClick = onClearRotation, modifier = Modifier.weight(1f)) {
+                                                Text(stringResource(R.string.shift_clear_sequence))
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -347,7 +461,11 @@ fun ShiftPage(
                         if (workTypeConfigs.isEmpty()) {
                             Text(stringResource(R.string.shift_no_work_types))
                         } else {
-                            val selectedConfigIndex = selectedStep1TypeIndex.coerceIn(0, workTypeConfigs.lastIndex)
+                            val selectedConfigIndex = if (hasSelectedWorkType) {
+                                selectedStep1TypeIndex
+                            } else {
+                                0
+                            }
                             val selectedConfig = workTypeConfigs[selectedConfigIndex]
                             Text(stringResource(R.string.shift_select_work_type))
                             workTypeConfigs.mapIndexed { index, config -> index to config.type }
@@ -355,15 +473,27 @@ fun ShiftPage(
                                 .forEach { rowItems ->
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                         rowItems.forEach { (index, type) ->
-                                            val selected = selectedConfigIndex == index
+                                            val selected = selectedStep1TypeIndex == index
                                             Button(
-                                                onClick = { updateWizardState { it.copy(selectedStep1TypeIndex = index) } },
+                                                onClick = {
+                                                    if (selected) {
+                                                        advanceWizard()
+                                                    } else {
+                                                        updateWizardState { it.copy(selectedStep1TypeIndex = index) }
+                                                    }
+                                                },
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .testTag(ShiftSetupTestTags.workType(index)),
                                                 colors = segmentedActionButtonColors(selected)
                                             ) {
-                                                Text(step1TypeChipLabel(type))
+                                                Text(
+                                                    if (selected) {
+                                                        stringResource(R.string.shift_next)
+                                                    } else {
+                                                        step1TypeChipLabel(type)
+                                                    }
+                                                )
                                             }
                                         }
                                         repeat(4 - rowItems.size) {
@@ -377,8 +507,9 @@ fun ShiftPage(
                                 ?: LocalTime.of(7, 0)
                             val secondaryEnabled = selectedConfig.secondaryTime.isNotBlank()
                             val secondaryDisplay = parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
+                            val showStep1Details = showStep1Advanced || secondaryEnabled || selectedAlarmSlot == 1
 
-                            val editingSecondary = showStep1Advanced && selectedAlarmSlot == 1 && secondaryEnabled
+                            val editingSecondary = showStep1Details && selectedAlarmSlot == 1
                             val activeTime = if (editingSecondary) secondaryDisplay else primaryDisplay
 
                             Card(modifier = Modifier.fillMaxWidth()) {
@@ -409,7 +540,7 @@ fun ShiftPage(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
-                                            if (showStep1Advanced) {
+                                            if (showStep1Details) {
                                                 stringResource(R.string.shift_hide_secondary_settings)
                                             } else {
                                                 stringResource(R.string.shift_show_secondary_settings)
@@ -417,7 +548,7 @@ fun ShiftPage(
                                         )
                                     }
 
-                                    if (showStep1Advanced) {
+                                    if (showStep1Details) {
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = CardDefaults.cardColors(
@@ -581,6 +712,13 @@ fun ShiftPage(
                             }
                         }
 
+                        NeutralActionButton(
+                            onClick = onHideFirstSetupWizard,
+                            modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.CLOSE_BUTTON)
+                        ) {
+                            Text(stringResource(R.string.shift_close))
+                        }
+
                         if (wizardStep < wizardLastStep) {
                             PrimaryActionButton(
                                 onClick = { advanceWizard() },
@@ -595,12 +733,6 @@ fun ShiftPage(
                                 modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.COMPLETE_BUTTON)
                             ) {
                                 Text(stringResource(R.string.shift_confirm))
-                            }
-                            NeutralActionButton(
-                                onClick = onHideFirstSetupWizard,
-                                modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.CLOSE_BUTTON)
-                            ) {
-                                Text(stringResource(R.string.shift_close))
                             }
                         }
                     }
@@ -685,48 +817,11 @@ fun ShiftPage(
                 Spacer(modifier = Modifier.width(4.dp))
             }
 
-            if (showFirstSetupWizard) {
-                val progressLabel = if (wizardStep < wizardLastStep) {
-                    stringResource(R.string.shift_progress_to_step_format, wizardStep + 2)
-                } else {
-                    stringResource(R.string.shift_finish_quick_start)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    if (wizardStep > 0) {
-                        NeutralActionButton(
-                            onClick = { updateWizardState { it.back() } },
-                            modifier = Modifier.weight(1f).testTag(ShiftSetupTestTags.PREVIOUS_BUTTON)
-                        ) {
-                            Text(stringResource(R.string.shift_previous))
-                        }
-                    }
-                    PrimaryActionButton(
-                        onClick = {
-                            if (wizardStep < wizardLastStep) {
-                                advanceWizard()
-                            } else {
-                                onCompleteFirstSetup()
-                            }
-                        },
-                        enabled = wizardStep >= wizardLastStep || canAdvanceWizard,
-                        modifier = Modifier.weight(1f).testTag(
-                            if (wizardStep < wizardLastStep) {
-                                ShiftSetupTestTags.NEXT_BUTTON
-                            } else {
-                                ShiftSetupTestTags.COMPLETE_BUTTON
-                            }
-                        )
-                    ) {
-                        Text(progressLabel)
-                    }
-                }
-            } else {
-                PrimaryActionButton(onClick = onAutoBuild, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.shift_auto_build))
-                }
+            PrimaryActionButton(onClick = onAutoBuild, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.shift_auto_build))
             }
 
-            if (!showFirstSetupWizard && autoBuildFeedback.isNotBlank()) {
+            if (autoBuildFeedback.isNotBlank()) {
                 Text(autoBuildFeedback, color = MaterialTheme.colorScheme.primary)
             }
         }
@@ -746,6 +841,272 @@ private fun RowScope.CategoryButton(
         colors = segmentedActionButtonColors(selected)
     ) {
         Text(label)
+    }
+}
+@Composable
+private fun PatternWizardHeroCard(
+    stepLabel: String,
+    title: String,
+    supporting: String,
+    currentStep: Int,
+    totalSteps: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B56D9))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stepLabel.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.74f),
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = supporting,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.86f)
+            )
+            Text(
+                text = wizardProgressText(currentStep, totalSteps),
+                style = MaterialTheme.typography.titleSmall,
+                color = Color.White.copy(alpha = 0.82f),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun PatternWizardSectionCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+private fun ProfessionPresetCard(
+    preset: ProfessionPresetRecommendation,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val containerColor = if (selected) {
+        preset.accentColor.copy(alpha = 0.10f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val borderColor = if (selected) {
+        preset.accentColor.copy(alpha = 0.40f)
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
+    }
+
+    Card(
+        modifier = modifier,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, borderColor, androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = preset.accentColor.copy(alpha = if (selected) 0.20f else 0.12f),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(preset.badgeResId),
+                        color = preset.accentColor,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(preset.titleResId),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(preset.supportingResId),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                preset.previewTypes.forEach { type ->
+                    PatternTemplateTypeChip(type = type)
+                }
+            }
+            Button(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = segmentedActionButtonColors(selected)
+            ) {
+                Text(
+                    if (selected) {
+                        stringResource(R.string.shift_template_selected)
+                    } else {
+                        stringResource(R.string.shift_template_select_action)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PatternTemplateCard(
+    template: QuickShiftTemplate,
+    selected: Boolean,
+    actionModifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, borderColor, androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = template.sequence.firstOrNull()?.let { step1TypeChipLabel(it) } ?: "?",
+                modifier = Modifier
+                    .background(
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = stringResource(template.labelResId),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = template.sequence.joinToString(stringResource(R.string.shift_template_sequence_separator)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                template.sequence.chunked(4).forEach { rowItems ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        rowItems.forEach { type ->
+                            PatternTemplateTypeChip(type = type)
+                        }
+                    }
+                }
+            }
+            Button(
+                onClick = onClick,
+                modifier = actionModifier,
+                colors = segmentedActionButtonColors(selected)
+            ) {
+                Text(
+                    if (selected) {
+                        stringResource(R.string.shift_next)
+                    } else {
+                        stringResource(R.string.shift_template_select_action)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PatternTemplateTypeChip(type: String) {
+    val badge = previewTypeBadge(type)
+    Text(
+        text = step1TypeChipLabel(type),
+        modifier = Modifier
+            .background(
+                color = previewBadgeBackgroundColor(badge),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp)
+            )
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = previewBadgeColor(badge),
+        fontWeight = FontWeight.Bold
+    )
+}
+
+private fun wizardProgressText(currentStep: Int, totalSteps: Int): String {
+    return (0 until totalSteps).joinToString(" ") { index ->
+        if (index == currentStep) "●" else "○"
     }
 }
 
@@ -941,5 +1302,7 @@ private fun previewBadgeColor(badge: ShiftBadge): Color {
         ShiftBadge.WORK -> Color(0xFF4D6B5C)
     }
 }
+
+
 
 

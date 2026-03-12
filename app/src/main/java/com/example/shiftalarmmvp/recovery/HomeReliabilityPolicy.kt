@@ -1,5 +1,7 @@
 package com.example.shiftalarmmvp.recovery
 
+import android.os.Build
+
 enum class HomeReliabilityLevel {
     SAFE,
     CHECK,
@@ -23,6 +25,8 @@ data class HomeReliabilitySignals(
     val nextAlarmRegisteredReady: Boolean,
     val shouldCheckAlarmRegistration: Boolean,
     val recoveryNeedsAttention: Boolean,
+    val watchdogStatus: AlarmWatchdogStatus?,
+    val restorePostCheckStatus: RestorePostCheckStatus?,
     val selfTestEvent: SelfTestStatus.Event?,
     val selfTestNeedsFollowUp: Boolean,
     val nightlyIssueCount: Int
@@ -39,8 +43,31 @@ data class HomeReliabilityUiModel(
 object HomeReliabilityPolicy {
     fun evaluate(
         signals: HomeReliabilitySignals,
-        texts: RecoveryStrings
+        texts: RecoveryStrings,
+        sdkInt: Int = Build.VERSION.SDK_INT
     ): HomeReliabilityUiModel {
+        val watchdogStatus = signals.watchdogStatus
+        if (watchdogStatus?.needsAttention() == true) {
+            return HomeReliabilityUiModel(
+                level = HomeReliabilityLevel.ACTION,
+                statusLabel = texts.home.statusActionNeeded,
+                reasonText = watchdogStatus.homeReasonText(texts.watchdog),
+                primaryActionLabel = texts.home.actionOpenCenter,
+                primaryAction = HomeReliabilityAction.OPEN_RELIABILITY_CENTER
+            )
+        }
+
+        val restorePostCheckStatus = signals.restorePostCheckStatus
+        if (restorePostCheckStatus?.isPending == true) {
+            return HomeReliabilityUiModel(
+                level = HomeReliabilityLevel.ACTION,
+                statusLabel = texts.home.statusActionNeeded,
+                reasonText = texts.restorePostCheck.homeReasonPending,
+                primaryActionLabel = texts.home.actionRecheck,
+                primaryAction = HomeReliabilityAction.REFRESH_STATUS
+            )
+        }
+
         val setupUi = ReliabilitySetupPolicy.build(
             signals = ReliabilitySetupSignals(
                 exactReady = signals.exactReady,
@@ -49,7 +76,8 @@ object HomeReliabilityPolicy {
                 nextAlarmRegisteredReady = signals.nextAlarmRegisteredReady,
                 shouldCheckAlarmRegistration = signals.shouldCheckAlarmRegistration
             ),
-            texts = texts.setup
+            texts = texts.setup,
+            sdkInt = sdkInt
         )
         setupUi.primaryStep?.let { return it.toHomeReliabilityUiModel(texts.setup) }
 
@@ -129,3 +157,5 @@ object HomeReliabilityPolicy {
         )
     }
 }
+
+

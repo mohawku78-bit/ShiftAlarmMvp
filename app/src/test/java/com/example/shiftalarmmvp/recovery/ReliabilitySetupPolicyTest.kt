@@ -23,7 +23,7 @@ class ReliabilitySetupPolicyTest {
 
         assertEquals(3, ui.totalStepCount)
         assertEquals(0, ui.resolvedStepCount)
-        assertEquals("정확 알람 권한", ui.primaryStep?.title)
+        assertEquals(texts.exactAlarmTitle, ui.primaryStep?.title)
         assertEquals(HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS, ui.primaryStep?.action)
     }
 
@@ -41,8 +41,11 @@ class ReliabilitySetupPolicyTest {
 
         assertEquals(3, ui.totalStepCount)
         assertEquals(1, ui.resolvedStepCount)
-        assertEquals("알림 권한", ui.primaryStep?.title)
-        assertEquals("1/3 정확 알람: 준비됨", "${ui.steps.first().stepNumber}/${ui.steps.first().totalStepCount} ${ui.steps.first().statusText}")
+        assertEquals(texts.notificationTitle, ui.primaryStep?.title)
+        assertEquals(
+            "1/3 ${texts.exactAlarmReadyStatus}",
+            "${ui.steps.first().stepNumber}/${ui.steps.first().totalStepCount} ${ui.steps.first().statusText}"
+        )
     }
 
     @Test
@@ -58,7 +61,7 @@ class ReliabilitySetupPolicyTest {
         )
 
         assertEquals(2, ui.totalStepCount)
-        assertEquals("배터리 최적화 예외", ui.primaryStep?.title)
+        assertEquals(texts.batteryTitle, ui.primaryStep?.title)
         assertTrue(ui.steps.none { it.issue == ReliabilitySetupIssue.NOTIFICATION_PERMISSION })
     }
 
@@ -77,7 +80,7 @@ class ReliabilitySetupPolicyTest {
         )
 
         assertEquals(4, ui.totalStepCount)
-        assertEquals("다음 알람 등록", ui.primaryStep?.title)
+        assertEquals(texts.alarmRegistrationTitle, ui.primaryStep?.title)
         assertEquals(HomeReliabilityAction.RESCHEDULE_ALARMS, ui.primaryStep?.action)
     }
 }

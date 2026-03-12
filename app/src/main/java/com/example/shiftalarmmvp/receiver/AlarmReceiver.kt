@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.receiver
+﻿package com.example.shiftalarmmvp.receiver
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -7,6 +7,8 @@ import android.os.Build
 import com.example.shiftalarmmvp.data.AlarmDatabase
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.data.toDomain
+import com.example.shiftalarmmvp.recovery.PrimaryAlarmScheduleTracker
+import com.example.shiftalarmmvp.recovery.SELF_TEST_ALARM_ID
 import com.example.shiftalarmmvp.recovery.SelfTestStatusStore
 import com.example.shiftalarmmvp.recovery.alarmReceiverStrings
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
@@ -28,6 +30,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val currentSnoozeCount = safeIntent.getIntExtra(EXTRA_SNOOZE_CURRENT_COUNT, 0)
         val snoozeMaxFromIntent = safeIntent.getIntExtra(EXTRA_SNOOZE_MAX_COUNT, Int.MIN_VALUE)
         val incomingSnoozeMinutes = safeIntent.getIntExtra(EXTRA_SNOOZE_MINUTES, Int.MIN_VALUE)
+        val expectedTriggerMillis = safeIntent.getLongExtra(EXTRA_EXPECTED_TRIGGER_MILLIS, 0L).takeIf { it > 0L }
 
         val testLabel = safeIntent.getStringExtra(EXTRA_LABEL).orEmpty()
         val testSoundType = runCatching {
@@ -42,6 +45,7 @@ class AlarmReceiver : BroadcastReceiver() {
             try {
                 val dao = AlarmDatabase.get(context).alarmDao()
                 val alarm = dao.getById(alarmId)?.toDomain()
+                val tracker = PrimaryAlarmScheduleTracker(context)
 
                 if (alarm != null && alarm.enabled) {
                     val resolvedMax = if (snoozeMaxFromIntent == Int.MIN_VALUE) alarm.snoozeMaxCount else snoozeMaxFromIntent.coerceIn(0, 99)
@@ -69,8 +73,13 @@ class AlarmReceiver : BroadcastReceiver() {
                             texts.ringStartRegular
                         }
                     )
+                    tracker.recordTrigger(
+                        alarmId = alarmId,
+                        label = alarm.label,
+                        expectedTriggerMillis = expectedTriggerMillis
+                    )
                     AlarmScheduler(context).schedule(alarm)
-                } else if (alarmId == 999_999L) {
+                } else if (alarmId == SELF_TEST_ALARM_ID) {
                     SelfTestStatusStore(context).recordTriggered()
                     val resolvedMinutes = if (incomingSnoozeMinutes == Int.MIN_VALUE || incomingSnoozeMinutes <= 0) 5 else incomingSnoozeMinutes
                     val resolvedMax = if (snoozeMaxFromIntent == Int.MIN_VALUE) 0 else snoozeMaxFromIntent.coerceIn(0, 99)
@@ -150,5 +159,6 @@ class AlarmReceiver : BroadcastReceiver() {
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
         const val EXTRA_SNOOZE_MAX_COUNT = "extra_snooze_max_count"
         const val EXTRA_SNOOZE_CURRENT_COUNT = "extra_snooze_current_count"
+        const val EXTRA_EXPECTED_TRIGGER_MILLIS = "extra_expected_trigger_millis"
     }
 }

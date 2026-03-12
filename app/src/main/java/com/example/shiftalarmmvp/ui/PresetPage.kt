@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.example.shiftalarmmvp.R
 
 @Composable
-fun PresetPage(
+internal fun PresetPage(
     presetNameInput: String,
     onPresetNameInputChange: (String) -> Unit,
     onSaveCurrent: () -> Unit,
@@ -42,6 +42,10 @@ fun PresetPage(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     backupFeedbackMessage: String,
+    pendingBackupRestorePreview: AppBackupRestorePreviewUi?,
+    backupRestoreInFlight: Boolean,
+    onConfirmBackupRestore: () -> Unit,
+    onDismissBackupRestore: () -> Unit,
     savedPresets: List<RotationPreset>,
     onApplyPreset: (RotationPreset) -> Unit,
     onDeletePreset: (String) -> Unit,
@@ -73,6 +77,71 @@ fun PresetPage(
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeletePresetName = null }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    if (pendingBackupRestorePreview != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!backupRestoreInFlight) {
+                    onDismissBackupRestore()
+                }
+            },
+            title = { Text(stringResource(R.string.preset_backup_restore_confirm_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.backup_restore_exported_at_format,
+                            pendingBackupRestorePreview.exportedAtText
+                        )
+                    )
+                    Text(
+                        stringResource(
+                            R.string.backup_restore_schema_format,
+                            pendingBackupRestorePreview.schemaVersion
+                        )
+                    )
+                    Text(
+                        stringResource(
+                            R.string.backup_restore_counts_format,
+                            stringResource(R.string.backup_restore_current_label),
+                            pendingBackupRestorePreview.currentCounts.alarmCount,
+                            pendingBackupRestorePreview.currentCounts.presetCount,
+                            pendingBackupRestorePreview.currentCounts.alarmLogCount
+                        )
+                    )
+                    Text(
+                        stringResource(
+                            R.string.backup_restore_counts_format,
+                            stringResource(R.string.backup_restore_incoming_label),
+                            pendingBackupRestorePreview.incomingCounts.alarmCount,
+                            pendingBackupRestorePreview.incomingCounts.presetCount,
+                            pendingBackupRestorePreview.incomingCounts.alarmLogCount
+                        )
+                    )
+                    Text(
+                        pendingBackupRestorePreview.replaceWarningText,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onConfirmBackupRestore,
+                    enabled = !backupRestoreInFlight
+                ) {
+                    Text(stringResource(R.string.preset_backup_restore))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismissBackupRestore,
+                    enabled = !backupRestoreInFlight
+                ) {
                     Text(stringResource(R.string.common_cancel))
                 }
             }
@@ -142,10 +211,18 @@ fun PresetPage(
                 style = MaterialTheme.typography.bodyMedium
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SecondaryActionButton(onClick = onExportBackup, modifier = Modifier.weight(1f)) {
+                SecondaryActionButton(
+                    onClick = onExportBackup,
+                    enabled = !backupRestoreInFlight,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(stringResource(R.string.preset_backup_save))
                 }
-                SecondaryActionButton(onClick = onImportBackup, modifier = Modifier.weight(1f)) {
+                SecondaryActionButton(
+                    onClick = onImportBackup,
+                    enabled = !backupRestoreInFlight,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(stringResource(R.string.preset_backup_restore))
                 }
             }

@@ -1,42 +1,51 @@
 # ShiftAlarmMvp
 
-## 프로젝트 소개
-`ShiftAlarmMvp`는 Android Kotlin + Compose 기반 교대근무 알람 앱입니다.
-- 핵심 가치는 **실사용자가 신뢰할 수 있는 알람 동작**입니다.
-- 제품 정의: **교대근무자의 실제 패턴을 표현하고, 다음 기상 알람이 안전하게 등록돼 있는지 끝까지 확인해주는 앱**
-- 기준 날짜: 2026-03-11
-- 현재 단계: MVP 이후, **신뢰도 + 패턴 자유도** 축으로 제품 방향을 고정하고 실기기 회귀를 정리하는 단계
+`ShiftAlarmMvp`는 교대근무자를 위한 Android Kotlin + Compose 알람 앱입니다. 이 저장소의 우선순위는 기능 개수보다 신뢰성입니다. 다음 기상 알람이 실제로 등록돼 있는지, 시간이나 권한이 바뀐 뒤에도 계속 믿을 수 있는지, 문제가 생기면 앱이 스스로 복구할 수 있는지가 핵심입니다.
 
-## 핵심 기능
-- 홈에서 오늘 근무, 다음 알람, 신뢰도 상태를 한 번에 확인
-- 반복 패턴, 장기 로테이션, 예외 날짜 override를 함께 관리
-- 취침 전 자동 점검과 복구 흐름으로 알람 누락 위험 감지
-- 정확 알람, 알림 권한, 배터리 예외 상태를 신뢰도 패널로 안내
-- 제조사별 배터리 가이드 및 알람 재예약 액션 제공
-- 앱 백업 JSON으로 현재 알람 규칙, 프리셋, 최근 로그를 저장하고 복구
+## 제품 초점
+- `Reliability + Pattern Freedom`
+- 핵심 UX: `감지 -> 검증 -> 즉시 복구`
+- 핵심 질문: `내 다음 기상 알람이 지금 안전하게 등록돼 있나?`
 
-## 기술 스택
-- Kotlin
-- Jetpack Compose
-- Android SDK (`targetSdk 35` 기준)
-- Android AlarmManager / BroadcastReceiver 기반 알람 스케줄링
-- JUnit 기반 단위 테스트
+## 현재 로컬 상태
+- 기준 날짜: 2026-03-12
+- 현재 로컬 마일스톤: `v089`
+- 핵심 신뢰성 작업은 대부분 닫힌 상태입니다.
+  - exact alarm lifecycle self-healing
+  - wall-clock / timezone / DST invalidation
+  - watchdog + trigger history + missed alarm self-healing
+  - backup restore preview / confirm / apply
+  - restore post-check reliability contract
+  - Home / Editor step 3 shared reliability summary
+  - first-setup wizard regression recovery
+- 최근 검증
+  - 삼성 실기기에서 백업 복구, 수동 재예약, 위저드 회귀, 2분 테스트 피드백 확인 완료
+  - 자연 DST 경계 에뮬레이터 검증 완료: spring-forward, fall-back 모두 통과
 
-## 프로젝트 구조
-- `app/src/main/java/com/example/shiftalarmmvp/ui`: 홈, 편집, 위저드, 신뢰도 UI
-- `app/src/main/java/com/example/shiftalarmmvp/data`: 패턴/알람 규칙 저장 모델
-- `app/src/main/java/com/example/shiftalarmmvp/scheduler`: 다음 알람 계산 및 플랫폼 스케줄 등록
-- `app/src/main/java/com/example/shiftalarmmvp/recovery`: 권한/배터리/점검 상태 기반 신뢰도 정책
-- `app/src/main/java/com/example/shiftalarmmvp/receiver`: 야간 점검 및 알람 관련 리시버
-- `app/src/main/assets`: 제조사별 배터리 최적화 가이드 JSON
-- `TODO.md`: 현재/다음 스프린트와 아이디어 관리
-- `CHANGELOG.md`: 버전별 변경 기록
-- `ARCHITECTURE.md`: 패턴 엔진, 반복 시퀀스 모델, 신뢰도 시스템 설명
+## 앱이 하는 일
+- 홈 상단에서 `Today's Shift`, `Next Alarm`, `Alarm Check`를 우선 확인할 수 있습니다.
+- 반복 패턴, 장기 로테이션, 특정 날짜 변경, 기간 범위 변경을 함께 다룹니다.
+- 고정된 일일 알람이 아니라 근무 규칙에서 다음 기상 알람을 계산합니다.
+- exact alarm, notification permission, battery risk, registered-next-alarm 상태를 하나의 shared reliability model로 설명합니다.
+- 부팅, 시간 변경, 시간대 변경, 복원, exact permission 변경 뒤 self-healing 재예약을 수행합니다.
+- recovery와 watchdog 이력을 남겨서 알람 누락 가능성을 설명할 수 있게 합니다.
+- 알람, 저장한 근무표, 최근 로그를 로컬 JSON으로 백업하고 복원할 수 있습니다.
 
-## 빌드 방법
-1. Android Studio에서 프로젝트를 엽니다.
-2. JDK는 Android Studio 기본 JBR을 사용합니다.
-3. 아래 Gradle 작업으로 기본 검증을 실행합니다.
+## 현재 우선순위
+1. 삼성 실기기에서 정상 근무표 기준 `next alarm registration` 최종 QA
+2. 삼성 배터리 / exact alarm 안내 문구 보강
+3. 사용자용 용어 정리
+4. 디자인과 레이아웃 polish
+
+## 문서 읽기 순서
+1. [README.md](README.md): 제품 개요와 현재 상태
+2. [ARCHITECTURE.md](ARCHITECTURE.md): 계층 경계와 불변식
+3. [docs/ENGINEERING_CHARTER.md](docs/ENGINEERING_CHARTER.md): 신뢰성 규칙, 플랫폼 제약, UX 가드레일
+4. [TODO.md](TODO.md): 남은 작업 우선순위
+5. [CHANGELOG.md](CHANGELOG.md): 최근 마일스톤과 검증 기록
+
+## 빌드와 검증
+Android Studio JBR 또는 주입된 `JAVA_HOME`을 사용합니다. 머신별 `org.gradle.java.home`는 다시 커밋하지 않습니다.
 
 ```powershell
 ./gradlew.bat :app:compileDebugKotlin -x kspDebugKotlin
@@ -44,8 +53,8 @@
 ./gradlew.bat :app:assembleDebug
 ```
 
-## 현재 버전
-- 현재 버전: `v080`
-- 최신 변경 기록: [CHANGELOG.md](CHANGELOG.md)
-- 현재 작업 계획: [TODO.md](TODO.md)
-- 구조 설명: [ARCHITECTURE.md](ARCHITECTURE.md)
+## 저장소 메모
+- Reliability 상태는 화면마다 다시 계산하지 않고 shared policy / model 경로에서 읽습니다.
+- Pattern 계산 로직은 pure Kotlin + `java.time` 경계를 유지합니다.
+- 앱 백업 복원은 현재 `replace-all` 계약을 유지합니다.
+- 사용자용 문구는 더 쉽게 바꿀 수 있지만, 신뢰성 경고는 분명하게 남겨야 합니다.

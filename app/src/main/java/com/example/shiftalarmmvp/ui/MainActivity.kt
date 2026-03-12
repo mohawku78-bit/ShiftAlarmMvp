@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import android.Manifest
 import android.app.Activity
@@ -26,6 +26,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -86,6 +88,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,7 +97,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.shiftalarmmvp.BuildConfig
 import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
@@ -101,8 +108,12 @@ import com.example.shiftalarmmvp.data.normalizeIntervalWeeks
 import com.example.shiftalarmmvp.data.normalizeWeekPatterns
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.HomeReliabilityAction
+import com.example.shiftalarmmvp.recovery.HomeReliabilityLevel
 import com.example.shiftalarmmvp.recovery.HomeReliabilityPolicy
 import com.example.shiftalarmmvp.recovery.HomeReliabilitySignals
+import com.example.shiftalarmmvp.recovery.AlarmWatchdogStatus
+import com.example.shiftalarmmvp.recovery.ReliabilityCenterPolicy
+import com.example.shiftalarmmvp.recovery.ReliabilityCenterSignals
 import com.example.shiftalarmmvp.recovery.ReliabilityOverviewPolicy
 import com.example.shiftalarmmvp.recovery.ReliabilityOverviewSignals
 import com.example.shiftalarmmvp.recovery.ReliabilityOverviewTone
@@ -113,6 +124,8 @@ import com.example.shiftalarmmvp.recovery.ReliabilityPolicy
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
 import com.example.shiftalarmmvp.recovery.RescheduleRecoveryState
 import com.example.shiftalarmmvp.recovery.RescheduleRecoveryStore
+import com.example.shiftalarmmvp.recovery.RestorePostCheckStatus
+import com.example.shiftalarmmvp.recovery.RestorePostCheckStore
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.recovery.recoveryStrings
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
@@ -130,7 +143,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HOME_BANNER_VERSION = "080"
+private const val HOME_BANNER_VERSION = "088"
 private const val SETTINGS_NAVIGATION_LOG_TAG = "ShiftAlarmSettings"
 
 private fun reliabilityOverviewToneColor(tone: ReliabilityOverviewTone): Color {
@@ -165,16 +178,30 @@ class MainActivity : ComponentActivity() {
     private var isIgnoringBatteryOptimizationState by mutableStateOf(true)
     private val reliabilityCoordinator by lazy { ReliabilityStateCoordinator(this) }
     private val recoveryStore by lazy { RescheduleRecoveryStore(this) }
+    private val restorePostCheckStore by lazy { RestorePostCheckStore(this) }
     private var rescheduleRecoveryState by mutableStateOf<RescheduleRecoveryState?>(null)
+    private var restorePostCheckStatus by mutableStateOf<RestorePostCheckStatus?>(null)
     private var selfTestStatus by mutableStateOf<SelfTestStatus?>(null)
     private var nightlyCheckStatus by mutableStateOf<NightlyReliabilityCheckStatus?>(null)
+    private var watchdogStatus by mutableStateOf<AlarmWatchdogStatus?>(null)
+    private var wallClockRefreshToken by mutableIntStateOf(0)
     private var openReliabilityCenterRequestToken by mutableIntStateOf(0)
     private var pendingReliabilityFollowUpTarget by mutableStateOf<ReliabilityFollowUpTarget?>(null)
     private var reliabilityReceiverRegistered = false
+    private var wallClockReceiverRegistered = false
     private val reliabilityStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != AlarmRingingService.ACTION_RELIABILITY_STATE_CHANGED) return
             refreshReliabilitySignals(recalculateSummary = true)
+        }
+    }
+    private val wallClockStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_TIME_CHANGED,
+                Intent.ACTION_DATE_CHANGED,
+                Intent.ACTION_TIMEZONE_CHANGED -> handleWallClockStateChanged()
+            }
         }
     }
 
@@ -202,11 +229,14 @@ class MainActivity : ComponentActivity() {
                     onOpenBatterySettings = { openBatteryOptimizationSettings() },
                     onOpenAppDetailSettings = { openAppDetailSettings() },
                     onRequestNotificationPermission = { requestNotificationPermission() },
-                    onRefreshReliabilityStatus = { refreshReliabilitySignals(showToast = true) },
+                    onRefreshReliabilityStatus = { refreshReliabilityStatusFromUserAction() },
                     isIgnoringBatteryOptimization = isIgnoringBatteryOptimizationState,
                     recoveryStatus = rescheduleRecoveryState,
+                    restorePostCheckStatus = restorePostCheckStatus,
                     selfTestStatus = selfTestStatus,
                     nightlyCheckStatus = nightlyCheckStatus,
+                    watchdogStatus = watchdogStatus,
+                    wallClockRefreshToken = wallClockRefreshToken,
                     openReliabilityCenterRequestToken = openReliabilityCenterRequestToken
                 )
             }
@@ -222,9 +252,11 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         registerReliabilityStateReceiverIfNeeded()
+        registerWallClockStateReceiverIfNeeded()
     }
 
     override fun onStop() {
+        unregisterWallClockStateReceiverIfNeeded()
         unregisterReliabilityStateReceiverIfNeeded()
         super.onStop()
     }
@@ -247,6 +279,7 @@ class MainActivity : ComponentActivity() {
         refreshNotificationPermissionState()
         refreshBatteryOptimizationState()
         refreshRecoveryState()
+        refreshRestorePostCheckState()
 
         val snapshot = if (showToast || recalculateSummary) {
             reliabilityCoordinator.recalculateAndSnapshot()
@@ -261,9 +294,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun handleWallClockStateChanged() {
+        wallClockRefreshToken += 1
+        refreshReliabilitySignals(recalculateSummary = true)
+        lifecycleScope.launch {
+            delay(750)
+            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
+            wallClockRefreshToken += 1
+            refreshReliabilitySignals(recalculateSummary = true)
+        }
+    }
     private fun registerReliabilityStateReceiverIfNeeded() {
         if (reliabilityReceiverRegistered) return
-
         val filter = IntentFilter(AlarmRingingService.ACTION_RELIABILITY_STATE_CHANGED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(reliabilityStateReceiver, filter, RECEIVER_NOT_EXPORTED)
@@ -273,14 +315,31 @@ class MainActivity : ComponentActivity() {
         }
         reliabilityReceiverRegistered = true
     }
-
     private fun unregisterReliabilityStateReceiverIfNeeded() {
         if (!reliabilityReceiverRegistered) return
-
         runCatching { unregisterReceiver(reliabilityStateReceiver) }
         reliabilityReceiverRegistered = false
     }
-
+    private fun registerWallClockStateReceiverIfNeeded() {
+        if (wallClockReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(wallClockStateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(wallClockStateReceiver, filter)
+        }
+        wallClockReceiverRegistered = true
+    }
+    private fun unregisterWallClockStateReceiverIfNeeded() {
+        if (!wallClockReceiverRegistered) return
+        runCatching { unregisterReceiver(wallClockStateReceiver) }
+        wallClockReceiverRegistered = false
+    }
     private fun refreshExactAlarmPermissionState() {
         canScheduleExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             scheduler.canScheduleExactAlarms()
@@ -313,9 +372,25 @@ class MainActivity : ComponentActivity() {
         rescheduleRecoveryState = recoveryStore.load()
     }
 
+    private fun refreshRestorePostCheckState() {
+        restorePostCheckStatus = restorePostCheckStore.load()
+    }
+
     private fun applyReliabilitySnapshot(snapshot: com.example.shiftalarmmvp.recovery.ReliabilityStateSnapshot) {
         selfTestStatus = snapshot.selfTestStatus
         nightlyCheckStatus = snapshot.nightlyCheckStatus
+        watchdogStatus = snapshot.watchdogStatus
+    }
+
+    private fun refreshReliabilityStatusFromUserAction() {
+        restorePostCheckStore.completeIfPending()?.let { restorePostCheckStatus = it }
+        refreshReliabilitySignals(showToast = true)
+    }
+
+    internal fun handleBackupRestoreApplied() {
+        restorePostCheckStatus = restorePostCheckStore.recordPending()
+        refreshReliabilitySignals()
+        openReliabilityCenterRequestToken += 1
     }
 
     private fun consumeLaunchIntent(intent: Intent?) {
@@ -457,9 +532,8 @@ class MainActivity : ComponentActivity() {
         pendingReliabilityFollowUpTarget = null
     }
     private fun vendorBatteryIntents(appPackage: String, appLabel: String): List<Intent> {
-        val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
-        return when {
-            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> listOf(
+        return when (batteryGuideManufacturerKey(Build.MANUFACTURER, Build.BRAND)) {
+            "xiaomi" -> listOf(
                 Intent().setClassName(
                     "com.miui.powerkeeper",
                     "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"
@@ -470,7 +544,9 @@ class MainActivity : ComponentActivity() {
                     "com.miui.permcenter.permissions.PermissionsEditorActivity"
                 ).putExtra("extra_pkgname", appPackage)
             )
-            manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus") -> listOf(
+            "oppo",
+            "realme",
+            "oneplus" -> listOf(
                 Intent().setClassName(
                     "com.coloros.oppoguardelf",
                     "com.coloros.powermanager.fuelgaue.PowerUsageModelActivity"
@@ -482,7 +558,7 @@ class MainActivity : ComponentActivity() {
                 ).putExtra("packageName", appPackage)
                     .putExtra("pkgName", appPackage)
             )
-            manufacturer.contains("vivo") || manufacturer.contains("iqoo") -> listOf(
+            "vivo" -> listOf(
                 Intent().setClassName(
                     "com.vivo.permissionmanager",
                     "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
@@ -492,7 +568,7 @@ class MainActivity : ComponentActivity() {
                     "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager"
                 ).putExtra("packagename", appPackage)
             )
-            manufacturer.contains("huawei") || manufacturer.contains("honor") -> listOf(
+            "huawei" -> listOf(
                 Intent().setClassName(
                     "com.huawei.systemmanager",
                     "com.huawei.systemmanager.optimize.process.ProtectActivity"
@@ -502,7 +578,7 @@ class MainActivity : ComponentActivity() {
                     "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
                 )
             )
-            manufacturer.contains("samsung") -> listOf(
+            "samsung" -> listOf(
                 Intent("com.samsung.android.sm.ACTION_BATTERY").putExtra("package_name", appPackage),
                 Intent().setClassName(
                     "com.samsung.android.lool",
@@ -516,7 +592,6 @@ class MainActivity : ComponentActivity() {
             else -> emptyList()
         }
     }
-
     private fun tryStartActivityIntent(intent: Intent): Boolean {
         val action = intent.action ?: "(none)"
         val component = intent.component?.flattenToShortString() ?: "(none)"
@@ -570,21 +645,46 @@ private fun AlarmScreen(
     onRefreshReliabilityStatus: () -> Unit,
     isIgnoringBatteryOptimization: Boolean,
     recoveryStatus: RescheduleRecoveryState?,
+    restorePostCheckStatus: RestorePostCheckStatus?,
     selfTestStatus: SelfTestStatus?,
     nightlyCheckStatus: NightlyReliabilityCheckStatus?,
+    watchdogStatus: AlarmWatchdogStatus?,
+    wallClockRefreshToken: Int,
     openReliabilityCenterRequestToken: Int
 ) {
     val alarms by vm.alarms.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val recoveryTextSet = remember(context) { recoveryStrings(context.resources) }
+    val backupRestorePreviewTextSet = remember(context) { appBackupRestorePreviewStrings(context.resources) }
     val reliabilityCoordinator = remember(context) { ReliabilityStateCoordinator(context) }
     val uiScheduler = remember(context) { AlarmScheduler(context) }
     val selfTestActionHandler = remember(context, reliabilityCoordinator) { SelfTestActionHandler(context, reliabilityCoordinator) }
     var selfTestStatusState by remember { mutableStateOf(selfTestStatus) }
     var nightlyCheckStatusState by remember { mutableStateOf(nightlyCheckStatus) }
-    val scrollState = rememberScrollState()
+    var wallClockTimeline by remember { mutableStateOf(captureWallClockTimelineSnapshot()) }
     val scope = rememberCoroutineScope()
+    val currentWallClockNow = wallClockTimeline.now
+    val currentWallClockZoneId = wallClockTimeline.zoneId
+
+    fun refreshWallClockTimeline(force: Boolean = false) {
+        val current = captureWallClockTimelineSnapshot()
+        if (force || shouldRefreshWallClockTimeline(wallClockTimeline, current)) {
+            wallClockTimeline = current
+        }
+    }
+
+    LaunchedEffect(wallClockRefreshToken) {
+        refreshWallClockTimeline(force = true)
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000)
+            refreshWallClockTimeline()
+        }
+    }
     val recoveryActionLabel = when (recoveryStatus?.outcome) {
+        RescheduleRecoveryState.Outcome.DEGRADED_RECOVERY,
         RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> stringResource(R.string.main_recovery_action_reschedule)
         RescheduleRecoveryState.Outcome.FULL_RECOVERY,
         RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> stringResource(R.string.main_recovery_action_open_check)
@@ -655,9 +755,15 @@ private fun AlarmScreen(
     var presetNameInput by remember { mutableStateOf("") }
     var presetFeedbackMessage by remember { mutableStateOf("") }
     var backupFeedbackMessage by remember { mutableStateOf("") }
+    var pendingBackupRestoreSnapshot by remember { mutableStateOf<AppBackupSnapshot?>(null) }
+    var pendingBackupRestorePreview by remember { mutableStateOf<AppBackupRestorePreviewUi?>(null) }
+    var backupRestoreInFlight by remember { mutableStateOf(false) }
+    var manualRescheduleInFlight by remember { mutableStateOf(false) }
+    var reliabilityStatusRefreshToken by remember { mutableIntStateOf(0) }
     var importMergeMode by remember { mutableStateOf(true) }
     val isFirstSetupWizardActive = !shiftQuickSetupDone && !shiftQuickSetupHidden
     var currentPage by remember { mutableStateOf(if (isFirstSetupWizardActive) AlarmPage.PATTERN else AlarmPage.TODAY) }
+    val scrollState = remember(currentPage) { ScrollState(initial = 0) }
     var editorForcedStep by remember { mutableStateOf<Int?>(null) }
     var selfTestMessage by remember { mutableStateOf("") }
 
@@ -675,6 +781,10 @@ private fun AlarmScreen(
     }
 
     BackHandler(enabled = isFirstSetupWizardActive && currentPage != AlarmPage.PATTERN) {
+        currentPage = AlarmPage.PATTERN
+    }
+
+    BackHandler(enabled = currentPage == AlarmPage.PRESET) {
         currentPage = AlarmPage.PATTERN
     }
 
@@ -727,11 +837,13 @@ private fun AlarmScreen(
     val alarmLogs = remember { mutableStateListOf<AlarmLogEntry>() }
     val latestRecoveryActionEntry = alarmLogs.firstOrNull { it.type == AlarmLogType.MANUAL_RECOVERY_ACTION }
     val latestRecoveryActionText = latestRecoveryActionEntry?.let { entry ->
-        val ts = entry.toLocalDateTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+        val ts = entry.toLocalDateTime(currentWallClockZoneId).format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
         context.getString(R.string.main_latest_recovery_action_format, ts, entry.detail)
     }
     val reliabilityOverviewUi = ReliabilityOverviewPolicy.build(
         signals = ReliabilityOverviewSignals(
+            watchdogStatus = watchdogStatus,
+            restorePostCheckStatus = restorePostCheckStatus,
             recoveryStatus = recoveryStatus,
             latestRecoveryActionText = latestRecoveryActionText,
             selfTestStatus = selfTestStatusState,
@@ -744,9 +856,63 @@ private fun AlarmScreen(
     var pendingUndoSnapshot by remember { mutableStateOf<Map<Long, Pair<Set<LocalDate>, Set<LocalDate>>>?>(null) }
     var pendingUndoToken by remember { mutableIntStateOf(0) }
 
+    val hostActivity = context as? MainActivity
+
     fun refreshAlarmLogs() {
         alarmLogs.clear()
         alarmLogs.addAll(alarmLogStore.recent(50))
+    }
+
+    fun dismissPendingBackupRestore() {
+        if (backupRestoreInFlight) return
+        pendingBackupRestoreSnapshot = null
+        pendingBackupRestorePreview = null
+    }
+
+    fun confirmPendingBackupRestore() {
+        if (backupRestoreInFlight) return
+        val snapshot = pendingBackupRestoreSnapshot ?: return
+        backupRestoreInFlight = true
+        scope.launch {
+            val restoreResult = runCatching {
+                vm.replaceAllAlarms(snapshot.alarms)
+                presetStore.replaceAll(snapshot.presets.map { it.normalized() })
+                alarmLogStore.replaceAll(snapshot.alarmLogs)
+                savedPresets.clear()
+                savedPresets.addAll(presetStore.load())
+                refreshAlarmLogs()
+                editingAlarmId = null
+                editingEnabled = true
+                selectedLabel = ""
+                exceptionDate = LocalDate.now()
+                skipDates = emptySet()
+                addDates = emptySet()
+                presetNameInput = ""
+                pendingUndoMessage = null
+                pendingUndoSnapshot = null
+                pendingUndoToken += 1
+                hostActivity?.handleBackupRestoreApplied()
+                snapshot
+            }
+            backupFeedbackMessage = if (restoreResult.isSuccess) {
+                context.getString(
+                    R.string.main_backup_import_success_format,
+                    snapshot.alarms.size,
+                    snapshot.presets.size,
+                    snapshot.alarmLogs.size
+                )
+            } else {
+                context.getString(
+                    R.string.main_backup_import_failure_format,
+                    restoreResult.exceptionOrNull()?.message ?: context.getString(R.string.main_feedback_unknown_reason)
+                )
+            }
+            if (restoreResult.isSuccess) {
+                pendingBackupRestoreSnapshot = null
+                pendingBackupRestorePreview = null
+            }
+            backupRestoreInFlight = false
+        }
     }
 
     fun snapshotExceptions(): Map<Long, Pair<Set<LocalDate>, Set<LocalDate>>> {
@@ -769,6 +935,38 @@ private fun AlarmScreen(
             detail = detail
         )
         refreshAlarmLogs()
+    }
+    fun requestManualReschedule(
+        startMessage: String? = null,
+        logDetail: String? = null,
+        showCompletionToast: Boolean = false
+    ) {
+        if (manualRescheduleInFlight) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.main_toast_retry_later),
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        manualRescheduleInFlight = true
+        startMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+        }
+
+        vm.rescheduleAllEnabled {
+            manualRescheduleInFlight = false
+            reliabilityStatusRefreshToken += 1
+            logDetail?.let { appendRecoveryActionLog(it) }
+            if (showCompletionToast) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.main_toast_reliability_refreshed),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
     fun registerCalendarChange(
         message: String,
@@ -915,17 +1113,21 @@ private fun AlarmScreen(
         if (result.resultCode == Activity.RESULT_OK) {
             val uri = result.data?.data ?: return@rememberLauncherForActivityResult
             val exportResult = runCatching {
+                val presets = presetStore.load()
+                val alarmEntries = alarmLogStore.allEntries()
                 val payload = AppBackupCodec.exportJson(
                     alarms = alarms,
-                    presets = presetStore.load(),
-                    alarmLogs = alarmLogStore.allEntries()
+                    presets = presets,
+                    alarmLogs = alarmEntries
                 )
                 context.contentResolver.openOutputStream(uri)?.use { stream ->
                     stream.write(payload.toByteArray(Charsets.UTF_8))
                 } ?: error(context.getString(R.string.main_output_stream_unavailable))
+                Triple(alarms.size, presets.size, alarmEntries.size)
             }
             backupFeedbackMessage = if (exportResult.isSuccess) {
-                context.getString(R.string.main_backup_export_success)
+                val counts = exportResult.getOrThrow()
+                context.getString(R.string.main_backup_export_success_format, counts.first, counts.second, counts.third)
             } else {
                 context.getString(R.string.main_backup_export_failure_format, exportResult.exceptionOrNull()?.message ?: context.getString(R.string.main_feedback_unknown_reason))
             }
@@ -945,24 +1147,26 @@ private fun AlarmScreen(
                         ?.use { it.readText() }
                         ?: error(context.getString(R.string.main_input_stream_unavailable))
                     val snapshot = AppBackupCodec.parseJson(content, appBackupParseMessages(context.resources))
-                    vm.replaceAllAlarms(snapshot.alarms)
-                    presetStore.replaceAll(snapshot.presets)
-                    alarmLogStore.replaceAll(snapshot.alarmLogs)
-                    savedPresets.clear()
-                    savedPresets.addAll(presetStore.load())
-                    refreshAlarmLogs()
-                    snapshot
-                }
-                backupFeedbackMessage = if (importResult.isSuccess) {
-                    val snapshot = importResult.getOrThrow()
-                    context.getString(
-                        R.string.main_backup_import_success_format,
-                        snapshot.alarms.size,
-                        snapshot.presets.size,
-                        snapshot.alarmLogs.size
+                    val preview = buildAppBackupRestorePreviewUi(
+                        snapshot = snapshot,
+                        currentCounts = AppBackupCurrentCounts(
+                            alarmCount = alarms.size,
+                            presetCount = presetStore.load().size,
+                            alarmLogCount = alarmLogStore.allEntries().size
+                        ),
+                        strings = backupRestorePreviewTextSet
                     )
+                    snapshot to preview
+                }
+                if (importResult.isSuccess) {
+                    val parsed = importResult.getOrThrow()
+                    pendingBackupRestoreSnapshot = parsed.first
+                    pendingBackupRestorePreview = parsed.second
+                    backupFeedbackMessage = ""
                 } else {
-                    context.getString(R.string.main_backup_import_failure_format, importResult.exceptionOrNull()?.message ?: context.getString(R.string.main_feedback_unknown_reason))
+                    pendingBackupRestoreSnapshot = null
+                    pendingBackupRestorePreview = null
+                    backupFeedbackMessage = context.getString(R.string.main_backup_import_failure_format, importResult.exceptionOrNull()?.message ?: context.getString(R.string.main_feedback_unknown_reason))
                 }
             }
         }
@@ -973,22 +1177,21 @@ private fun AlarmScreen(
     val batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isIgnoringBatteryOptimization
     val notificationReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || canPostNotifications
     val selfTestEvent = selfTestStatusState?.lastEvent
-    val recoveryNeedsAttention = recoveryStatus?.outcome == RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY
+    val recoveryNeedsAttention = recoveryStatus?.needsAttention == true
     val selfTestNeedsFollowUp = ReliabilityPolicy.isSelfTestFollowUpNeeded(selfTestStatusState)
-    val homeNextTrigger = remember(alarms) {
-        val now = LocalDateTime.now()
+    val homeNextTrigger = remember(alarms, wallClockTimeline.localMinute, currentWallClockZoneId) {
+        val now = currentWallClockNow
         alarms.asSequence()
             .filter { it.enabled }
             .mapNotNull { AlarmTimeCalculator.nextTrigger(it, now) }
             .minOrNull()
     }
-    var reliabilityStatusRefreshToken by remember { mutableIntStateOf(0) }
-    val registeredNextAlarmReady = remember(homeNextTrigger, exactReady, reliabilityStatusRefreshToken) {
+    val registeredNextAlarmReady = remember(homeNextTrigger, exactReady, reliabilityStatusRefreshToken, currentWallClockZoneId) {
         if (!exactReady || homeNextTrigger == null) {
             true
         } else {
             val expectedTriggerMillis = homeNextTrigger
-                .atZone(ZoneId.systemDefault())
+                .atZone(currentWallClockZoneId)
                 .toInstant()
                 .toEpochMilli()
             val registeredTriggerMillis = uiScheduler.nextOwnedAlarmClockTriggerMillis() ?: return@remember false
@@ -1004,6 +1207,8 @@ private fun AlarmScreen(
             nextAlarmRegisteredReady = registeredNextAlarmReady,
             shouldCheckAlarmRegistration = shouldCheckAlarmRegistration,
             recoveryNeedsAttention = recoveryNeedsAttention,
+            watchdogStatus = watchdogStatus,
+            restorePostCheckStatus = restorePostCheckStatus,
             selfTestEvent = selfTestEvent,
             selfTestNeedsFollowUp = selfTestNeedsFollowUp,
             nightlyIssueCount = nightlyCheckStatusState?.issueCount ?: 0
@@ -1022,6 +1227,25 @@ private fun AlarmScreen(
     } else {
         null
     }
+    val reliabilityCenterUi = ReliabilityCenterPolicy.build(
+        signals = ReliabilityCenterSignals(
+            exactReady = exactReady,
+            notificationReady = notificationReady,
+            batteryReady = batteryReady,
+            nextAlarmRegisteredReady = registeredNextAlarmReady,
+            shouldCheckAlarmRegistration = shouldCheckAlarmRegistration,
+            recoveryNeedsAttention = recoveryNeedsAttention,
+            watchdogStatus = watchdogStatus,
+            restorePostCheckStatus = restorePostCheckStatus,
+            recoveryStatus = recoveryStatus,
+            latestRecoveryActionText = latestRecoveryActionText,
+            selfTestStatus = selfTestStatusState,
+            selfTestNeedsFollowUp = selfTestNeedsFollowUp,
+            nightlyCheckStatus = nightlyCheckStatusState,
+            batteryGuideHint = batteryGuideSummaryText
+        ),
+        texts = recoveryTextSet
+    )
 
     var batteryGuideDialogVisible by rememberSaveable { mutableStateOf(false) }
     val activeBatteryGuide = currentBatteryGuide.takeIf { batteryGuideDialogVisible }
@@ -1031,6 +1255,17 @@ private fun AlarmScreen(
         reliabilityUi = reliabilityUi,
         panelExpanded = reliabilityPanelExpanded
     )
+    val homeHeaderVersion = BuildConfig.VERSION_NAME.ifBlank { "v$HOME_BANNER_VERSION" }
+    val homeHeaderTitle = buildAnnotatedString {
+        append(stringResource(R.string.main_banner_title_prefix))
+        append(" ")
+        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+            append(stringResource(R.string.main_banner_title_suffix))
+        }
+    }
+    val showReliabilityAlert = reliabilityCenterUi.summary.level != HomeReliabilityLevel.SAFE
+    val settingsButtonContentDescription = stringResource(R.string.main_header_settings_content_description)
+    val reliabilityButtonContentDescription = stringResource(R.string.main_header_reliability_content_description)
 
     if (activeBatteryGuide != null) {
         AlertDialog(
@@ -1171,16 +1406,10 @@ private fun AlarmScreen(
                 }
             }
             HomeReliabilityAction.RESCHEDULE_ALARMS -> {
-                vm.rescheduleAllEnabled()
-                reliabilityStatusRefreshToken += 1
-                onRefreshReliabilityStatus()
-                if (showToast) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.main_toast_reschedule_started),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                requestManualReschedule(
+                    startMessage = context.getString(R.string.main_toast_reschedule_started).takeIf { showToast },
+                    showCompletionToast = showToast
+                )
             }
             HomeReliabilityAction.OPEN_RELIABILITY_CENTER -> {
                 openReliabilityCenter()
@@ -1204,17 +1433,13 @@ private fun AlarmScreen(
 
     fun runRecoverySummaryAction(showToast: Boolean = false) {
         when (recoveryStatus?.outcome) {
+            RescheduleRecoveryState.Outcome.DEGRADED_RECOVERY,
             RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> {
-                vm.rescheduleAllEnabled()
-                onRefreshReliabilityStatus()
-                appendRecoveryActionLog(context.getString(R.string.main_recovery_log_reschedule_from_partial))
-                if (showToast) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.main_toast_recovery_reschedule),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                requestManualReschedule(
+                    startMessage = context.getString(R.string.main_toast_recovery_reschedule).takeIf { showToast },
+                    logDetail = context.getString(R.string.main_recovery_log_reschedule_from_partial),
+                    showCompletionToast = showToast
+                )
             }
             RescheduleRecoveryState.Outcome.FULL_RECOVERY,
             RescheduleRecoveryState.Outcome.NO_ACTIVE_ALARMS -> {
@@ -1420,216 +1645,97 @@ private fun AlarmScreen(
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF060C24))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = if (isCompactTodayBanner) Alignment.Top else Alignment.CenterVertically
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_brand_badge),
-                            contentDescription = stringResource(R.string.main_brand_logo_content_description),
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(if (isCompactTodayBanner) 34.dp else 40.dp)
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            val bannerTitlePrefix = stringResource(R.string.main_banner_title_prefix)
-                            val bannerTitleSuffix = stringResource(R.string.main_banner_title_suffix)
-                            val titleText = remember(bannerTitlePrefix, bannerTitleSuffix) {
-                                buildAnnotatedString {
-                                    append(bannerTitlePrefix)
-                                    withStyle(SpanStyle(color = Color(0xFF6EA0FF))) {
-                                        append(bannerTitleSuffix)
-                                    }
-                                }
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                Text(
-                                    text = titleText,
-                                    modifier = Modifier.weight(1f),
-                                    style = if (isCompactTodayBanner) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "v$HOME_BANNER_VERSION",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.72f),
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                            Text(
-                                stringResource(R.string.main_banner_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.86f)
-                            )
-                            AnimatedVisibility(
-                                visible = reliabilityBannerState.showPanel,
-                                enter = EnterTransition.None,
-                                exit = ExitTransition.None
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(
-                                        text = reliabilityUi.reasonText,
-                                        maxLines = if (isCompactTodayBanner) 1 else 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White.copy(alpha = 0.86f)
-                                    )
-                                    batteryGuideSummaryText?.let { guide ->
-                                        Text(
-                                            text = guide,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFFFC061)
-                                        )
-                                    }
-                                    if (batteryGuideSummaryText != null) {
-                                        Card(
-                                            modifier = Modifier.clickable { batteryGuideDialogVisible = true },
-                                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.14f))
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.main_battery_guide_cta),
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = Color.White.copy(alpha = 0.9f),
-                                                maxLines = 1,
-                                                softWrap = false,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = reliabilityOverviewUi.recoveryLine.text,
-                                            modifier = if (recoverySummaryClickable) {
-                                                Modifier
-                                                    .weight(1f)
-                                                    .clickable { runRecoverySummaryActionWithDebounce(showToast = true) }
-                                            } else {
-                                                Modifier.weight(1f)
-                                            },
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = reliabilityOverviewToneColor(reliabilityOverviewUi.recoveryLine.tone)
-                                        )
-                                        recoveryActionLabel?.let { actionLabel ->
-                                            Card(
-                                                modifier = Modifier.clickable { runRecoverySummaryActionWithDebounce(showToast = true) },
-                                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.14f))
-                                            ) {
-                                                Text(
-                                                    text = stringResource(R.string.main_recovery_action_format, actionLabel),
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = Color.White.copy(alpha = 0.9f),
-                                                    maxLines = 1,
-                                                    softWrap = false,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                        }
-                                    }
-                                    Text(
-                                        text = reliabilityOverviewUi.latestRecoveryActionLine.text,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = reliabilityOverviewToneColor(reliabilityOverviewUi.latestRecoveryActionLine.tone)
-                                    )
-                                    Text(
-                                        text = reliabilityOverviewUi.selfTestLine.text,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = reliabilityOverviewToneColor(reliabilityOverviewUi.selfTestLine.tone)
-                                    )
-                                    Text(
-                                        text = reliabilityOverviewUi.nightlyCheckLine.text,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = reliabilityOverviewToneColor(reliabilityOverviewUi.nightlyCheckLine.tone)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Column(
-                        modifier = Modifier.widthIn(max = if (isCompactTodayBanner) 116.dp else 180.dp),
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Card(
-                            modifier = Modifier.clickable {
-                                when {
-                                    !reliabilityBannerState.showPanel -> reliabilityPanelExpanded = true
-                                    reliabilityBannerState.panelLockedOpen -> openReliabilityCenter()
-                                    else -> reliabilityPanelExpanded = false
-                                }
-                            },
-                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_home_brand_logo),
+                                contentDescription = stringResource(R.string.main_brand_logo_content_description),
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(24.dp)
+                            )
                             Text(
-                                text = reliabilityBannerState.toggleLabel,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
+                                text = homeHeaderTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
-                                softWrap = false,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        AnimatedVisibility(
-                            visible = reliabilityBannerState.showPanel,
-                            enter = EnterTransition.None,
-                            exit = ExitTransition.None
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = homeHeaderVersion,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
-                        modifier = Modifier.widthIn(max = if (isCompactTodayBanner) 116.dp else 180.dp),
-                        horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            Card(
+                                modifier = Modifier
+                                    .semantics {
+                                        contentDescription = settingsButtonContentDescription
+                                    }
+                                    .clickable { currentPage = AlarmPage.MANAGE },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
                             ) {
-                                HomeReliabilityChip(
-                                    label = reliabilityBannerState.chipLabel,
-                                    tone = reliabilityBannerState.chipTone,
-                                    onOpenReliabilityCenter = { openReliabilityCenter() }
+                                Icon(
+                                    imageVector = Icons.Filled.Settings,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(9.dp)
+                                        .size(18.dp)
                                 )
+                            }
+                            AnimatedVisibility(
+                                visible = showReliabilityAlert,
+                                enter = EnterTransition.None,
+                                exit = ExitTransition.None
+                            ) {
                                 Card(
-                                    modifier = Modifier.clickable { runPrimaryReliabilityAction(showToast = true) },
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2F6EF1))
+                                    modifier = Modifier
+                                        .semantics {
+                                            contentDescription = reliabilityButtonContentDescription
+                                        }
+                                        .clickable { openReliabilityCenter() },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f))
                                 ) {
-                                    Text(
-                                        text = reliabilityUi.primaryActionLabel,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Box(
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "!",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1645,14 +1751,6 @@ private fun AlarmScreen(
             HomePage(
                 nextTrigger = homeNextTrigger,
                 alarms = alarms,
-                onReconfigurePattern = {
-                    reopenPatternSetup()
-                    scope.launch { scrollState.animateScrollTo(0) }
-                },
-                onOpenManage = {
-                    currentPage = AlarmPage.MANAGE
-                    scope.launch { scrollState.animateScrollTo(0) }
-                },
                 onSetVacationDate = { date ->
                     registerCalendarChange(
                         message = context.getString(R.string.main_calendar_vacation_apply),
@@ -1775,15 +1873,15 @@ private fun AlarmScreen(
                 initialStep = editorForcedStep,
                 selectedLabel = selectedLabel,
                 onSelectedLabelChange = { selectedLabel = it },
-                canScheduleExact = canScheduleExact,
-                isIgnoringBatteryOptimization = isIgnoringBatteryOptimization,
                 onOpenExactAlarmSettings = onOpenExactAlarmSettings,
                 onOpenBatterySettings = onOpenBatterySettings,
                 onOpenAppDetailSettings = onOpenAppDetailSettings,
-                onRescheduleAllEnabled = { vm.rescheduleAllEnabled() },
-                canPostNotifications = canPostNotifications,
-                registeredNextAlarmReady = registeredNextAlarmReady,
-                shouldCheckAlarmRegistration = shouldCheckAlarmRegistration,
+                onRescheduleAllEnabled = {
+                    requestManualReschedule(
+                        startMessage = context.getString(R.string.main_toast_reschedule_started),
+                        showCompletionToast = true
+                    )
+                },
                 onRequestNotificationPermission = onRequestNotificationPermission,
                 setupWizardDismissed = setupWizardDismissed,
                 onSetupWizardDismissedChange = {
@@ -1821,10 +1919,9 @@ private fun AlarmScreen(
                 onScheduleSelfTest = { scheduleSelfTest() },
                 onCancelSelfTest = { cancelSelfTest() },
                 selfTestMessage = selfTestMessage,
-                recoveryStatus = recoveryStatus,
-                latestRecoveryActionText = latestRecoveryActionText,
-                selfTestStatus = selfTestStatusState,
-                nightlyCheckStatus = nightlyCheckStatusState,
+                reliabilityCenterUi = reliabilityCenterUi,
+                onOpenReliabilityCenter = { openReliabilityCenter() },
+                onRefreshReliabilityStatus = { onRefreshReliabilityStatus() },
                 selectedTime = selectedTime,
                 onSelectedTimeChange = { selectedTime = it },
                 anchorDate = anchorDate,
@@ -1981,6 +2078,17 @@ private fun AlarmScreen(
                         },
                         onReopenFirstSetupWizard = { reopenPatternSetup() }
                     )
+                    if (!isFirstSetupWizardActive) {
+                        SecondaryActionButton(
+                            onClick = {
+                                currentPage = AlarmPage.PRESET
+                                scope.launch { scrollState.animateScrollTo(0) }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.preset_title))
+                        }
+                    }
                 } else {
                     ExceptionPage(
                         alarms = alarms,
@@ -2011,11 +2119,7 @@ private fun AlarmScreen(
             }
         }
 
-        AnimatedVisibility(
-            visible = currentPage == AlarmPage.PRESET,
-            enter = EnterTransition.None,
-            exit = ExitTransition.None
-        ) {
+        if (currentPage == AlarmPage.PRESET) {
             PresetPage(
                 presetNameInput = presetNameInput,
                 onPresetNameInputChange = { presetNameInput = it },
@@ -2078,6 +2182,10 @@ private fun AlarmScreen(
                     importBackupLauncher.launch(intent)
                 },
                 backupFeedbackMessage = backupFeedbackMessage,
+                pendingBackupRestorePreview = pendingBackupRestorePreview,
+                backupRestoreInFlight = backupRestoreInFlight,
+                onConfirmBackupRestore = { confirmPendingBackupRestore() },
+                onDismissBackupRestore = { dismissPendingBackupRestore() },
                 savedPresets = savedPresets.sortedBy { if (inferPresetCategory(it) == selectedShiftCategory) 0 else 1 },
                 onApplyPreset = { preset ->
                     val presetInterval = normalizeIntervalWeeks(preset.intervalWeeks)
@@ -2212,6 +2320,18 @@ private fun isUriPlayable(context: android.content.Context, uri: Uri): Boolean {
     }
     return runCatching { RingtoneManager.getRingtone(context, uri) != null }.getOrDefault(false)
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

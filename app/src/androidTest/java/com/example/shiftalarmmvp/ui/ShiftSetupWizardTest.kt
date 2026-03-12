@@ -1,5 +1,6 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
+import android.Manifest
 import android.content.Context
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
@@ -13,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import com.example.shiftalarmmvp.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,10 +30,13 @@ import org.junit.runners.model.Statement
 class ShiftSetupWizardTest {
 
     private val composeRule = createAndroidComposeRule<MainActivity>()
+    private val notificationPermissionRule: GrantPermissionRule =
+        GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)
 
     @get:Rule
     val ruleChain: TestRule = RuleChain
         .outerRule(ClearFirstSetupPrefsRule())
+        .around(notificationPermissionRule)
         .around(composeRule)
 
     private val context: Context
@@ -43,11 +48,14 @@ class ShiftSetupWizardTest {
         composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).assertIsEnabled().performClick()
         composeRule.onNodeWithTag(ShiftSetupTestTags.workType(1)).performClick()
         composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).performClick()
+        composeRule.waitUntilTagExists(ShiftSetupTestTags.COMPLETE_BUTTON)
 
         Espresso.pressBack()
+        composeRule.waitUntilTagExists(ShiftSetupTestTags.workType(1))
         composeRule.assertTagExists(ShiftSetupTestTags.workType(1))
 
         Espresso.pressBack()
+        composeRule.waitUntilTagExists(ShiftSetupTestTags.template(0))
         composeRule.assertTagExists(ShiftSetupTestTags.template(0))
     }
 
@@ -58,11 +66,12 @@ class ShiftSetupWizardTest {
         composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).assertIsEnabled().performClick()
 
         Espresso.pressBack()
+        composeRule.waitUntilTagExists(ShiftSetupTestTags.NEXT_BUTTON)
         composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).assertIsEnabled()
     }
 
     @Test
-    fun secondaryAlarmSelectionPersistsAfterStepRoundTrip() {
+    fun secondaryAlarmSelectionPersistsAfterWorkTypeRoundTrip() {
         val showSecondary = context.getString(R.string.shift_show_secondary_settings)
         val secondaryOn = context.getString(
             R.string.shift_secondary_alarm_status_format,
@@ -74,9 +83,11 @@ class ShiftSetupWizardTest {
         composeRule.onNodeWithTag(ShiftSetupTestTags.workType(1)).performClick()
         composeRule.onNodeWithText(showSecondary).performClick()
         composeRule.onNodeWithTag(ShiftSetupTestTags.ALARM_SLOT_SECONDARY).performClick()
-        composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).performClick()
+        composeRule.assertTextExists(secondaryOn)
 
-        Espresso.pressBack()
+        composeRule.onNodeWithTag(ShiftSetupTestTags.workType(0)).performClick()
+        composeRule.onNodeWithTag(ShiftSetupTestTags.workType(1)).performClick()
+        composeRule.waitUntilTagExists(ShiftSetupTestTags.ALARM_SLOT_SECONDARY)
         composeRule.assertTagExists(ShiftSetupTestTags.ALARM_SLOT_SECONDARY)
         composeRule.assertTextExists(secondaryOn)
     }
@@ -86,21 +97,20 @@ class ShiftSetupWizardTest {
         composeRule.onNodeWithTag(ShiftSetupTestTags.template(0)).performClick()
         composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).assertIsEnabled().performClick()
         composeRule.onNodeWithTag(ShiftSetupTestTags.NEXT_BUTTON).performClick()
+        composeRule.waitUntilTagExists(ShiftSetupTestTags.COMPLETE_BUTTON)
         composeRule.onNodeWithTag(ShiftSetupTestTags.COMPLETE_BUTTON).performClick()
 
         composeRule.assertTagDoesNotExist(ShiftSetupTestTags.WIZARD_ROOT)
     }
 
     @Test
-    fun stepZeroUsesActivityBackInsteadOfWizardBack() {
+    fun stepZeroBackHidesWizardCard() {
         composeRule.assertTagExists(ShiftSetupTestTags.WIZARD_ROOT)
 
-        Espresso.pressBackUnconditionally()
+        Espresso.pressBack()
 
-        composeRule.waitUntil(5_000) {
-            composeRule.activityRule.scenario.state == Lifecycle.State.DESTROYED
-        }
-        assertEquals(Lifecycle.State.DESTROYED, composeRule.activityRule.scenario.state)
+        composeRule.assertTagDoesNotExist(ShiftSetupTestTags.WIZARD_ROOT)
+        assertTrue(composeRule.activityRule.scenario.state != Lifecycle.State.DESTROYED)
     }
 }
 
@@ -119,6 +129,12 @@ private class ClearFirstSetupPrefsRule : TestRule {
     }
 }
 
+private fun AndroidComposeTestRule<*, *>.waitUntilTagExists(tag: String, timeoutMillis: Long = 5_000) {
+    waitUntil(timeoutMillis) {
+        onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    }
+}
+
 private fun AndroidComposeTestRule<*, *>.assertTagExists(tag: String) {
     waitForIdle()
     assertTrue(onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
@@ -133,3 +149,6 @@ private fun AndroidComposeTestRule<*, *>.assertTextExists(text: String) {
     waitForIdle()
     assertTrue(onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
 }
+
+
+

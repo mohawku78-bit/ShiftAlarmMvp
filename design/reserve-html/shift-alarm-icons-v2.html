@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교대근무알람 — Icon Set v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #0F1117;
+  --surface: #1A1D27;
+  --surface2:#22263A;
+  --border:  rgba(255,255,255,0.07);
+  --text1:   #F1F3FA;
+  --text2:   #7C82A0;
+  --text3:   #3D4260;
+ 
+  --day:    #F59E0B;
+  --night:  #6C8EFF;
+  --off:    #34D399;
+  --vac:    #94A3B8;
+  --duty:   #FB923C;
+  --skip:   #64748B;
+  --home:   #6C8EFF;
+  --pat:    #A78BFA;
+  --mgr:    #38BDF8;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  min-height: 100vh;
+  padding: 52px 32px 80px;
+  color: var(--text1);
+}
+h1 { font-size:22px; font-weight:800; letter-spacing:-0.5px; margin-bottom:5px; }
+h1 span { color: var(--night); }
+.subtitle { font-size:13px; color:var(--text2); margin-bottom:12px; }
+.changelog {
+  display:inline-flex; gap:8px; margin-bottom:44px; flex-wrap:wrap;
+}
+.cl-tag {
+  font-size:11px; font-weight:700;
+  padding:4px 12px; border-radius:20px;
+  font-family:'DM Mono',monospace;
+}
+.cl-new  { background:rgba(52,211,153,0.15); color:#34D399; }
+.cl-fix  { background:rgba(251,146,60,0.15);  color:#FB923C; }
+ 
+.section { margin-bottom:52px; }
+.sec-title {
+  font-size:10px; font-weight:700;
+  letter-spacing:0.2em; text-transform:uppercase;
+  color:var(--text3);
+  margin-bottom:20px;
+  display:flex; align-items:center; gap:10px;
+}
+.sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
+ 
+.icon-grid { display:flex; flex-wrap:wrap; gap:14px; }
+ 
+.icon-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 16px 14px;
+  display: flex; flex-direction:column;
+  align-items: center; gap: 12px;
+  min-width: 108px;
+  transition: all 0.15s;
+  position: relative;
+}
+.icon-card:hover {
+  background: var(--surface2);
+  border-color: rgba(255,255,255,0.13);
+  transform: translateY(-2px);
+}
+.new-badge {
+  position:absolute; top:8px; right:8px;
+  font-size:8px; font-weight:800;
+  background:rgba(52,211,153,0.2); color:#34D399;
+  padding:2px 6px; border-radius:5px;
+  font-family:'DM Mono',monospace; letter-spacing:0.05em;
+}
+.fix-badge {
+  position:absolute; top:8px; right:8px;
+  font-size:8px; font-weight:800;
+  background:rgba(251,146,60,0.2); color:#FB923C;
+  padding:2px 6px; border-radius:5px;
+  font-family:'DM Mono',monospace; letter-spacing:0.05em;
+}
+ 
+.icon-sizes { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.size-row   { display:flex; align-items:center; gap:10px; }
+.size-label {
+  font-size:9px; font-weight:600;
+  color:var(--text3); font-family:'DM Mono',monospace;
+  width:26px; text-align:right;
+}
+.ibg24 {
+  width:36px; height:36px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+}
+.ibg16 {
+  width:24px; height:24px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+}
+.icon-name  { font-size:11px; font-weight:700; }
+.icon-desc  { font-size:10px; color:var(--text3); text-align:center; line-height:1.5; }
+ 
+.navbar-preview {
+  background: #1A1D27;
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:16px 8px 16px;
+  display:inline-flex;
+  gap:0;
+}
+.ni {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; gap:4px; padding:0 22px;
+  cursor:pointer;
+}
+.ni-pill {
+  width:60px; height:30px; border-radius:15px;
+  display:flex; align-items:center; justify-content:center;
+}
+.ni.act .ni-pill { background:rgba(108,142,255,0.18); }
+.ni-lbl { font-size:10px; font-weight:600; color:var(--text3); }
+.ni.act .ni-lbl  { color:var(--home); font-weight:700; }
+ 
+.chip-row { display:flex; gap:8px; flex-wrap:wrap; }
+.shift-chip {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 14px; border-radius:20px;
+  font-size:12px; font-weight:700;
+}
+ 
+.palette { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:36px; }
+.pcol {
+  display:flex; align-items:center; gap:8px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:8px 12px;
+}
+.pdot { width:12px; height:12px; border-radius:4px; flex-shrink:0; }
+.pname { font-size:12px; font-weight:700; color:var(--text1); }
+.phex  { font-size:10px; color:var(--text2); font-family:'DM Mono',monospace; }
+</style>
+</head>
+<body>
+ 
+<h1>교대근무<span>알람</span> — Icon Set <span style="color:var(--off)">v2</span></h1>
+<p class="subtitle">24×24 기준 · Stroke 2px · Rounded Cap · 16×16 가독성 검증</p>
+<div class="changelog">
+  <span class="cl-tag cl-new">+ NEW 당직</span>
+  <span class="cl-tag cl-fix">✎ FIX 휴무 (야자수 → calendar-off)</span>
+</div>
+ 
+<div class="palette">
+  <div class="pcol"><div class="pdot" style="background:#F59E0B"></div><div><div class="pname">주간</div><div class="phex">#F59E0B</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#6C8EFF"></div><div><div class="pname">야간</div><div class="phex">#6C8EFF</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#34D399"></div><div><div class="pname">비번</div><div class="phex">#34D399</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#FB923C"></div><div><div class="pname">당직</div><div class="phex">#FB923C</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#94A3B8"></div><div><div class="pname">휴무</div><div class="phex">#94A3B8</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#64748B"></div><div><div class="pname">스킵</div><div class="phex">#64748B</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#A78BFA"></div><div><div class="pname">패턴</div><div class="phex">#A78BFA</div></div></div>
+  <div class="pcol"><div class="pdot" style="background:#38BDF8"></div><div><div class="pname">관리</div><div class="phex">#38BDF8</div></div></div>
+</div>
+ 
+<div class="section">
+  <div class="sec-title">근무 상태 아이콘 — Shift Status</div>
+  <div class="icon-grid">
+    <div class="icon-card">
+      <div class="icon-sizes">
+        <div class="size-row"><span class="size-label">24</span><div class="ibg24" style="background:rgba(245,158,11,0.13)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="2.5" x2="12" y2="5" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="21.5" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="2.5" y1="12" x2="5" y2="12" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="12" x2="21.5" y2="12" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="5.4" y1="5.4" x2="7.1" y2="7.1" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="16.9" y1="16.9" x2="18.6" y2="18.6" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="5.4" y1="18.6" x2="7.1" y2="16.9" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><line x1="16.9" y1="7.1" x2="18.6" y2="5.4" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+        <div class="size-row"><span class="size-label">16</span><div class="ibg16" style="background:rgba(245,158,11,0.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="2" x2="12" y2="5.5" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="18.5" x2="12" y2="22" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="2" y1="12" x2="5.5" y2="12" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="18.5" y1="12" x2="22" y2="12" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="5.3" y1="5.3" x2="7.5" y2="7.5" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="16.5" y1="16.5" x2="18.7" y2="18.7" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="5.3" y1="18.7" x2="7.5" y2="16.5" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="16.5" y1="7.5" x2="18.7" y2="5.3" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>
+      </div>
+      <div class="icon-name" style="color:#F59E0B">주간</div>
+      <div class="icon-desc">태양 + 8광선</div>
+    </div>
+ 
+    <div class="icon-card">
+      <div class="icon-sizes">
+        <div class="size-row"><span class="size-label">24</span><div class="ibg24" style="background:rgba(108,142,255,0.13)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="#6C8EFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="5" r="1" fill="#6C8EFF"/><circle cx="19.5" cy="8.5" r="0.8" fill="#6C8EFF"/><circle cx="20" cy="4" r="0.6" fill="#6C8EFF"/></svg></div></div>
+        <div class="size-row"><span class="size-label">16</span><div class="ibg16" style="background:rgba(108,142,255,0.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="#6C8EFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17.5" cy="5.5" r="1.3" fill="#6C8EFF"/><circle cx="20" cy="9" r="1" fill="#6C8EFF"/></svg></div></div>
+      </div>
+      <div class="icon-name" style="color:#6C8EFF">야간</div>
+      <div class="icon-desc">초승달 + 별</div>
+    </div>
+ 
+    <div class="icon-card">
+      <div class="icon-sizes">
+        <div class="size-row"><span class="size-label">24</span><div class="ibg24" style="background:rgba(52,211,153,0.13)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 9H21" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><path d="M3 9V19H21V9" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13H21" stroke="#34D399" stroke-width="2" stroke-linecap="round"/><rect x="5" y="9.5" width="5" height="3" rx="1.5" fill="#34D399" opacity="0.5"/></svg></div></div>
+        <div class="size-row"><span class="size-label">16</span><div class="ibg16" style="background:rgba(52,211,153,0.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 9H21" stroke="#34D399" stroke-width="2.5" stroke-linecap="round"/><path d="M3 9V19H21V9" stroke="#34D399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13H21" stroke="#34D399" stroke-width="2.5" stroke-linecap="round"/><rect x="5" y="9.5" width="5" height="3" rx="1.5" fill="#34D399" opacity="0.6"/></svg></div></div>
+      </div>
+      <div class="icon-name" style="color:#34D399">비번</div>
+      <div class="icon-desc">침대 + 베개</div>
+    </div>
+ 
+    <div class="icon-card"><span class="new-badge">NEW</span>
+      <div class="icon-sizes">
+        <div class="size-row"><span class="size-label">24</span><div class="ibg24" style="background:rgba(251,146,60,0.13)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 21V7L12 3L21 7V21H3Z" stroke="#FB923C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="21" x2="21" y2="21" stroke="#FB923C" stroke-width="2" stroke-linecap="round"/><rect x="5.5" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="15" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="9.5" y="15" width="5" height="6" rx="1" stroke="#FB923C" stroke-width="1.8"/></svg></div></div>
+        <div class="size-row"><span class="size-label">16</span><div class="ibg16" style="background:rgba(251,146,60,0.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 21V7L12 3L21 7V21H3Z" stroke="#FB923C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="21" x2="21" y2="21" stroke="#FB923C" stroke-width="2.5" stroke-linecap="round"/><rect x="5.5" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="15" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="9.5" y="15" width="5" height="6" rx="1" stroke="#FB923C" stroke-width="2"/></svg></div></div>
+        <div class="size-row"><span class="size-label" style="color:#FB923C">ON</span><div class="ibg24" style="background:rgba(251,146,60,0.22); box-shadow:0 0 0 2px rgba(251,146,60,0.35);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 21V7L12 3L21 7V21H3Z" fill="rgba(251,146,60,0.15)" stroke="#FB923C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="21" x2="21" y2="21" stroke="#FB923C" stroke-width="2" stroke-linecap="round"/><rect x="5.5" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="15" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="9.5" y="15" width="5" height="6" rx="1" fill="rgba(251,146,60,0.3)" stroke="#FB923C" stroke-width="1.8"/></svg></div></div>
+      </div>
+      <div class="icon-name" style="color:#FB923C">당직</div>
+      <div class="icon-desc">건물 + 불켜진<br>창문 2개</div>
+    </div>
+ 
+    <div class="icon-card"><span class="fix-badge">FIX</span>
+      <div class="icon-sizes">
+        <div class="size-row"><span class="size-label">24</span><div class="ibg24" style="background:rgba(148,163,184,0.1)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2.5" stroke="#94A3B8" stroke-width="2"/><line x1="3" y1="9" x2="21" y2="9" stroke="#94A3B8" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="2" x2="16" y2="6" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="13" x2="15" y2="18" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="13" x2="9" y2="18" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+        <div class="size-row"><span class="size-label">16</span><div class="ibg16" style="background:rgba(148,163,184,0.08)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2.5" stroke="#94A3B8" stroke-width="2.5"/><line x1="3" y1="9" x2="21" y2="9" stroke="#94A3B8" stroke-width="2.5"/><line x1="8" y1="2" x2="8" y2="6" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/><line x1="16" y1="2" x2="16" y2="6" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/><line x1="9" y1="13" x2="15" y2="18" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/><line x1="15" y1="13" x2="9" y2="18" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>
+      </div>
+      <div class="icon-name" style="color:#94A3B8">휴무</div>
+      <div class="icon-desc">calendar-off<br>업종 중립</div>
+    </div>
+ 
+    <div class="icon-card">
+      <div class="icon-sizes">
+        <div class="size-row"><span class="size-label">24</span><div class="ibg24" style="background:rgba(100,116,139,0.12)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#64748B" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="4" x2="20" y2="20" stroke="#64748B" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+        <div class="size-row"><span class="size-label">16</span><div class="ibg16" style="background:rgba(100,116,139,0.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#64748B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#64748B" stroke-width="2.5" stroke-linecap="round"/><line x1="4" y1="4" x2="20" y2="20" stroke="#64748B" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>
+      </div>
+      <div class="icon-name" style="color:#64748B">스킵</div>
+      <div class="icon-desc">알람 + 사선</div>
+    </div>
+  </div>
+</div>
+ 
+<div class="section">
+  <div class="sec-title">내비게이션 아이콘 — Bottom Nav</div>
+  <div class="icon-grid">
+    <div class="icon-card"><div class="icon-sizes"><div class="size-row"><span class="size-label">OFF</span><div class="ibg24" style="background:rgba(255,255,255,0.04)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V16H9V21H4C3.45 21 3 20.55 3 20V9.5Z" stroke="#3D4260" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="size-row"><span class="size-label" style="color:#6C8EFF">ON</span><div class="ibg24" style="background:rgba(108,142,255,0.18); box-shadow:0 0 0 2px rgba(108,142,255,0.28);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V16H9V21H4C3.45 21 3 20.55 3 20V9.5Z" fill="rgba(108,142,255,0.28)" stroke="#6C8EFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div><div class="icon-name" style="color:#6C8EFF">홈 / 오늘</div><div class="icon-desc">집 Outline<br>→ Tinted Fill</div></div>
+    <div class="icon-card"><div class="icon-sizes"><div class="size-row"><span class="size-label">OFF</span><div class="ibg24" style="background:rgba(255,255,255,0.04)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 4C8.686 4 6 6.686 6 10" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><path d="M6 10C6 13.314 8.686 16 12 16C15.314 16 18 13.314 18 10" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><path d="M10 2L12 4L14 2" stroke="#3D4260" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 18L12 16L10 18" stroke="#3D4260" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="10" r="1.3" fill="#3D4260"/><circle cx="12" cy="10" r="1.3" fill="#3D4260"/><circle cx="15" cy="10" r="1.3" fill="#3D4260"/></svg></div></div><div class="size-row"><span class="size-label" style="color:#A78BFA">ON</span><div class="ibg24" style="background:rgba(167,139,250,0.18); box-shadow:0 0 0 2px rgba(167,139,250,0.28);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 4C8.686 4 6 6.686 6 10" stroke="#A78BFA" stroke-width="2" stroke-linecap="round"/><path d="M6 10C6 13.314 8.686 16 12 16C15.314 16 18 13.314 18 10" stroke="#A78BFA" stroke-width="2" stroke-linecap="round"/><path d="M10 2L12 4L14 2" stroke="#A78BFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 18L12 16L10 18" stroke="#A78BFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="10" r="1.8" fill="#A78BFA"/><circle cx="12" cy="10" r="1.8" fill="#A78BFA"/><circle cx="15" cy="10" r="1.8" fill="#A78BFA"/></svg></div></div></div><div class="icon-name" style="color:#A78BFA">패턴</div><div class="icon-desc">순환 + 3점</div></div>
+    <div class="icon-card"><div class="icon-sizes"><div class="size-row"><span class="size-label">OFF</span><div class="ibg24" style="background:rgba(255,255,255,0.04)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><line x1="3" y1="6" x2="21" y2="6" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="6" r="2.5" fill="#0F1117" stroke="#3D4260" stroke-width="2"/><circle cx="16" cy="12" r="2.5" fill="#0F1117" stroke="#3D4260" stroke-width="2"/><circle cx="10" cy="18" r="2.5" fill="#0F1117" stroke="#3D4260" stroke-width="2"/></svg></div></div><div class="size-row"><span class="size-label" style="color:#38BDF8">ON</span><div class="ibg24" style="background:rgba(56,189,248,0.18); box-shadow:0 0 0 2px rgba(56,189,248,0.28);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><line x1="3" y1="6" x2="21" y2="6" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="6" r="2.5" fill="#38BDF8" stroke="#38BDF8" stroke-width="2"/><circle cx="16" cy="12" r="2.5" fill="#38BDF8" stroke="#38BDF8" stroke-width="2"/><circle cx="10" cy="18" r="2.5" fill="#38BDF8" stroke="#38BDF8" stroke-width="2"/></svg></div></div></div><div class="icon-name" style="color:#38BDF8">관리</div><div class="icon-desc">슬라이더 3단</div></div>
+  </div>
+</div>
+ 
+<div class="section">
+  <div class="sec-title">캘린더 칩 미리보기</div>
+  <div class="chip-row">
+    <div class="shift-chip" style="background:rgba(245,158,11,0.15)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="#F59E0B" stroke-width="2.5"/><line x1="12" y1="2" x2="12" y2="5.5" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="18.5" x2="12" y2="22" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="2" y1="12" x2="5.5" y2="12" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/><line x1="18.5" y1="12" x2="22" y2="12" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/></svg><span style="color:#F59E0B">주간</span></div>
+    <div class="shift-chip" style="background:rgba(108,142,255,0.15)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="#6C8EFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="color:#6C8EFF">야간</span></div>
+    <div class="shift-chip" style="background:rgba(52,211,153,0.15)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 9H21" stroke="#34D399" stroke-width="2.5" stroke-linecap="round"/><path d="M3 9V19H21V9" stroke="#34D399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13H21" stroke="#34D399" stroke-width="2.5" stroke-linecap="round"/></svg><span style="color:#34D399">비번</span></div>
+    <div class="shift-chip" style="background:rgba(251,146,60,0.15)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 21V7L12 3L21 7V21H3Z" stroke="#FB923C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="5.5" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/><rect x="15" y="10" width="3.5" height="3.5" rx="0.8" fill="#FB923C"/></svg><span style="color:#FB923C">당직</span></div>
+    <div class="shift-chip" style="background:rgba(148,163,184,0.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2.5" stroke="#94A3B8" stroke-width="2.5"/><line x1="3" y1="9" x2="21" y2="9" stroke="#94A3B8" stroke-width="2.5"/><line x1="8" y1="2" x2="8" y2="6" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/><line x1="16" y1="2" x2="16" y2="6" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/><line x1="9" y1="13" x2="15" y2="18" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/><line x1="15" y1="13" x2="9" y2="18" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/></svg><span style="color:#94A3B8">휴무</span></div>
+  </div>
+</div>
+ 
+<div class="section">
+  <div class="sec-title">내비게이션 바 미리보기 — 오늘 활성</div>
+  <div class="navbar-preview">
+    <div class="ni act"><div class="ni-pill" style="background:rgba(108,142,255,0.18);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V16H9V21H4C3.45 21 3 20.55 3 20V9.5Z" fill="rgba(108,142,255,0.28)" stroke="#6C8EFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="ni-lbl" style="color:#6C8EFF">오늘</span></div>
+    <div class="ni"><div class="ni-pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 4C8.686 4 6 6.686 6 10" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><path d="M6 10C6 13.314 8.686 16 12 16C15.314 16 18 13.314 18 10" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><path d="M10 2L12 4L14 2" stroke="#3D4260" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 18L12 16L10 18" stroke="#3D4260" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="10" r="1.3" fill="#3D4260"/><circle cx="12" cy="10" r="1.3" fill="#3D4260"/><circle cx="15" cy="10" r="1.3" fill="#3D4260"/></svg></div><span class="ni-lbl">패턴</span></div>
+    <div class="ni"><div class="ni-pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><line x1="3" y1="6" x2="21" y2="6" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="#3D4260" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="6" r="2.5" fill="#0F1117" stroke="#3D4260" stroke-width="2"/><circle cx="16" cy="12" r="2.5" fill="#0F1117" stroke="#3D4260" stroke-width="2"/><circle cx="10" cy="18" r="2.5" fill="#0F1117" stroke="#3D4260" stroke-width="2"/></svg></div><span class="ni-lbl">관리</span></div>
+  </div>
+</div>
+ 
+</body>
+</html>

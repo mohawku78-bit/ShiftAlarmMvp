@@ -1,10 +1,11 @@
-package com.example.shiftalarmmvp.recovery
+﻿package com.example.shiftalarmmvp.recovery
 
 import android.content.Context
 
 data class ReliabilityStateSnapshot(
     val selfTestStatus: SelfTestStatus?,
-    val nightlyCheckStatus: NightlyReliabilityCheckStatus?
+    val nightlyCheckStatus: NightlyReliabilityCheckStatus?,
+    val watchdogStatus: AlarmWatchdogStatus?
 )
 
 object ReliabilityPolicy {
@@ -62,11 +63,13 @@ class ReliabilityStateCoordinator(context: Context) {
     private val appContext = context.applicationContext
     private val selfTestStore = SelfTestStatusStore(appContext)
     private val nightlyCheckStore = NightlyReliabilityCheckStore(appContext)
+    private val watchdogStatusStore = AlarmWatchdogStatusStore(appContext)
 
     fun snapshot(): ReliabilityStateSnapshot {
         return ReliabilityStateSnapshot(
             selfTestStatus = selfTestStore.load(),
-            nightlyCheckStatus = nightlyCheckStore.load()
+            nightlyCheckStatus = nightlyCheckStore.load(),
+            watchdogStatus = watchdogStatusStore.load()
         )
     }
 

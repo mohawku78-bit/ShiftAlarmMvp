@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -75,6 +75,15 @@ private fun editorReliabilityOverviewToneColor(tone: ReliabilityOverviewTone): C
 }
 
 @Composable
+private fun editorReliabilityLevelColor(level: com.example.shiftalarmmvp.recovery.HomeReliabilityLevel): Color {
+    return when (level) {
+        com.example.shiftalarmmvp.recovery.HomeReliabilityLevel.SAFE -> Color(0xFF2E7D32)
+        com.example.shiftalarmmvp.recovery.HomeReliabilityLevel.CHECK -> Color(0xFFB26A00)
+        com.example.shiftalarmmvp.recovery.HomeReliabilityLevel.ACTION -> Color(0xFFC62828)
+    }
+}
+
+@Composable
 private fun reliabilityOverviewLabel(key: String): String {
     return when (key) {
         "recovery" -> stringResource(R.string.reliability_label_recovery)
@@ -86,19 +95,14 @@ private fun reliabilityOverviewLabel(key: String): String {
 }
 
 @Composable
-fun EditorPage(
+internal fun EditorPage(
     editingAlarmId: Long?,
     selectedLabel: String,
     onSelectedLabelChange: (String) -> Unit,
-    canScheduleExact: Boolean,
-    isIgnoringBatteryOptimization: Boolean,
     onOpenExactAlarmSettings: () -> Unit,
     onOpenBatterySettings: () -> Unit,
     onOpenAppDetailSettings: () -> Unit,
     onRescheduleAllEnabled: () -> Unit,
-    canPostNotifications: Boolean,
-    registeredNextAlarmReady: Boolean,
-    shouldCheckAlarmRegistration: Boolean,
     onRequestNotificationPermission: () -> Unit,
     setupWizardDismissed: Boolean,
     onSetupWizardDismissedChange: (Boolean) -> Unit,
@@ -109,10 +113,9 @@ fun EditorPage(
     onScheduleSelfTest: () -> Unit,
     onCancelSelfTest: () -> Unit,
     selfTestMessage: String,
-    recoveryStatus: RescheduleRecoveryState?,
-    latestRecoveryActionText: String?,
-    selfTestStatus: SelfTestStatus?,
-    nightlyCheckStatus: NightlyReliabilityCheckStatus?,
+    reliabilityCenterUi: com.example.shiftalarmmvp.recovery.ReliabilityCenterUiModel,
+    onOpenReliabilityCenter: () -> Unit,
+    onRefreshReliabilityStatus: () -> Unit,
     selectedTime: LocalTime,
     onSelectedTimeChange: (LocalTime) -> Unit,
     anchorDate: LocalDate,
@@ -160,8 +163,6 @@ fun EditorPage(
     var intervalInput by rememberSaveable(editingAlarmId) { mutableStateOf(intervalWeeks.toString()) }
     val editorSteps = EDITOR_STEP_LABEL_RES_IDS.map { stringResource(it) }
     val lastStep = editorSteps.lastIndex
-    val context = LocalContext.current
-    val recoveryTextSet = remember(context) { recoveryStrings(context.resources) }
 
     BackHandler(enabled = step > 0) {
         step -= 1
@@ -423,52 +424,47 @@ fun EditorPage(
             }
 
             else -> {
-                val exactReady = !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExact)
-                val batteryReady = !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimization)
-                val notificationReady = canPostNotifications
-                val setupUi = ReliabilitySetupPolicy.build(
-                    signals = ReliabilitySetupSignals(
-                        exactReady = exactReady,
-                        notificationReady = notificationReady,
-                        batteryReady = batteryReady,
-                        nextAlarmRegisteredReady = registeredNextAlarmReady,
-                        shouldCheckAlarmRegistration = shouldCheckAlarmRegistration
-                    ),
-                    texts = recoveryTextSet.setup
-                )
-                val allSetupReady = setupUi.allReady
+                val allSetupReady = reliabilityCenterUi.setup.allReady
                 val next3Preview = next10Preview.take(3)
-                val overviewUi = ReliabilityOverviewPolicy.build(
-                    signals = ReliabilityOverviewSignals(
-                        recoveryStatus = recoveryStatus,
-                        latestRecoveryActionText = latestRecoveryActionText,
-                        selfTestStatus = selfTestStatus,
-                        nightlyCheckStatus = nightlyCheckStatus
-                    ),
-                    texts = recoveryTextSet
-                )
 
-                fun runSetupAction(action: HomeReliabilityAction) {
+                fun runReliabilityAction(action: HomeReliabilityAction) {
                     when (action) {
                         HomeReliabilityAction.OPEN_EXACT_ALARM_SETTINGS -> onOpenExactAlarmSettings()
                         HomeReliabilityAction.REQUEST_NOTIFICATION_PERMISSION -> onRequestNotificationPermission()
                         HomeReliabilityAction.OPEN_BATTERY_SETTINGS -> onOpenBatterySettings()
                         HomeReliabilityAction.RESCHEDULE_ALARMS -> onRescheduleAllEnabled()
-                        else -> Unit
+                        HomeReliabilityAction.OPEN_RELIABILITY_CENTER -> onOpenReliabilityCenter()
+                        HomeReliabilityAction.RUN_SELF_TEST -> onScheduleSelfTest()
+                        HomeReliabilityAction.REFRESH_STATUS -> onRefreshReliabilityStatus()
                     }
                 }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.editor_recent_reliability_records), style = MaterialTheme.typography.titleSmall)
-                        overviewUi.lines.forEach { line ->
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
-                                Text(reliabilityOverviewLabel(line.key), style = MaterialTheme.typography.labelLarge)
-                                Text(
-                                    text = line.text,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = editorReliabilityOverviewToneColor(line.tone)
-                                )
+                        Text(stringResource(R.string.editor_reliability_check_title), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = reliabilityCenterUi.summary.statusLabel,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = editorReliabilityLevelColor(reliabilityCenterUi.summary.level)
+                        )
+                        Text(reliabilityCenterUi.summary.reasonText, style = MaterialTheme.typography.bodySmall)
+                        Button(
+                            onClick = { runReliabilityAction(reliabilityCenterUi.summary.primaryAction) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(reliabilityCenterUi.summary.primaryActionLabel)
+                        }
+                        reliabilityCenterUi.batteryGuideHint?.let { hint ->
+                            Text(
+                                text = hint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = editorReliabilityOverviewToneColor(ReliabilityOverviewTone.CHECK)
+                            )
+                            Button(
+                                onClick = { runReliabilityAction(HomeReliabilityAction.OPEN_BATTERY_SETTINGS) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(stringResource(R.string.main_battery_guide_cta))
                             }
                         }
                     }
@@ -477,8 +473,8 @@ fun EditorPage(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_reliability_check_title), style = MaterialTheme.typography.titleSmall)
-                        Text(setupUi.summaryText, style = MaterialTheme.typography.bodySmall)
-                        setupUi.primaryStep?.let { step ->
+                        Text(reliabilityCenterUi.setup.summaryText, style = MaterialTheme.typography.bodySmall)
+                        reliabilityCenterUi.setup.primaryStep?.let { step ->
                             Card(modifier = Modifier.fillMaxWidth()) {
                                 Column(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -490,18 +486,18 @@ fun EditorPage(
                                 }
                             }
                         }
-                        setupUi.steps.forEach { step ->
+                        reliabilityCenterUi.setup.steps.forEach { step ->
                             Text(stringResource(R.string.editor_setup_step_status_format, step.stepNumber, step.totalStepCount, step.statusText))
                         }
 
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            setupUi.unresolvedSteps.forEach { step ->
-                                val title = if (step == setupUi.primaryStep) {
+                            reliabilityCenterUi.setup.unresolvedSteps.forEach { step ->
+                                val title = if (step == reliabilityCenterUi.setup.primaryStep) {
                                     stringResource(R.string.editor_priority_action_prefix, step.actionLabel)
                                 } else {
                                     step.actionLabel
                                 }
-                                Button(onClick = { runSetupAction(step.action) }, modifier = Modifier.fillMaxWidth()) {
+                                Button(onClick = { runReliabilityAction(step.action) }, modifier = Modifier.fillMaxWidth()) {
                                     Text(title)
                                 }
                             }
@@ -515,6 +511,22 @@ fun EditorPage(
                                 enabled = allSetupReady
                             ) {
                                 Text(stringResource(R.string.editor_hide_setup_card))
+                            }
+                        }
+                    }
+                }
+
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.editor_recent_reliability_records), style = MaterialTheme.typography.titleSmall)
+                        reliabilityCenterUi.recent.lines.forEach { line ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+                                Text(reliabilityOverviewLabel(line.key), style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    text = line.text,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = editorReliabilityOverviewToneColor(line.tone)
+                                )
                             }
                         }
                     }
@@ -735,6 +747,8 @@ private fun GalaxyTimeInput(
         Text(stringResource(R.string.editor_selected_time_format, selectedTime.format(DateTimeFormatter.ofPattern("HH:mm"))))
     }
 }
+
+
 
 
 

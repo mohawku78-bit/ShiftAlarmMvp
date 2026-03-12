@@ -22,6 +22,8 @@ import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmActionReceiver
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
+import com.example.shiftalarmmvp.scheduler.AlarmExactStrategy
+import com.example.shiftalarmmvp.scheduler.scheduleRtcWakeupIntent
 import com.example.shiftalarmmvp.recovery.alarmServiceStrings
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
@@ -259,16 +261,14 @@ class AlarmRingingService : Service() {
 
         stopSelf()
     }
-
-            private fun scheduleSnooze(alarmId: Long, snoozeMinutes: Int, currentSnoozeCount: Int, snoozeMaxCount: Int): Boolean {
+    private fun scheduleSnooze(alarmId: Long, snoozeMinutes: Int, currentSnoozeCount: Int, snoozeMaxCount: Int): Boolean {
         if (alarmId <= 0) return false
         if (snoozeMaxCount > 0 && currentSnoozeCount >= snoozeMaxCount) return false
 
         val resolvedMinutes = snoozeMinutes.coerceIn(1, 60)
         val nextCount = currentSnoozeCount + 1
         val triggerAt = System.currentTimeMillis() + resolvedMinutes * 60 * 1000L
-
-        val am = getSystemService(AlarmManager::class.java)
+        val alarmManager = getSystemService(AlarmManager::class.java)
         val pi = PendingIntent.getBroadcast(
             this,
             alarmId.toInt() + 70_000,
@@ -280,10 +280,14 @@ class AlarmRingingService : Service() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        return runCatching {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
-            true
-        }.getOrDefault(false)
+        return scheduleRtcWakeupIntent(
+            alarmManager = alarmManager,
+            triggerMillis = triggerAt,
+            operation = pi,
+            canScheduleExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager?.canScheduleExactAlarms() == true,
+            sdkInt = Build.VERSION.SDK_INT,
+            exactStrategy = AlarmExactStrategy.EXACT_ALLOW_WHILE_IDLE
+        ).scheduled
     }
 
     private fun scheduleOneMoreSnooze(
@@ -297,8 +301,7 @@ class AlarmRingingService : Service() {
         val resolvedMinutes = snoozeMinutes.coerceIn(1, 60)
         val nextCount = currentSnoozeCount + 1
         val triggerAt = System.currentTimeMillis() + resolvedMinutes * 60 * 1000L
-
-        val am = getSystemService(AlarmManager::class.java)
+        val alarmManager = getSystemService(AlarmManager::class.java)
         val pi = PendingIntent.getBroadcast(
             this,
             alarmId.toInt() + 71_000,
@@ -310,10 +313,14 @@ class AlarmRingingService : Service() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        return runCatching {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
-            true
-        }.getOrDefault(false)
+        return scheduleRtcWakeupIntent(
+            alarmManager = alarmManager,
+            triggerMillis = triggerAt,
+            operation = pi,
+            canScheduleExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager?.canScheduleExactAlarms() == true,
+            sdkInt = Build.VERSION.SDK_INT,
+            exactStrategy = AlarmExactStrategy.EXACT_ALLOW_WHILE_IDLE
+        ).scheduled
     }
 
     private fun buildNotification(
@@ -634,3 +641,6 @@ class AlarmRingingService : Service() {
         }
     }
 }
+
+
+

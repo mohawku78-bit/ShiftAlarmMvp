@@ -28,7 +28,19 @@ class FirstSetupWizardStateTest {
     }
 
     @Test
-    fun `normalized clamps indexes`() {
+    fun `back keeps step1 advanced open when secondary slot is selected`() {
+        val updated = FirstSetupWizardState(
+            step = 2,
+            showStep1Advanced = false,
+            selectedAlarmSlot = 1
+        ).back()
+
+        assertEquals(1, updated.step)
+        assertTrue(updated.showStep1Advanced)
+    }
+
+    @Test
+    fun `normalized clamps indexes but preserves unselected work type`() {
         val state = FirstSetupWizardState(
             step = 99,
             selectedStep1TypeIndex = 7,
@@ -39,8 +51,15 @@ class FirstSetupWizardStateTest {
         val normalized = state.normalized(workTypeCount = 2)
 
         assertEquals(FIRST_SETUP_WIZARD_LAST_STEP, normalized.step)
-        assertEquals(1, normalized.selectedStep1TypeIndex)
+        assertEquals(-1, normalized.selectedStep1TypeIndex)
         assertEquals(1, normalized.selectedAlarmSlot)
+    }
+
+    @Test
+    fun `normalized keeps selected work type index in range`() {
+        val normalized = FirstSetupWizardState(selectedStep1TypeIndex = 1).normalized(workTypeCount = 2)
+
+        assertEquals(1, normalized.selectedStep1TypeIndex)
     }
 
     @Test
@@ -56,9 +75,10 @@ class FirstSetupWizardStateTest {
 
     @Test
     fun `saver restores blank template as null`() {
-        val restored = FirstSetupWizardState.Saver.restore(listOf(0, false, false, 0, 0, ""))
+        val restored = FirstSetupWizardState.Saver.restore(listOf(0, false, false, -1, 0, ""))
 
         assertNull(restored?.selectedTemplateId)
+        assertEquals(-1, restored?.selectedStep1TypeIndex)
     }
 
     @Test
@@ -68,7 +88,8 @@ class FirstSetupWizardStateTest {
                 step = 0,
                 usesCustomPattern = false,
                 hasCustomRotation = false,
-                hasPresetTemplate = false
+                hasPresetTemplate = false,
+                hasSelectedWorkType = false
             )
         )
         assertTrue(
@@ -76,7 +97,8 @@ class FirstSetupWizardStateTest {
                 step = 0,
                 usesCustomPattern = false,
                 hasCustomRotation = false,
-                hasPresetTemplate = true
+                hasPresetTemplate = true,
+                hasSelectedWorkType = false
             )
         )
         assertTrue(shouldApplyQuickTemplateOnAdvance(step = 0, usesCustomPattern = false))
@@ -89,7 +111,8 @@ class FirstSetupWizardStateTest {
                 step = 0,
                 usesCustomPattern = true,
                 hasCustomRotation = false,
-                hasPresetTemplate = true
+                hasPresetTemplate = true,
+                hasSelectedWorkType = false
             )
         )
         assertTrue(
@@ -97,20 +120,44 @@ class FirstSetupWizardStateTest {
                 step = 0,
                 usesCustomPattern = true,
                 hasCustomRotation = true,
-                hasPresetTemplate = false
+                hasPresetTemplate = false,
+                hasSelectedWorkType = false
             )
         )
         assertFalse(shouldApplyQuickTemplateOnAdvance(step = 0, usesCustomPattern = true))
     }
 
     @Test
-    fun `later steps can advance without template gate`() {
+    fun `step1 requires an explicit work type selection`() {
+        assertFalse(
+            canAdvanceFirstSetupWizard(
+                step = 1,
+                usesCustomPattern = false,
+                hasCustomRotation = false,
+                hasPresetTemplate = true,
+                hasSelectedWorkType = false
+            )
+        )
         assertTrue(
             canAdvanceFirstSetupWizard(
                 step = 1,
                 usesCustomPattern = false,
                 hasCustomRotation = false,
-                hasPresetTemplate = false
+                hasPresetTemplate = true,
+                hasSelectedWorkType = true
+            )
+        )
+    }
+
+    @Test
+    fun `later steps can advance without template gate`() {
+        assertTrue(
+            canAdvanceFirstSetupWizard(
+                step = 2,
+                usesCustomPattern = false,
+                hasCustomRotation = false,
+                hasPresetTemplate = false,
+                hasSelectedWorkType = false
             )
         )
         assertFalse(shouldApplyQuickTemplateOnAdvance(step = 2, usesCustomPattern = false))

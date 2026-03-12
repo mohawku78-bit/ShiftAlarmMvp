@@ -102,15 +102,14 @@ object AppBackupCodec {
     }
 
     private fun toPresetDto(preset: RotationPreset): PresetBackupDto {
-        val interval = normalizeIntervalWeeks(preset.intervalWeeks)
-        val normalizedPattern = normalizeWeekPatterns(interval, preset.weekPatterns)
+        val normalizedPreset = preset.normalized()
         return PresetBackupDto(
-            name = preset.name,
-            intervalWeeks = interval,
-            anchorEpochDay = preset.anchorDate.toEpochDay(),
-            patterns = normalizedPattern.map { days -> days.sortedBy { it.value }.map(DayOfWeek::name) },
-            infiniteRotationEnabled = preset.infiniteRotationEnabled,
-            isDefault = preset.isDefault
+            name = normalizedPreset.name,
+            intervalWeeks = normalizedPreset.intervalWeeks,
+            anchorEpochDay = normalizedPreset.anchorDate.toEpochDay(),
+            patterns = normalizedPreset.weekPatterns.map { days -> days.sortedBy { it.value }.map(DayOfWeek::name) },
+            infiniteRotationEnabled = normalizedPreset.infiniteRotationEnabled,
+            isDefault = normalizedPreset.isDefault
         )
     }
 
@@ -163,7 +162,7 @@ object AppBackupCodec {
             weekPatterns = normalizeWeekPatterns(interval, parsePatterns(dto.patterns, interval)),
             infiniteRotationEnabled = dto.infiniteRotationEnabled,
             isDefault = dto.isDefault
-        )
+        ).normalized()
     }
 
     private fun toAlarmLogEntry(dto: AlarmLogBackupDto): AlarmLogEntry? {

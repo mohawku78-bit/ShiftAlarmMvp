@@ -22,6 +22,8 @@ class BatteryGuideCatalogTest {
     @Test
     fun `brand aliases are used when manufacturer is ambiguous`() {
         assertEquals("xiaomi", batteryGuideManufacturerKey("Android", "POCO"))
+        assertEquals("huawei", batteryGuideManufacturerKey("Android", "HONOR"))
+        assertEquals("vivo", batteryGuideManufacturerKey("Android", "iQOO"))
         assertEquals("realme", batteryGuideManufacturerKey("Android", "realme"))
         assertEquals("google_pixel", batteryGuideManufacturerKey("Android", "Pixel"))
     }

@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.recovery
+﻿package com.example.shiftalarmmvp.recovery
 
 import android.Manifest
 import android.app.AlarmManager
@@ -21,6 +21,7 @@ object ReliabilityInspector {
         val powerManager = context.getSystemService(PowerManager::class.java)
         val recovery = RescheduleRecoveryStore(context).load()
         val selfTest = SelfTestStatusStore(context).load()
+        val watchdogStatus = AlarmWatchdogStatusStore(context).load()
 
         val exactReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager?.canScheduleExactAlarms() == true
         val notificationPermissionReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -29,7 +30,6 @@ object ReliabilityInspector {
         val notificationReady = notificationPermissionReady && notificationChannelReady
         val batteryReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
             powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
-        val recoveryNeedsAttention = recovery?.outcome == RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY
 
         val selfTestEvent = selfTest?.lastEvent
         val selfTestNeedsFollowUp = ReliabilityPolicy.isSelfTestFollowUpNeeded(selfTest)
@@ -38,13 +38,20 @@ object ReliabilityInspector {
         val issues = mutableListOf<String>()
         if (!exactReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) issues += texts.issueExactAlarmPermission
         if (!notificationReady) issues += texts.issueNotificationPermission
+        if (watchdogStatus?.needsAttention() == true) issues += texts.issueWatchdogIncident
         if (selfTestEvent == SelfTestStatus.Event.FAILED) {
             issues += texts.issueSelfTestFailed
         } else if (selfTestNeedsFollowUp) {
             issues += if (selfTestStale) texts.issueSelfTestRecheckRecommended else texts.issueSelfTestCheckNeeded
         }
         if (!batteryReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) issues += texts.issueBatteryNotExempt
-        if (recoveryNeedsAttention) issues += texts.issueRecoveryPartial
+        when (recovery?.outcome) {
+            RescheduleRecoveryState.Outcome.PARTIAL_RECOVERY -> issues += texts.issueRecoveryPartial
+            RescheduleRecoveryState.Outcome.DEGRADED_RECOVERY -> {
+                if (exactReady) issues += texts.issueRecoveryDegraded
+            }
+            else -> Unit
+        }
 
         if (issues.isEmpty()) {
             return ReliabilityInspectionResult(

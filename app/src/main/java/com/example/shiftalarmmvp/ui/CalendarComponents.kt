@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -122,6 +122,7 @@ fun ShiftCalendarMonthGrid(
     val dayLabelStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
     val badgeStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
     val cellVerticalPadding = if (compact) 5.dp else 6.dp
+    val cellShape = RoundedCornerShape(if (compact) 10.dp else 12.dp)
 
     Column(verticalArrangement = Arrangement.spacedBy(rowSpacing), modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gridSpacing)) {
@@ -141,29 +142,29 @@ fun ShiftCalendarMonthGrid(
                     val baseBackground = if (date != null) {
                         shiftBadgeBackgroundColor(badge)
                     } else {
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                        Color.Transparent
                     }
                     val backgroundColor = when {
-                        isSelected -> baseBackground.copy(alpha = 0.98f)
+                        isSelected -> baseBackground.copy(alpha = 0.96f)
                         isToday -> baseBackground.copy(alpha = 0.9f)
                         else -> baseBackground
                     }
                     val borderWidth = when {
-                        isSelected -> 1.8.dp
+                        isSelected -> 2.dp
                         isToday -> 1.2.dp
                         else -> 0.dp
                     }
                     val borderColor = when {
-                        isSelected -> shiftBadgeColor(badge).copy(alpha = 0.6f)
-                        isToday -> MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                        isSelected -> MaterialTheme.colorScheme.primary
+                        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
                         else -> Color.Transparent
                     }
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(backgroundColor, shape = RoundedCornerShape(8.dp))
-                            .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
+                            .background(backgroundColor, shape = cellShape)
+                            .border(borderWidth, borderColor, cellShape)
                             .clickable(enabled = date != null) { if (date != null) onDateSelected(date) }
                             .padding(vertical = cellVerticalPadding),
                         contentAlignment = Alignment.Center

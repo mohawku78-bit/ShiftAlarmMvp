@@ -1,15 +1,17 @@
 package com.example.shiftalarmmvp.ui
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -24,10 +26,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -51,8 +56,6 @@ private enum class DateAdjustMode {
 fun HomePage(
     nextTrigger: LocalDateTime?,
     alarms: List<AlarmRule>,
-    onReconfigurePattern: () -> Unit,
-    onOpenManage: () -> Unit,
     onSetVacationDate: (LocalDate) -> Unit,
     onClearVacationDate: (LocalDate) -> Unit,
     onSetVacationRange: (LocalDate, LocalDate) -> Unit,
@@ -71,8 +74,6 @@ fun HomePage(
     var vacationEnd by remember { mutableStateOf(LocalDate.now()) }
     var adjustMode by remember { mutableStateOf(DateAdjustMode.VACATION) }
     var selectedShiftType by remember { mutableStateOf<String?>(null) }
-    var showDateAdjustControls by remember { mutableStateOf(false) }
-    var showLegend by remember { mutableStateOf(false) }
     val isCompactLayout = LocalConfiguration.current.screenWidthDp <= 380
 
     LaunchedEffect(Unit) {
@@ -121,10 +122,10 @@ fun HomePage(
     }
 
     val panelColors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
+        containerColor = Color(0xFFFBFBFE)
     )
     val softPanelColors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)
+        containerColor = Color(0xFFF3F6FC)
     )
     val mutedButtonColors = neutralActionButtonColors()
     val selectedModeButtonColors = primaryActionButtonColors()
@@ -151,94 +152,50 @@ fun HomePage(
             }
         }
 
-        if (isCompactLayout) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                HomeTodaySummaryCard(
-                    badge = todayBadge,
-                    alarmCount = alarmsForToday.size,
-                    preview = buildHomeAlarmPreview(alarmsForToday)
-                )
-                HomeNextAlarmSummaryCard(
-                    nextTriggerText = nextTriggerText,
-                    remainingText = remainingText,
-                    onOpenManage = onOpenManage,
-                    onReconfigurePattern = onReconfigurePattern
-                )
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                HomeTodaySummaryCard(
-                    modifier = Modifier.weight(1f),
-                    badge = todayBadge,
-                    alarmCount = alarmsForToday.size,
-                    preview = buildHomeAlarmPreview(alarmsForToday)
-                )
-                HomeNextAlarmSummaryCard(
-                    modifier = Modifier.weight(1f),
-                    nextTriggerText = nextTriggerText,
-                    remainingText = remainingText,
-                    onOpenManage = onOpenManage,
-                    onReconfigurePattern = onReconfigurePattern
-                )
-            }
-        }
+        HomeHeroCard(
+            badge = todayBadge,
+            alarmCount = alarmsForToday.size,
+            nextTriggerText = nextTriggerText,
+            remainingText = remainingText,
+            compact = isCompactLayout
+        )
 
-        Card(modifier = Modifier.fillMaxWidth(), colors = panelColors) {
+        ShiftLegendRow(compact = isCompactLayout)
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(28.dp)),
+            colors = panelColors,
+            shape = RoundedCornerShape(28.dp)
+        ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(
-                        onClick = { month = month.minusMonths(1) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        colors = mutedButtonColors
-                    ) {
-                        Text(stringResource(R.string.home_previous), maxLines = 1, softWrap = false)
-                    }
                     Text(
                         text = month.format(monthFormatter),
-                        modifier = Modifier.weight(1.4f),
-                        style = if (isCompactLayout) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                        style = if (isCompactLayout) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Button(
-                        onClick = { month = month.plusMonths(1) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        colors = mutedButtonColors
-                    ) {
-                        Text(stringResource(R.string.home_next), maxLines = 1, softWrap = false)
-                    }
-                }
-                Button(
-                    onClick = { showLegend = !showLegend },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = if (showLegend) selectedModeButtonColors else mutedButtonColors
-                ) {
-                    Text(if (showLegend) stringResource(R.string.home_legend_hide) else stringResource(R.string.home_legend_show))
-                }
-
-                if (showLegend) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ShiftLegendChip(stringResource(R.string.home_legend_day), Color(0xFFD9E8FA), Color(0xFF1E4E8C))
-                        ShiftLegendChip(stringResource(R.string.home_legend_night), Color(0xFFFFE3C8), Color(0xFF9A5400))
-                        ShiftLegendChip(stringResource(R.string.home_legend_duty), Color(0xFFFFE9D6), Color(0xFF8A3E00))
-                        ShiftLegendChip(stringResource(R.string.home_legend_off), Color(0xFFE3E8EE), Color(0xFF4F6375))
-                        ShiftLegendChip(stringResource(R.string.home_legend_rest), Color(0xFFEEF1F4), Color(0xFF5B6670))
+                        CalendarStepButton(
+                            symbol = "<",
+                            contentDescription = stringResource(R.string.home_previous),
+                            onClick = { month = month.minusMonths(1) }
+                        )
+                        CalendarStepButton(
+                            symbol = ">",
+                            contentDescription = stringResource(R.string.home_next),
+                            onClick = { month = month.plusMonths(1) }
+                        )
                     }
                 }
 
@@ -250,7 +207,6 @@ fun HomePage(
                         selectedDate = it
                         vacationStart = it
                         vacationEnd = it
-                        showDateAdjustControls = false
                     },
                     badgeForDate = { date -> inferShiftBadgeForDate(date, alarms) },
                     compact = isCompactLayout
@@ -259,102 +215,96 @@ fun HomePage(
                 if (chosenDate == null) {
                     Text(stringResource(R.string.home_select_date_hint))
                 } else {
-                    Text(
-                        stringResource(R.string.home_selected_date_format, chosenDate.format(DateTimeFormatter.ISO_LOCAL_DATE), shiftBadgeLabel(resources, selectedBadge)),
-                        style = MaterialTheme.typography.bodyMedium
+                    val tomorrow = today.plusDays(1)
+                    val selectedDateHeadline = chosenDate.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))
+                    val selectedBadgeLabel = shiftBadgeLabel(resources, selectedBadge)
+
+                    SelectedDateOverviewCard(
+                        dateText = selectedDateHeadline,
+                        badgeLabel = selectedBadgeLabel,
+                        badgeBackground = shiftBadgeBackgroundColor(selectedBadge),
+                        badgeColor = shiftBadgeColor(selectedBadge),
+                        isToday = chosenDate == today,
+                        isTomorrow = chosenDate == tomorrow,
+                        onSelectToday = {
+                            selectedDate = today
+                            vacationStart = today
+                            vacationEnd = today
+                        },
+                        onSelectTomorrow = {
+                            selectedDate = tomorrow
+                            vacationStart = tomorrow
+                            vacationEnd = tomorrow
+                        }
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        val tomorrow = today.plusDays(1)
-                        Button(
-                            onClick = {
-                                selectedDate = today
-                                vacationStart = today
-                                vacationEnd = today
-                            },
+                        HomeSelectionChip(
+                            label = stringResource(R.string.home_mode_vacation),
+                            selected = adjustMode == DateAdjustMode.VACATION,
                             modifier = Modifier.weight(1f),
-                            colors = if (chosenDate == today) selectedModeButtonColors else mutedButtonColors
-                        ) {
-                            Text(stringResource(R.string.home_today))
-                        }
-                        Button(
-                            onClick = {
-                                selectedDate = tomorrow
-                                vacationStart = tomorrow
-                                vacationEnd = tomorrow
-                            },
+                            onClick = { adjustMode = DateAdjustMode.VACATION }
+                        )
+                        HomeSelectionChip(
+                            label = stringResource(R.string.home_mode_skip),
+                            selected = adjustMode == DateAdjustMode.SKIP,
                             modifier = Modifier.weight(1f),
-                            colors = if (chosenDate == tomorrow) selectedModeButtonColors else mutedButtonColors
-                        ) {
-                            Text(stringResource(R.string.home_tomorrow))
-                        }
+                            onClick = { adjustMode = DateAdjustMode.SKIP }
+                        )
+                        HomeSelectionChip(
+                            label = stringResource(R.string.home_mode_shift_change),
+                            selected = adjustMode == DateAdjustMode.SHIFT_CHANGE,
+                            modifier = Modifier.weight(1f),
+                            onClick = { adjustMode = DateAdjustMode.SHIFT_CHANGE }
+                        )
                     }
+                }
+            }
+        }
 
-                    Text(stringResource(R.string.home_one_tap_exception), style = MaterialTheme.typography.titleSmall)
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        val quickVacationClear = allVacationApplied
-                        Button(
-                            onClick = {
-                                if (quickVacationClear) onClearVacationDate(chosenDate) else onSetVacationDate(chosenDate)
-                            },
-                            enabled = alarms.isNotEmpty(),
-                            modifier = Modifier.weight(1f),
-                            colors = if (quickVacationClear) secondaryButtonColors else selectedModeButtonColors
-                        ) {
-                            Text(if (quickVacationClear) stringResource(R.string.home_quick_vacation_clear, vacationAppliedCount, alarms.size) else stringResource(R.string.home_quick_vacation_apply, vacationAppliedCount, alarms.size))
-                        }
-
-                        val quickSkipClear = allSkipApplied
-                        Button(
-                            onClick = {
-                                if (quickSkipClear) onClearSkipDateForIds(chosenDate, selectedIds)
-                                else onSetSkipDateForIds(chosenDate, selectedIds)
-                            },
-                            enabled = selectedIds.isNotEmpty(),
-                            modifier = Modifier.weight(1f),
-                            colors = if (quickSkipClear) secondaryButtonColors else selectedModeButtonColors
-                        ) {
-                            Text(if (quickSkipClear) stringResource(R.string.home_quick_skip_clear, skipAppliedCount, selectedIds.size) else stringResource(R.string.home_quick_skip_apply, skipAppliedCount, selectedIds.size))
-                        }
-                    }
+        if (chosenDate != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(24.dp)),
+                colors = panelColors,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        stringResource(R.string.home_detail_exception_hint),
-                        style = MaterialTheme.typography.bodySmall
+                        text = when (adjustMode) {
+                            DateAdjustMode.VACATION -> stringResource(R.string.home_vacation_range)
+                            DateAdjustMode.SKIP -> stringResource(R.string.home_mode_skip)
+                            DateAdjustMode.SHIFT_CHANGE -> stringResource(R.string.home_shift_type_change_title)
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Button(
-                        onClick = { showDateAdjustControls = !showDateAdjustControls },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = if (showDateAdjustControls) selectedModeButtonColors else mutedButtonColors
-                    ) {
-                        Text(if (showDateAdjustControls) stringResource(R.string.home_exception_close) else stringResource(R.string.home_exception_open))
-                    }
-
-                    if (showDateAdjustControls) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(
-                            onClick = { adjustMode = DateAdjustMode.VACATION },
-                            modifier = Modifier.weight(1f),
-                            colors = if (adjustMode == DateAdjustMode.VACATION) selectedModeButtonColors else mutedButtonColors
-                        ) { Text(stringResource(R.string.home_mode_vacation)) }
-                        Button(
-                            onClick = { adjustMode = DateAdjustMode.SKIP },
-                            modifier = Modifier.weight(1f),
-                            colors = if (adjustMode == DateAdjustMode.SKIP) selectedModeButtonColors else mutedButtonColors
-                        ) { Text(stringResource(R.string.home_mode_skip)) }
-                        Button(
-                            onClick = { adjustMode = DateAdjustMode.SHIFT_CHANGE },
-                            modifier = Modifier.weight(1f),
-                            colors = if (adjustMode == DateAdjustMode.SHIFT_CHANGE) selectedModeButtonColors else mutedButtonColors
-                        ) { Text(stringResource(R.string.home_mode_shift_change)) }
-                    }
 
                     when (adjustMode) {
                         DateAdjustMode.VACATION -> {
+                            val quickVacationClear = allVacationApplied
+                            Button(
+                                onClick = {
+                                    if (quickVacationClear) onClearVacationDate(chosenDate) else onSetVacationDate(chosenDate)
+                                },
+                                enabled = alarms.isNotEmpty(),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = if (quickVacationClear) secondaryButtonColors else selectedModeButtonColors
+                            ) {
+                                Text(
+                                    if (quickVacationClear) {
+                                        stringResource(R.string.home_quick_vacation_clear, vacationAppliedCount, alarms.size)
+                                    } else {
+                                        stringResource(R.string.home_quick_vacation_apply, vacationAppliedCount, alarms.size)
+                                    }
+                                )
+                            }
+
                             if (anyVacationApplied && !allVacationApplied) {
                                 Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
                                     Column(
-                                        modifier = Modifier.padding(10.dp),
+                                        modifier = Modifier.padding(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(stringResource(R.string.home_partial_vacation_title), color = MaterialTheme.colorScheme.primary)
@@ -371,29 +321,20 @@ fun HomePage(
                                     }
                                 }
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                Button(
-                                    onClick = { onSetVacationDate(chosenDate) },
-                                    enabled = alarms.isNotEmpty() && !allVacationApplied,
-                                    modifier = Modifier.weight(1f),
-                                    colors = mutedButtonColors
-                                ) {
-                                    Text(stringResource(R.string.home_vacation_apply_single))
-                                }
-                                Button(
-                                    onClick = { onClearVacationDate(chosenDate) },
-                                    enabled = alarms.isNotEmpty() && anyVacationApplied,
-                                    modifier = Modifier.weight(1f),
-                                    colors = mutedButtonColors
-                                ) {
-                                    Text(stringResource(R.string.home_vacation_clear_single))
-                                }
-                            }
 
-                            Text(stringResource(R.string.home_vacation_range), style = MaterialTheme.typography.titleSmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                DatePickerButton(label = stringResource(R.string.home_date_start), date = vacationStart, onDatePicked = { vacationStart = it })
-                                DatePickerButton(label = stringResource(R.string.home_date_end), date = vacationEnd, onDatePicked = { vacationEnd = it })
+                                SelectedDatePickerButton(
+                                    label = stringResource(R.string.home_date_start),
+                                    date = vacationStart,
+                                    modifier = Modifier.weight(1f),
+                                    onDatePicked = { vacationStart = it }
+                                )
+                                SelectedDatePickerButton(
+                                    label = stringResource(R.string.home_date_end),
+                                    date = vacationEnd,
+                                    modifier = Modifier.weight(1f),
+                                    onDatePicked = { vacationEnd = it }
+                                )
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 Button(
@@ -416,14 +357,29 @@ fun HomePage(
                         }
 
                         DateAdjustMode.SKIP -> {
+                            val quickSkipClear = allSkipApplied
+                            Text(
+                                text = stringResource(R.string.home_selected_date_alarm_count, alarmsForSelectedDate.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 Button(
-                                    onClick = { onSetSkipDateForIds(chosenDate, selectedIds) },
-                                    enabled = selectedIds.isNotEmpty() && !allSkipApplied,
+                                    onClick = {
+                                        if (quickSkipClear) onClearSkipDateForIds(chosenDate, selectedIds)
+                                        else onSetSkipDateForIds(chosenDate, selectedIds)
+                                    },
+                                    enabled = selectedIds.isNotEmpty(),
                                     modifier = Modifier.weight(1f),
-                                    colors = mutedButtonColors
+                                    colors = if (quickSkipClear) secondaryButtonColors else selectedModeButtonColors
                                 ) {
-                                    Text(stringResource(R.string.home_skip_selected_alarm))
+                                    Text(
+                                        if (quickSkipClear) {
+                                            stringResource(R.string.home_quick_skip_clear, skipAppliedCount, selectedIds.size)
+                                        } else {
+                                            stringResource(R.string.home_quick_skip_apply, skipAppliedCount, selectedIds.size)
+                                        }
+                                    )
                                 }
                                 Button(
                                     onClick = { onClearSkipDateForIds(chosenDate, selectedIds) },
@@ -440,18 +396,20 @@ fun HomePage(
                             if (shiftTypeOptions.isEmpty()) {
                                 Text(stringResource(R.string.home_shift_type_missing))
                             } else {
-                                Text(stringResource(R.string.home_shift_type_change_title))
+                                Text(
+                                    text = stringResource(R.string.home_apply_selected_shift_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 shiftTypeOptions.chunked(3).forEach { rowTypes ->
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                         rowTypes.forEach { type ->
-                                            val selected = selectedShiftTypeResolved == type
-                                            Button(
-                                                onClick = { selectedShiftType = type },
+                                            HomeSelectionChip(
+                                                label = type,
+                                                selected = selectedShiftTypeResolved == type,
                                                 modifier = Modifier.weight(1f),
-                                                colors = if (selected) selectedModeButtonColors else mutedButtonColors
-                                            ) {
-                                                Text(type)
-                                            }
+                                                onClick = { selectedShiftType = type }
+                                            )
                                         }
                                         repeat(3 - rowTypes.size) {
                                             Box(modifier = Modifier.weight(1f))
@@ -461,151 +419,400 @@ fun HomePage(
                                 Button(
                                     onClick = { onApplyShiftChange(chosenDate, selectedShiftTypeResolved ?: return@Button) },
                                     enabled = selectedShiftTypeResolved != null && alarms.isNotEmpty(),
-                                    colors = mutedButtonColors,
+                                    colors = selectedModeButtonColors,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(stringResource(R.string.home_apply_selected_shift))
                                 }
-                                Text(stringResource(R.string.home_apply_selected_shift_hint))
                             }
                         }
                     }
-                    }
                 }
             }
+
+            SelectedDateAlarmListCard(
+                alarmsForSelectedDate = alarmsForSelectedDate,
+                unnamedAlarmText = unnamedAlarmText
+            )
         }
 
-        if (chosenDate != null && showDateAdjustControls) {
-            Card(modifier = Modifier.fillMaxWidth(), colors = softPanelColors) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.home_selected_date_alarm_count, alarmsForSelectedDate.size), style = MaterialTheme.typography.titleSmall)
-                    if (alarmsForSelectedDate.isEmpty()) {
-                        Text(stringResource(R.string.home_selected_date_alarm_empty))
-                    } else {
-                        alarmsForSelectedDate.forEach { alarm ->
-                            val label = alarm.label.ifBlank { unnamedAlarmText }
-                            Text(String.format("%02d:%02d  %s", alarm.hour, alarm.minute, label))
+    }
+}
+
+@Composable
+private fun SelectedDateOverviewCard(
+    dateText: String,
+    badgeLabel: String,
+    badgeBackground: Color,
+    badgeColor: Color,
+    isToday: Boolean,
+    isTomorrow: Boolean,
+    onSelectToday: () -> Unit,
+    onSelectTomorrow: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBFBFE)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = dateText,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.home_one_tap_exception),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .background(badgeBackground, shape = RoundedCornerShape(999.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = badgeLabel,
+                        color = badgeColor,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                HomeSelectionChip(
+                    label = stringResource(R.string.home_today),
+                    selected = isToday,
+                    modifier = Modifier.weight(1f),
+                    onClick = onSelectToday
+                )
+                HomeSelectionChip(
+                    label = stringResource(R.string.home_tomorrow),
+                    selected = isTomorrow,
+                    modifier = Modifier.weight(1f),
+                    onClick = onSelectTomorrow
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeSelectionChip(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier = modifier
+            .border(
+                width = 1.dp,
+                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFD7DEEB),
+                shape = shape
+            )
+            .background(
+                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFF7F9FD),
+                shape = shape
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun SelectedDatePickerButton(
+    label: String,
+    date: LocalDate,
+    modifier: Modifier = Modifier,
+    onDatePicked: (LocalDate) -> Unit
+) {
+    val context = LocalContext.current
+    Button(
+        onClick = {
+            DatePickerDialog(
+                context,
+                { _, y, m, d -> onDatePicked(LocalDate.of(y, m + 1, d)) },
+                date.year,
+                date.monthValue - 1,
+                date.dayOfMonth
+            ).show()
+        },
+        modifier = modifier,
+        colors = neutralActionButtonColors()
+    ) {
+        Text(stringResource(R.string.page_components_date_picker_button_format, label, date))
+    }
+}
+
+@Composable
+private fun SelectedDateAlarmListCard(
+    alarmsForSelectedDate: List<AlarmRule>,
+    unnamedAlarmText: String
+) {
+    val resources = LocalContext.current.resources
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F6FC)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.home_selected_date_alarm_count, alarmsForSelectedDate.size),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (alarmsForSelectedDate.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.home_selected_date_alarm_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                alarmsForSelectedDate.forEach { alarm ->
+                    val label = alarm.label.ifBlank { unnamedAlarmText }
+                    val badge = shiftTypeToBadge(extractWorkTypeFromLabel(label))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = String.format("%02d:%02d", alarm.hour, alarm.minute),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .background(shiftBadgeBackgroundColor(badge), shape = RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = shiftBadgeLabel(resources, badge),
+                                color = shiftBadgeColor(badge),
+                                style = MaterialTheme.typography.labelMedium
+                            )
                         }
                     }
                 }
             }
         }
-
     }
 }
-
 @Composable
-private fun ShiftLegendChip(label: String, bg: Color, fg: Color) {
-    Box(
-        modifier = Modifier
-            .background(bg, shape = RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+private fun ShiftLegendRow(compact: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = fg, style = MaterialTheme.typography.labelMedium)
+        ShiftLegendChip(
+            label = stringResource(R.string.home_legend_day),
+            bg = Color(0xFFFFF1D4),
+            fg = Color(0xFFB36A00),
+            modifier = Modifier.weight(1f)
+        )
+        ShiftLegendChip(
+            label = stringResource(R.string.home_legend_night),
+            bg = Color(0xFFE6EEFF),
+            fg = Color(0xFF2855B9),
+            modifier = Modifier.weight(1f)
+        )
+        ShiftLegendChip(
+            label = stringResource(R.string.home_legend_duty),
+            bg = Color(0xFFEAF1FF),
+            fg = Color(0xFF4A69CC),
+            modifier = Modifier.weight(1f)
+        )
+        ShiftLegendChip(
+            label = stringResource(R.string.home_legend_rest),
+            bg = Color(0xFFF7DDEC),
+            fg = Color(0xFFC6427E),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun HomeTodaySummaryCard(
-    modifier: Modifier = Modifier,
+private fun ShiftLegendChip(
+    label: String,
+    bg: Color,
+    fg: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .background(bg, shape = RoundedCornerShape(12.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(fg, CircleShape)
+        )
+        Text(
+            text = label,
+            modifier = Modifier.padding(start = 6.dp),
+            color = fg,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun HomeHeroCard(
     badge: String,
     alarmCount: Int,
-    preview: String
-) {
-    val resources = LocalContext.current.resources
-    val badgeLabel = shiftBadgeLabel(resources, badge)
-    val badgeBackground = shiftBadgeBackgroundColor(badge)
-    val badgeColor = shiftBadgeColor(badge)
-
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.home_today_work_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = badgeLabel,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Box(
-                    modifier = Modifier
-                        .background(badgeBackground, shape = RoundedCornerShape(999.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = badgeLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = badgeColor
-                    )
-                }
-            }
-            Text(
-                text = if (alarmCount == 0) {
-                    stringResource(R.string.home_today_alarm_empty)
-                } else {
-                    stringResource(R.string.home_today_alarm_count, alarmCount)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.88f)
-            )
-            Text(
-                text = preview,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.76f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun HomeNextAlarmSummaryCard(
-    modifier: Modifier = Modifier,
     nextTriggerText: String,
     remainingText: String,
-    onOpenManage: () -> Unit,
-    onReconfigurePattern: () -> Unit
+    compact: Boolean
 ) {
+    val plainBadgeLabel = when (badge) {
+        SHIFT_BADGE_DAY -> stringResource(R.string.home_legend_day)
+        SHIFT_BADGE_NIGHT -> stringResource(R.string.home_legend_night)
+        SHIFT_BADGE_DUTY -> stringResource(R.string.home_legend_duty)
+        SHIFT_BADGE_OFF -> stringResource(R.string.home_legend_off)
+        SHIFT_BADGE_REST -> stringResource(R.string.home_legend_rest)
+        SHIFT_BADGE_DAY_NIGHT -> stringResource(R.string.home_legend_day) + "/" + stringResource(R.string.home_legend_night)
+        SHIFT_BADGE_DAY_DUTY -> stringResource(R.string.home_legend_day) + "/" + stringResource(R.string.home_legend_duty)
+        SHIFT_BADGE_NIGHT_DUTY -> stringResource(R.string.home_legend_night) + "/" + stringResource(R.string.home_legend_duty)
+        else -> "근무"
+    }
+    val todayAlarmCountText = if (alarmCount == 0) {
+        stringResource(R.string.home_today_alarm_empty)
+    } else {
+        stringResource(R.string.home_today_alarm_count, alarmCount)
+    }
+    val badgeAccentColor = shiftBadgeColor(badge)
+
     Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFF5A8FFF).copy(alpha = 0.18f), RoundedCornerShape(22.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        shape = RoundedCornerShape(22.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(Color(0xFF2E63EF), Color(0xFF4477EF))
+                    ),
+                    shape = RoundedCornerShape(22.dp)
+                )
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(stringResource(R.string.home_next_alarm_title), style = MaterialTheme.typography.titleMedium, color = Color.White)
-            Text(
-                nextTriggerText,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
-            )
-            Text(stringResource(R.string.home_remaining_time, remainingText), color = Color.White.copy(alpha = 0.94f))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Button(onClick = onOpenManage, colors = overlayActionButtonColors()) {
-                    Text(stringResource(R.string.home_manage_screen))
+                Text(
+                    text = stringResource(R.string.home_today_work_title),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.76f)
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(if (compact) 8.dp else 9.dp)
+                            .background(badgeAccentColor, CircleShape)
+                    )
+                    Text(
+                        text = plainBadgeLabel,
+                        style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
                 Text(
-                    text = stringResource(R.string.home_reconfigure_pattern),
-                    modifier = Modifier.clickable(onClick = onReconfigurePattern),
-                    color = Color.White.copy(alpha = 0.9f),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    text = todayAlarmCountText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(1.dp, if (compact) 34.dp else 38.dp)
+                    .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(999.dp))
+            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.home_next_alarm_title),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.74f)
+                )
+                Text(
+                    text = remainingText,
+                    style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = nextTriggerText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.78f),
+                    textAlign = TextAlign.End
                 )
             }
         }
@@ -613,19 +820,24 @@ private fun HomeNextAlarmSummaryCard(
 }
 
 @Composable
-private fun buildHomeAlarmPreview(alarms: List<AlarmRule>): String {
-    if (alarms.isEmpty()) return stringResource(R.string.home_preview_empty)
-
-    val unnamedAlarmText = stringResource(R.string.home_alarm_name_empty)
-    val lines = alarms.take(3).map { alarm ->
-        val label = alarm.label.ifBlank { unnamedAlarmText }
-        String.format("%02d:%02d %s", alarm.hour, alarm.minute, label)
-    }
-    val extraCount = alarms.size - lines.size
-    return if (extraCount > 0) {
-        "${lines.joinToString(" · ")} ${stringResource(R.string.home_more_count, extraCount)}"
-    } else {
-        lines.joinToString(" · ")
+private fun CalendarStepButton(
+    symbol: String,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .semantics { this.contentDescription = contentDescription }
+            .background(Color(0xFFF0F3FA), shape = RoundedCornerShape(17.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = symbol,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -653,3 +865,8 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
 private fun inferShiftTagFromLabel(label: String): String {
     return shiftTypeToBadge(extractWorkTypeFromLabel(label))
 }
+
+
+
+
+

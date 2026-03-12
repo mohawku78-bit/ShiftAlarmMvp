@@ -30,6 +30,39 @@ data class AlarmEditorDraft(
     val exceptionDate: LocalDate
 )
 
+data class NormalizedEditorPatternState(
+    val intervalWeeks: Int,
+    val weekPatterns: List<Set<DayOfWeek>>,
+    val activeWeekIndex: Int
+)
+
+private val DEFAULT_EDITOR_WEEK_PATTERN_SEED: List<Set<DayOfWeek>> = listOf(
+    setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SUNDAY),
+    setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY)
+)
+
+fun defaultEditorWeekPatterns(intervalWeeks: Int): List<Set<DayOfWeek>> {
+    return normalizeWeekPatterns(normalizeIntervalWeeks(intervalWeeks), DEFAULT_EDITOR_WEEK_PATTERN_SEED)
+}
+
+fun normalizeEditorPatternState(
+    targetInterval: Int,
+    incomingPatterns: List<Set<DayOfWeek>>,
+    activeWeekIndex: Int
+): NormalizedEditorPatternState {
+    val normalizedInterval = normalizeIntervalWeeks(targetInterval)
+    val normalizedPatterns = if (incomingPatterns.isEmpty()) {
+        defaultEditorWeekPatterns(normalizedInterval)
+    } else {
+        normalizeWeekPatterns(normalizedInterval, incomingPatterns)
+    }
+    return NormalizedEditorPatternState(
+        intervalWeeks = normalizedInterval,
+        weekPatterns = normalizedPatterns,
+        activeWeekIndex = activeWeekIndex.coerceIn(0, normalizedPatterns.lastIndex)
+    )
+}
+
 fun AlarmRule.normalizedWeeklyPattern(): List<Set<DayOfWeek>> {
     return normalizeWeekPatterns(intervalWeeks, weeklyPattern)
 }
@@ -49,16 +82,16 @@ fun AlarmRule.toEditorDraft(
     weekPatterns: List<Set<DayOfWeek>> = normalizedWeeklyPattern(),
     exceptionDate: LocalDate = LocalDate.now()
 ): AlarmEditorDraft {
-    val normalizedInterval = normalizeIntervalWeeks(intervalWeeks)
+    val normalizedPatternState = normalizeEditorPatternState(intervalWeeks, weekPatterns, activeWeekIndex = 0)
     val overrides = normalizedDateOverrides()
     return AlarmEditorDraft(
         editingAlarmId = editingAlarmId,
         editingEnabled = editingEnabled,
         selectedTime = LocalTime.of(hour, minute),
         selectedLabel = selectedLabel,
-        intervalWeeks = normalizedInterval,
+        intervalWeeks = normalizedPatternState.intervalWeeks,
         anchorDate = anchorDate,
-        weekPatterns = normalizeWeekPatterns(normalizedInterval, weekPatterns),
+        weekPatterns = normalizedPatternState.weekPatterns,
         selectedSoundType = soundType,
         selectedCustomSoundUri = customSoundUri,
         selectedVolume = volumePercent.toFloat(),

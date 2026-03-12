@@ -1,9 +1,13 @@
 package com.example.shiftalarmmvp.ui
 
+import com.example.shiftalarmmvp.data.AlarmDateOverrides
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
+import com.example.shiftalarmmvp.data.withDateOverrides
+import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,24 +15,29 @@ import org.junit.Test
 class AppBackupCodecTest {
 
     private val messages = AppBackupParseMessages(
-        invalidFormat = "앱 백업 파일 형식이 아닙니다.",
-        unsupportedVersion = "지원하지 않는 백업 버전입니다.",
-        unreadable = "앱 백업 파일을 읽을 수 없습니다."
+        invalidFormat = "Invalid backup format.",
+        unsupportedVersion = "Unsupported backup version.",
+        unreadable = "Backup file could not be read."
     )
 
     @Test
-    fun `export and parse keep alarms presets and logs`() {
+    fun `export and parse keep long interval alarms presets and logs`() {
+        val intervalWeeks = 13
+        val longPattern = List(intervalWeeks) { index ->
+            when (index % 3) {
+                0 -> setOf(DayOfWeek.MONDAY)
+                1 -> setOf(DayOfWeek.WEDNESDAY)
+                else -> setOf(DayOfWeek.SATURDAY)
+            }
+        }
         val alarms = listOf(
             AlarmRule(
                 id = 41,
-                label = "주간 알람",
+                label = "Long interval alarm",
                 hour = 6,
                 minute = 30,
-                weeklyPattern = listOf(
-                    setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
-                    setOf(DayOfWeek.FRIDAY)
-                ),
-                intervalWeeks = 2,
+                weeklyPattern = longPattern,
+                intervalWeeks = intervalWeeks,
                 anchorDate = LocalDate.of(2026, 3, 9),
                 snoozeMinutes = 10,
                 snoozeMaxCount = 2,
@@ -43,13 +52,10 @@ class AppBackupCodecTest {
         )
         val presets = listOf(
             RotationPreset(
-                name = "3조2교대",
-                intervalWeeks = 2,
+                name = "Long rotation",
+                intervalWeeks = intervalWeeks,
                 anchorDate = LocalDate.of(2026, 3, 9),
-                weekPatterns = listOf(
-                    setOf(DayOfWeek.MONDAY, DayOfWeek.THURSDAY),
-                    setOf(DayOfWeek.TUESDAY)
-                ),
+                weekPatterns = longPattern,
                 infiniteRotationEnabled = false,
                 isDefault = true
             )
@@ -58,9 +64,9 @@ class AppBackupCodecTest {
             AlarmLogEntry(
                 timestampMillis = 123456789L,
                 alarmId = 41,
-                label = "주간 알람",
+                label = "Long interval alarm",
                 type = AlarmLogType.MANUAL_RECOVERY_ACTION,
-                detail = "다음 알람 재등록"
+                detail = "Rescheduled next alarm"
             )
         )
 
@@ -77,13 +83,59 @@ class AppBackupCodecTest {
         assertEquals(AppBackupCodec.CURRENT_SCHEMA_VERSION, parsed.schemaVersion)
         assertEquals(987654321L, parsed.exportedAtEpochMillis)
         assertEquals(alarms, parsed.alarms)
-        assertEquals(presets, parsed.presets)
+        assertEquals(presets.map { it.normalized() }, parsed.presets)
         assertEquals(logs, parsed.alarmLogs)
     }
 
     @Test
+    fun `backup normalizes conflicting overrides without changing next trigger`() {
+        val conflictDate = LocalDate.of(2026, 3, 12)
+        val addOnlyDate = LocalDate.of(2026, 3, 13)
+        val source = AlarmRule(
+            id = 51,
+            label = "Conflicting override",
+            hour = 7,
+            minute = 0,
+            weeklyPattern = listOf(setOf(DayOfWeek.THURSDAY)),
+            intervalWeeks = 1,
+            anchorDate = LocalDate.of(2026, 3, 9),
+            snoozeMinutes = 5,
+            snoozeMaxCount = 0,
+            soundType = AlarmSoundType.ALARM,
+            customSoundUri = null,
+            volumePercent = 100,
+            vibrationEnabled = true,
+            skipDateEpochDays = setOf(conflictDate),
+            addDateEpochDays = setOf(conflictDate, addOnlyDate),
+            enabled = true
+        )
+        val expected = source.withDateOverrides(
+            AlarmDateOverrides.of(
+                skipDates = source.skipDateEpochDays,
+                addDates = source.addDateEpochDays
+            )
+        )
+        val parsed = AppBackupCodec.parseJson(
+            AppBackupCodec.exportJson(
+                alarms = listOf(source),
+                presets = emptyList(),
+                alarmLogs = emptyList()
+            ),
+            messages
+        ).alarms.single()
+        val now = LocalDateTime.of(2026, 3, 11, 0, 0)
+
+        assertEquals(expected.skipDateEpochDays, parsed.skipDateEpochDays)
+        assertEquals(expected.addDateEpochDays, parsed.addDateEpochDays)
+        assertEquals(
+            AlarmTimeCalculator.nextTrigger(expected, now),
+            AlarmTimeCalculator.nextTrigger(parsed, now)
+        )
+    }
+
+    @Test
     fun `parse rejects preset only export`() {
-        val rawPresetJson = "[{\"name\":\"기존 프리셋\"}]"
+        val rawPresetJson = "[{\"name\":\"legacy preset\"}]"
 
         val error = runCatching { AppBackupCodec.parseJson(rawPresetJson, messages) }.exceptionOrNull()
 

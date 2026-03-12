@@ -11,6 +11,8 @@ import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
 import com.example.shiftalarmmvp.recovery.ReliabilityStateSnapshot
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
+import com.example.shiftalarmmvp.scheduler.AlarmExactStrategy
+import com.example.shiftalarmmvp.scheduler.scheduleRtcWakeupIntent
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -29,6 +31,14 @@ data class SelfTestActionResult(
     val message: String,
     val snapshot: ReliabilityStateSnapshot?
 )
+
+internal fun formatSelfTestTriggerTime(
+    triggerAtMillis: Long,
+    zoneId: ZoneId = ZoneId.systemDefault()
+): String {
+    val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), zoneId)
+    return triggerAt.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+}
 
 class SelfTestActionHandler(
     context: Context,
@@ -66,24 +76,26 @@ class SelfTestActionHandler(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExact -> {
-                alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
-                alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
-            else -> {
-                alarmManager?.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
+        val scheduleResult = scheduleRtcWakeupIntent(
+            alarmManager = alarmManager,
+            triggerMillis = triggerAtMillis,
+            operation = pendingIntent,
+            canScheduleExact = canScheduleExact,
+            sdkInt = Build.VERSION.SDK_INT,
+            exactStrategy = AlarmExactStrategy.EXACT_ALLOW_WHILE_IDLE
+        )
+        if (!scheduleResult.scheduled) {
+            return SelfTestActionResult(
+                message = appContext.getString(R.string.self_test_schedule_failure),
+                snapshot = reliabilityCoordinator.recalculateAndSnapshot()
+            )
         }
 
-        val triggerAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(triggerAtMillis), ZoneId.systemDefault())
         val snapshot = reliabilityCoordinator.recordSelfTestScheduled(triggerAtMillis)
         return SelfTestActionResult(
             message = appContext.getString(
                 R.string.self_test_schedule_success_format,
-                triggerAt.format(DateTimeFormatter.ofPattern("HH:mm"))
+                formatSelfTestTriggerTime(triggerAtMillis)
             ),
             snapshot = snapshot
         )
@@ -127,3 +139,4 @@ class SelfTestActionHandler(
         )
     }
 }
+

@@ -15,6 +15,8 @@ import com.example.shiftalarmmvp.data.normalizedDateOverrides
 import com.example.shiftalarmmvp.data.toDomain
 import com.example.shiftalarmmvp.data.toEntity
 import com.example.shiftalarmmvp.data.withDateOverrides
+import com.example.shiftalarmmvp.recovery.EnabledAlarmRescheduler
+import com.example.shiftalarmmvp.recovery.RescheduleTrigger
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
 import java.time.DayOfWeek
@@ -25,6 +27,42 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun overrideStateForShiftType(
+    alarm: AlarmRule,
+    date: LocalDate,
+    normalizedTargetType: String
+): AlarmDateOverrideState {
+    val scheduledOnDate = AlarmTimeCalculator.isScheduledOnDate(alarm, date)
+    val alarmType = extractWorkTypeFromLabel(alarm.label)
+    return when {
+        alarmType == normalizedTargetType -> AlarmDateOverrideState.ADD
+        scheduledOnDate -> AlarmDateOverrideState.SKIP
+        else -> AlarmDateOverrideState.NONE
+    }
+}
+
+internal fun applyShiftTypeOverride(
+    alarm: AlarmRule,
+    date: LocalDate,
+    normalizedTargetType: String,
+    baseOverrides: AlarmDateOverrides = alarm.normalizedDateOverrides()
+): AlarmDateOverrides {
+    return baseOverrides.withState(date, overrideStateForShiftType(alarm, date, normalizedTargetType))
+}
+
+internal fun applyShiftTypeOverrides(
+    alarm: AlarmRule,
+    dates: Iterable<LocalDate>,
+    normalizedTargetType: String,
+    baseOverrides: AlarmDateOverrides = alarm.normalizedDateOverrides()
+): AlarmDateOverrides {
+    var overrides = baseOverrides
+    dates.forEach { date ->
+        overrides = applyShiftTypeOverride(alarm, date, normalizedTargetType, overrides)
+    }
+    return overrides
+}
 
 class AlarmViewModel(application: Application) : AndroidViewModel(application) {
     private val database = AlarmDatabase.get(application)
@@ -223,18 +261,11 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
             if (range.isEmpty()) return@launch
 
             alarms.value.forEach { alarm ->
-                val alarmType = extractWorkTypeFromLabel(alarm.label)
-                var overrides = alarm.normalizedDateOverrides()
-
-                range.forEach { date ->
-                    val scheduledOnDate = AlarmTimeCalculator.isScheduledOnDate(alarm, date)
-                    val targetState = when {
-                        alarmType == normalized -> AlarmDateOverrideState.ADD
-                        scheduledOnDate -> AlarmDateOverrideState.SKIP
-                        else -> AlarmDateOverrideState.NONE
-                    }
-                    overrides = overrides.withState(date, targetState)
-                }
+                val overrides = applyShiftTypeOverrides(
+                    alarm = alarm,
+                    dates = range,
+                    normalizedTargetType = normalized
+                )
 
                 if (overrides.skipDates == alarm.skipDateEpochDays && overrides.addDates == alarm.addDateEpochDays) {
                     return@forEach
@@ -249,7 +280,6 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
     fun clearDateOverridesForAll(date: LocalDate) {
         viewModelScope.launch {
             alarms.value.forEach { alarm ->
@@ -324,31 +354,16 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             alarms.value.forEach { alarm ->
-                val scheduledOnDate = AlarmTimeCalculator.isScheduledOnDate(alarm, date)
-                val alarmType = extractWorkTypeFromLabel(alarm.label)
-
-                var skip = alarm.skipDateEpochDays
-                var add = alarm.addDateEpochDays
-
-                if (scheduledOnDate) {
-                    skip = skip + date
-                    add = add - date
-                }
-
-                if (alarmType == normalized) {
-                    add = add + date
-                    skip = skip - date
-                } else {
-                    // 이전에 강제로 추가된 다른 유형을 정리해 중복 울림 방지
-                    add = add - date
-                }
-
-                if (skip == alarm.skipDateEpochDays && add == alarm.addDateEpochDays) return@forEach
-
-                val updated = alarm.copy(
-                    skipDateEpochDays = skip,
-                    addDateEpochDays = add
+                val overrides = applyShiftTypeOverride(
+                    alarm = alarm,
+                    date = date,
+                    normalizedTargetType = normalized
                 )
+                if (overrides.skipDates == alarm.skipDateEpochDays && overrides.addDates == alarm.addDateEpochDays) {
+                    return@forEach
+                }
+
+                val updated = alarm.withDateOverrides(overrides)
                 dao.update(updated.toEntity())
                 if (updated.enabled) {
                     scheduler.cancel(updated.id)
@@ -357,8 +372,6 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
-
     private fun buildDateRange(start: LocalDate, end: LocalDate): Set<LocalDate> {
         val from = minOf(start, end)
         val to = maxOf(start, end)
@@ -428,20 +441,24 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         }
         existing.forEach { scheduler.cancel(it.id) }
         withContext(Dispatchers.IO) {
-            dao.getAllEnabled()
-                .map { it.toDomain() }
-        }.forEach { scheduler.schedule(it) }
+            EnabledAlarmRescheduler(getApplication()).rescheduleAllEnabled(RescheduleTrigger.RESTORE)
+        }
         return normalizedImported.size
     }
 
-    fun rescheduleAllEnabled() {
+    fun rescheduleAllEnabled(onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
-            dao.getAllEnabled()
-                .map { it.toDomain() }
-                .forEach { scheduler.schedule(it) }
+            try {
+                withContext(Dispatchers.IO) {
+                    EnabledAlarmRescheduler(getApplication()).rescheduleAllEnabled(RescheduleTrigger.MANUAL)
+                }
+            } finally {
+                onComplete?.invoke()
+            }
         }
     }
 }
+
 
 
 

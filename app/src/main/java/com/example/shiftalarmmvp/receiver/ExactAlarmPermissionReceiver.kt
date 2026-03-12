@@ -5,8 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.example.shiftalarmmvp.data.AlarmDatabase
-import com.example.shiftalarmmvp.data.toDomain
+import com.example.shiftalarmmvp.recovery.EnabledAlarmRescheduler
+import com.example.shiftalarmmvp.recovery.RescheduleTrigger
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,10 +23,7 @@ class ExactAlarmPermissionReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val dao = AlarmDatabase.get(context).alarmDao()
-                dao.getAllEnabled()
-                    .map { it.toDomain() }
-                    .forEach { scheduler.schedule(it) }
+                EnabledAlarmRescheduler(context).rescheduleAllEnabled(RescheduleTrigger.EXACT_PERMISSION_GRANTED)
             } finally {
                 pendingResult.finish()
             }

@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import android.content.res.Resources
 import androidx.annotation.StringRes
@@ -494,6 +494,9 @@ fun formatAlarmLogType(resources: Resources, type: AlarmLogType): String {
         AlarmLogType.MANUAL_SHIFT_CHANGE -> resources.getString(R.string.page_models_alarm_log_manual_shift_change)
         AlarmLogType.MANUAL_UNDO -> resources.getString(R.string.page_models_alarm_log_manual_undo)
         AlarmLogType.MANUAL_RECOVERY_ACTION -> resources.getString(R.string.page_models_alarm_log_manual_recovery_action)
+        AlarmLogType.WATCHDOG_MISSED_ALARM -> resources.getString(R.string.page_models_alarm_log_watchdog_missed_alarm)
+        AlarmLogType.WATCHDOG_SELF_HEALED -> resources.getString(R.string.page_models_alarm_log_watchdog_self_healed)
+        AlarmLogType.WATCHDOG_CHECK_FAILED -> resources.getString(R.string.page_models_alarm_log_watchdog_check_failed)
     }
 }
 
@@ -516,3 +519,4 @@ fun formatTimeUntil(
 
     return parts.joinToString(" ")
 }
+

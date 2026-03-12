@@ -16,6 +16,15 @@ data class RotationPreset(
     val isDefault: Boolean = false
 )
 
+fun RotationPreset.normalized(): RotationPreset {
+    val interval = normalizeIntervalWeeks(intervalWeeks)
+    return copy(
+        name = name.trim(),
+        intervalWeeks = interval,
+        weekPatterns = normalizeWeekPatterns(interval, weekPatterns)
+    )
+}
+
 class RotationPresetStore(context: android.content.Context) {
     private val prefs = context.getSharedPreferences("rotation_preset_store", android.content.Context.MODE_PRIVATE)
     private val key = "rotation_presets_json"
@@ -206,12 +215,7 @@ class RotationPresetStore(context: android.content.Context) {
     }
 
     private fun normalizePreset(preset: RotationPreset): RotationPreset {
-        val interval = normalizeIntervalWeeks(preset.intervalWeeks)
-        return preset.copy(
-            name = preset.name.trim(),
-            intervalWeeks = interval,
-            weekPatterns = normalizeWeekPatterns(interval, preset.weekPatterns)
-        )
+        return preset.normalized()
     }
 
     private fun parsePatterns(patterns: JSONArray?, interval: Int): List<Set<DayOfWeek>> {

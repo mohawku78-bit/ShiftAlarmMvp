@@ -1,4 +1,4 @@
-package com.example.shiftalarmmvp.ui
+﻿package com.example.shiftalarmmvp.ui
 
 import android.content.Context
 import org.json.JSONArray
@@ -20,7 +20,10 @@ enum class AlarmLogType {
     MANUAL_SKIP_CLEAR,
     MANUAL_SHIFT_CHANGE,
     MANUAL_UNDO,
-    MANUAL_RECOVERY_ACTION
+    MANUAL_RECOVERY_ACTION,
+    WATCHDOG_MISSED_ALARM,
+    WATCHDOG_SELF_HEALED,
+    WATCHDOG_CHECK_FAILED
 }
 
 data class AlarmLogEntry(
