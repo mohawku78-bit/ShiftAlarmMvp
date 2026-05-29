@@ -15,6 +15,7 @@ import com.example.shiftalarmmvp.data.normalizedDateOverrides
 import com.example.shiftalarmmvp.data.toDomain
 import com.example.shiftalarmmvp.data.toEntity
 import com.example.shiftalarmmvp.data.withDateOverrides
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmSnapshotStore
 import com.example.shiftalarmmvp.recovery.EnabledAlarmRescheduler
 import com.example.shiftalarmmvp.recovery.RescheduleTrigger
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
@@ -455,6 +456,13 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 onComplete?.invoke()
             }
+        }
+    }
+
+    fun refreshDirectBootAlarmSnapshots() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val enabled = dao.getAllEnabled().map { it.toDomain() }
+            DirectBootAlarmSnapshotStore(getApplication()).replaceAll(enabled)
         }
     }
 }

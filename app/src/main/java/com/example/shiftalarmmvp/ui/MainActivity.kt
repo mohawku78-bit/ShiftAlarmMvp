@@ -216,6 +216,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         refreshReliabilitySignals()
         ensureRuntimePermissions()
+        vm.refreshDirectBootAlarmSnapshots()
         NightlyReliabilityCheckScheduler.schedule(this)
         consumeLaunchIntent(intent)
 
@@ -1646,96 +1647,97 @@ private fun AlarmScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                shape = MaterialTheme.shapes.large
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.CenterStart
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_home_brand_logo),
+                            contentDescription = stringResource(R.string.main_brand_logo_content_description),
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Text(
+                            text = homeHeaderTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                                    shape = MaterialTheme.shapes.small
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_home_brand_logo),
-                                contentDescription = stringResource(R.string.main_brand_logo_content_description),
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(24.dp)
-                            )
                             Text(
-                                text = homeHeaderTitle,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = homeHeaderVersion,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                maxLines = 1
                             )
                         }
                     }
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.Center
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = homeHeaderVersion,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Card(
+                            modifier = Modifier
+                                .semantics {
+                                    contentDescription = settingsButtonContentDescription
+                                }
+                                .clickable { currentPage = AlarmPage.MANAGE },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                                    .size(19.dp)
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = showReliabilityAlert,
+                            enter = EnterTransition.None,
+                            exit = ExitTransition.None
                         ) {
                             Card(
                                 modifier = Modifier
                                     .semantics {
-                                        contentDescription = settingsButtonContentDescription
+                                        contentDescription = reliabilityButtonContentDescription
                                     }
-                                    .clickable { currentPage = AlarmPage.MANAGE },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+                                    .clickable { openReliabilityCenter() },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.94f)),
+                                shape = MaterialTheme.shapes.medium
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .padding(9.dp)
-                                        .size(18.dp)
-                                )
-                            }
-                            AnimatedVisibility(
-                                visible = showReliabilityAlert,
-                                enter = EnterTransition.None,
-                                exit = ExitTransition.None
-                            ) {
-                                Card(
-                                    modifier = Modifier
-                                        .semantics {
-                                            contentDescription = reliabilityButtonContentDescription
-                                        }
-                                        .clickable { openReliabilityCenter() },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f))
+                                Box(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "!",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
+                                    Text(
+                                        text = "!",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
                             }
                         }

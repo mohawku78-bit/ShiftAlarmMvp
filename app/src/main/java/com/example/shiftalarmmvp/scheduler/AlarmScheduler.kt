@@ -7,6 +7,9 @@ import android.content.Intent
 import android.os.Build
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmIntent
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmSnapshot
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmSnapshotStore
 import com.example.shiftalarmmvp.recovery.PrimaryAlarmScheduleTracker
 import com.example.shiftalarmmvp.ui.MainActivity
 import java.time.LocalDateTime
@@ -36,6 +39,11 @@ data class AlarmScheduleResult(
     val failureReason: AlarmScheduleFailureReason? = null,
     val scheduledTriggerMillis: Long? = null
 )
+
+internal fun alarmPendingIntentRequestCode(id: Long, base: Int): Int {
+    val normalizedId = id.toInt()
+    return (normalizedId * 31 + base).xor(0x5a5a5a5a)
+}
 
 internal fun shouldUseExactAlarm(sdkInt: Int, canScheduleExact: Boolean): Boolean {
     return sdkInt < Build.VERSION_CODES.S || canScheduleExact
@@ -117,6 +125,7 @@ class AlarmScheduler(private val context: Context) {
     private val appContext = context.applicationContext
     private val alarmManager: AlarmManager? = appContext.getSystemService(AlarmManager::class.java)
     private val primaryAlarmScheduleTracker = PrimaryAlarmScheduleTracker(appContext)
+    private val directBootAlarmSnapshotStore = DirectBootAlarmSnapshotStore(appContext)
 
     fun schedule(rule: AlarmRule): Boolean =
         scheduleWithResult(rule).scheduled
@@ -136,11 +145,16 @@ class AlarmScheduler(private val context: Context) {
         val result = scheduleRtcWakeupIntent(
             alarmManager = alarmManager,
             triggerMillis = triggerMillis,
-            operation = pendingIntent(rule.id, triggerMillis),
+            operation = pendingIntent(rule, triggerMillis),
             canScheduleExact = canScheduleExactAlarms(),
             exactStrategy = AlarmExactStrategy.ALARM_CLOCK,
-            showIntent = activityPendingIntent(rule.id)
+            showIntent = activityPendingIntent(rule, triggerMillis)
         )
+        if (result.scheduled) {
+            directBootAlarmSnapshotStore.upsert(rule)
+        } else {
+            directBootAlarmSnapshotStore.remove(rule.id)
+        }
         primaryAlarmScheduleTracker.recordSchedule(rule, result)
         return result
     }
@@ -173,7 +187,24 @@ class AlarmScheduler(private val context: Context) {
 
     fun cancel(id: Long) {
         alarmManager?.cancel(pendingIntent(id))
+        directBootAlarmSnapshotStore.remove(id)
         primaryAlarmScheduleTracker.clearAlarm(id)
+    }
+
+    private fun pendingIntent(rule: AlarmRule, expectedTriggerMillis: Long): PendingIntent {
+        val intent = Intent(appContext, AlarmReceiver::class.java)
+        DirectBootAlarmIntent.putSnapshot(
+            intent = intent,
+            snapshot = DirectBootAlarmSnapshot.fromRule(rule),
+            expectedTriggerMillis = expectedTriggerMillis,
+            directBootFallback = false
+        )
+        return PendingIntent.getBroadcast(
+            appContext,
+            alarmPendingIntentRequestCode(rule.id, 1),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun pendingIntent(id: Long, expectedTriggerMillis: Long? = null): PendingIntent {
@@ -184,26 +215,26 @@ class AlarmScheduler(private val context: Context) {
         }
         return PendingIntent.getBroadcast(
             appContext,
-            requestCode(id, 1),
+            alarmPendingIntentRequestCode(id, 1),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 
-    private fun activityPendingIntent(id: Long): PendingIntent {
+    private fun activityPendingIntent(rule: AlarmRule, expectedTriggerMillis: Long): PendingIntent {
         val intent = Intent(appContext, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, id)
+        DirectBootAlarmIntent.putSnapshot(
+            intent = intent,
+            snapshot = DirectBootAlarmSnapshot.fromRule(rule),
+            expectedTriggerMillis = expectedTriggerMillis,
+            directBootFallback = false
+        )
         return PendingIntent.getActivity(
             appContext,
-            requestCode(id, 2),
+            alarmPendingIntentRequestCode(rule.id, 2),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
-
-    private fun requestCode(id: Long, base: Int): Int {
-        val normalizedId = id.toInt()
-        return (normalizedId * 31 + base).xor(0x5a5a5a5a)
     }
 }

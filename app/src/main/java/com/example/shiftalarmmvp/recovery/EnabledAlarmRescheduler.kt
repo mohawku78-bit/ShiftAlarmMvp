@@ -17,6 +17,7 @@ internal enum class RescheduleTrigger(val storageAction: String) {
     DATE_CHANGED(Intent.ACTION_DATE_CHANGED),
     TIMEZONE_CHANGED(Intent.ACTION_TIMEZONE_CHANGED),
     APP_UPDATED(Intent.ACTION_MY_PACKAGE_REPLACED),
+    USER_UNLOCKED(Intent.ACTION_USER_UNLOCKED),
     EXACT_PERMISSION_GRANTED("exact_permission_granted"),
     EXACT_PERMISSION_LOST("exact_permission_lost"),
     MANUAL("manual_reschedule"),
@@ -36,6 +37,7 @@ internal fun rescheduleTriggerFromSystemAction(action: String?): RescheduleTrigg
         Intent.ACTION_DATE_CHANGED -> RescheduleTrigger.DATE_CHANGED
         Intent.ACTION_TIMEZONE_CHANGED -> RescheduleTrigger.TIMEZONE_CHANGED
         Intent.ACTION_MY_PACKAGE_REPLACED -> RescheduleTrigger.APP_UPDATED
+        Intent.ACTION_USER_UNLOCKED -> RescheduleTrigger.USER_UNLOCKED
         else -> null
     }
 }
@@ -136,10 +138,12 @@ internal class EnabledAlarmRescheduler(context: Context) {
     private val scheduler = AlarmScheduler(appContext)
     private val recoveryStore = RescheduleRecoveryStore(appContext)
     private val primaryAlarmScheduleTracker = PrimaryAlarmScheduleTracker(appContext)
+    private val directBootAlarmSnapshotStore = DirectBootAlarmSnapshotStore(appContext)
 
     suspend fun rescheduleAllEnabled(trigger: RescheduleTrigger): EnabledAlarmRescheduleReport {
         return try {
             val enabledAlarms = dao.getAllEnabled().map { it.toDomain() }
+            directBootAlarmSnapshotStore.replaceAll(enabledAlarms)
             val report = summarizeEnabledAlarmReschedule(
                 trigger = trigger,
                 enabledCount = enabledAlarms.size,

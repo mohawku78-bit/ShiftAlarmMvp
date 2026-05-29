@@ -258,9 +258,9 @@
     <string name="page_components_details_show">상세 보기</string>
     <string name="page_components_duplicate">복제</string>
 
-    <string name="calendar_components_badge_day_night">▣ 주/야</string>
-    <string name="calendar_components_badge_day_duty">▣ 주/당</string>
-    <string name="calendar_components_badge_night_duty">▣ 야/당</string>
+    <string name="calendar_components_badge_day_night">주/야</string>
+    <string name="calendar_components_badge_day_duty">주/당</string>
+    <string name="calendar_components_badge_night_duty">야/당</string>
 
     <string name="home_reliability_toggle_show">점검 보기</string>
     <string name="home_reliability_toggle_check">점검 확인</string>
@@ -525,12 +525,12 @@
     <string name="shift_day_fri">금</string>
     <string name="shift_day_sat">토</string>
     <string name="shift_day_sun">일</string>
-    <string name="shift_preview_badge_day">▲ 주</string>
-    <string name="shift_preview_badge_night">■ 야</string>
-    <string name="shift_preview_badge_duty">◆ 당</string>
-    <string name="shift_preview_badge_off">● 비</string>
-    <string name="shift_preview_badge_rest">○ 휴</string>
-    <string name="shift_preview_badge_work">• 근</string>
+    <string name="shift_preview_badge_day">주간</string>
+    <string name="shift_preview_badge_night">야간</string>
+    <string name="shift_preview_badge_duty">당직</string>
+    <string name="shift_preview_badge_off">비번</string>
+    <string name="shift_preview_badge_rest">휴무</string>
+    <string name="shift_preview_badge_work">근무</string>
     <string name="home_undo">실행 취소</string>
     <string name="home_previous">이전</string>
     <string name="home_next">다음</string>

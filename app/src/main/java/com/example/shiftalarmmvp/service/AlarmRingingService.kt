@@ -18,9 +18,12 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmActionReceiver
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmIntent
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmSnapshot
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
 import com.example.shiftalarmmvp.scheduler.AlarmExactStrategy
 import com.example.shiftalarmmvp.scheduler.scheduleRtcWakeupIntent
@@ -49,6 +52,7 @@ class AlarmRingingService : Service() {
         }.getOrDefault(AlarmSoundType.ALARM)
         val volumePercent = (intent?.getIntExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, 100) ?: 100).coerceIn(0, 100)
         val vibrationEnabled = intent?.getBooleanExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, true) ?: true
+        val directBootSnapshot = intent?.let(DirectBootAlarmIntent::fromIntent)
         val texts = alarmServiceStrings(resources)
 
         when (action) {
@@ -62,7 +66,8 @@ class AlarmRingingService : Service() {
                     vibrationEnabled = vibrationEnabled,
                     snoozeMinutes = snoozeMinutes,
                     snoozeMaxCount = snoozeMaxCount,
-                    currentSnoozeCount = snoozeCurrentCount
+                    currentSnoozeCount = snoozeCurrentCount,
+                    directBootSnapshot = directBootSnapshot
                 )
             }
 
@@ -81,9 +86,21 @@ class AlarmRingingService : Service() {
                     soundType = soundType,
                     customSoundUri = customSoundUri,
                     volumePercent = volumePercent,
-                    vibrationEnabled = vibrationEnabled
+                    vibrationEnabled = vibrationEnabled,
+                    directBootSnapshot = directBootSnapshot
                 )
-                val scheduled = scheduleSnooze(alarmId, snoozeMinutes, snoozeCurrentCount, snoozeMaxCount)
+                val scheduled = scheduleSnooze(
+                    alarmId = alarmId,
+                    label = label,
+                    soundType = soundType,
+                    customSoundUri = customSoundUri,
+                    volumePercent = volumePercent,
+                    vibrationEnabled = vibrationEnabled,
+                    snoozeMinutes = snoozeMinutes,
+                    currentSnoozeCount = snoozeCurrentCount,
+                    snoozeMaxCount = snoozeMaxCount,
+                    directBootSnapshot = directBootSnapshot
+                )
                 AlarmLogStore(this).append(
                     alarmId = alarmId,
                     label = label,
@@ -103,10 +120,22 @@ class AlarmRingingService : Service() {
                     soundType = soundType,
                     customSoundUri = customSoundUri,
                     volumePercent = volumePercent,
-                    vibrationEnabled = vibrationEnabled
+                    vibrationEnabled = vibrationEnabled,
+                    directBootSnapshot = directBootSnapshot
                 )
                 val scheduled = if (snoozeMaxCount > 0 && snoozeCurrentCount == snoozeMaxCount) {
-                    scheduleOneMoreSnooze(alarmId, snoozeMinutes, snoozeCurrentCount, snoozeMaxCount)
+                    scheduleOneMoreSnooze(
+                        alarmId = alarmId,
+                        label = label,
+                        soundType = soundType,
+                        customSoundUri = customSoundUri,
+                        volumePercent = volumePercent,
+                        vibrationEnabled = vibrationEnabled,
+                        snoozeMinutes = snoozeMinutes,
+                        currentSnoozeCount = snoozeCurrentCount,
+                        snoozeMaxCount = snoozeMaxCount,
+                        directBootSnapshot = directBootSnapshot
+                    )
                 } else {
                     false
                 }
@@ -132,7 +161,8 @@ class AlarmRingingService : Service() {
         vibrationEnabled: Boolean,
         snoozeMinutes: Int,
         snoozeMaxCount: Int,
-        currentSnoozeCount: Int
+        currentSnoozeCount: Int,
+        directBootSnapshot: DirectBootAlarmSnapshot?
     ) {
         if (!isForegroundStarted) {
             val started = runCatching {
@@ -147,7 +177,8 @@ class AlarmRingingService : Service() {
                         soundType = soundType,
                         customSoundUri = customSoundUri,
                         volumePercent = volumePercent,
-                        vibrationEnabled = vibrationEnabled
+                        vibrationEnabled = vibrationEnabled,
+                        directBootSnapshot = directBootSnapshot
                     )
                 )
                 true
@@ -160,6 +191,19 @@ class AlarmRingingService : Service() {
 
             isForegroundStarted = true
         }
+
+        postWatchBridgeNotification(
+            alarmId = alarmId,
+            label = label,
+            snoozeMinutes = snoozeMinutes,
+            snoozeMaxCount = snoozeMaxCount,
+            currentSnoozeCount = currentSnoozeCount,
+            soundType = soundType,
+            customSoundUri = customSoundUri,
+            volumePercent = volumePercent,
+            vibrationEnabled = vibrationEnabled,
+            directBootSnapshot = directBootSnapshot
+        )
 
         if (mediaPlayer?.isPlaying == true) return
 
@@ -254,6 +298,8 @@ class AlarmRingingService : Service() {
         runCatching { vibrator?.cancel() }
         vibrator = null
 
+        cancelWatchBridgeNotification()
+
         if (isForegroundStarted) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             isForegroundStarted = false
@@ -261,7 +307,18 @@ class AlarmRingingService : Service() {
 
         stopSelf()
     }
-    private fun scheduleSnooze(alarmId: Long, snoozeMinutes: Int, currentSnoozeCount: Int, snoozeMaxCount: Int): Boolean {
+    private fun scheduleSnooze(
+        alarmId: Long,
+        label: String,
+        soundType: AlarmSoundType,
+        customSoundUri: String?,
+        volumePercent: Int,
+        vibrationEnabled: Boolean,
+        snoozeMinutes: Int,
+        currentSnoozeCount: Int,
+        snoozeMaxCount: Int,
+        directBootSnapshot: DirectBootAlarmSnapshot?
+    ): Boolean {
         if (alarmId <= 0) return false
         if (snoozeMaxCount > 0 && currentSnoozeCount >= snoozeMaxCount) return false
 
@@ -269,15 +326,25 @@ class AlarmRingingService : Service() {
         val nextCount = currentSnoozeCount + 1
         val triggerAt = System.currentTimeMillis() + resolvedMinutes * 60 * 1000L
         val alarmManager = getSystemService(AlarmManager::class.java)
+        val intent = Intent(this, AlarmReceiver::class.java).apply {
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmReceiver.EXTRA_LABEL, label)
+            putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+            putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+            putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+            putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, resolvedMinutes)
+            putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+            putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, nextCount)
+        }
+        directBootSnapshot?.let {
+            DirectBootAlarmIntent.putSnapshot(intent, it, triggerAt, directBootFallback = true)
+            intent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, nextCount)
+        }
         val pi = PendingIntent.getBroadcast(
             this,
             alarmId.toInt() + 70_000,
-            Intent(this, AlarmReceiver::class.java).apply {
-                putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, resolvedMinutes)
-                putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, nextCount)
-            },
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return scheduleRtcWakeupIntent(
@@ -292,9 +359,15 @@ class AlarmRingingService : Service() {
 
     private fun scheduleOneMoreSnooze(
         alarmId: Long,
+        label: String,
+        soundType: AlarmSoundType,
+        customSoundUri: String?,
+        volumePercent: Int,
+        vibrationEnabled: Boolean,
         snoozeMinutes: Int,
         currentSnoozeCount: Int,
-        snoozeMaxCount: Int
+        snoozeMaxCount: Int,
+        directBootSnapshot: DirectBootAlarmSnapshot?
     ): Boolean {
         if (alarmId <= 0) return false
 
@@ -302,15 +375,25 @@ class AlarmRingingService : Service() {
         val nextCount = currentSnoozeCount + 1
         val triggerAt = System.currentTimeMillis() + resolvedMinutes * 60 * 1000L
         val alarmManager = getSystemService(AlarmManager::class.java)
+        val intent = Intent(this, AlarmReceiver::class.java).apply {
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmReceiver.EXTRA_LABEL, label)
+            putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+            putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+            putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+            putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, resolvedMinutes)
+            putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+            putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, nextCount)
+        }
+        directBootSnapshot?.let {
+            DirectBootAlarmIntent.putSnapshot(intent, it, triggerAt, directBootFallback = true)
+            intent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, nextCount)
+        }
         val pi = PendingIntent.getBroadcast(
             this,
             alarmId.toInt() + 71_000,
-            Intent(this, AlarmReceiver::class.java).apply {
-                putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, resolvedMinutes)
-                putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, nextCount)
-            },
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return scheduleRtcWakeupIntent(
@@ -323,6 +406,51 @@ class AlarmRingingService : Service() {
         ).scheduled
     }
 
+    private fun createAlarmActionPendingIntent(
+        action: String,
+        requestOffset: Int,
+        alarmId: Long,
+        label: String,
+        soundType: AlarmSoundType,
+        customSoundUri: String?,
+        volumePercent: Int,
+        vibrationEnabled: Boolean,
+        snoozeMinutes: Int,
+        snoozeMaxCount: Int,
+        currentSnoozeCount: Int,
+        directBootSnapshot: DirectBootAlarmSnapshot?
+    ): PendingIntent {
+        val actionIntent = Intent(this, AlarmActionReceiver::class.java)
+            .setAction(action)
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        directBootSnapshot?.let {
+            DirectBootAlarmIntent.putSnapshot(actionIntent, it, null, directBootFallback = true)
+            actionIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        }
+
+        return PendingIntent.getBroadcast(
+            this,
+            alarmId.toInt() + requestOffset,
+            actionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun createNotificationAction(
+        title: String,
+        pendingIntent: PendingIntent
+    ): NotificationCompat.Action {
+        return NotificationCompat.Action.Builder(0, title, pendingIntent).build()
+    }
+
     private fun buildNotification(
         alarmId: Long,
         label: String,
@@ -332,7 +460,8 @@ class AlarmRingingService : Service() {
         soundType: AlarmSoundType,
         customSoundUri: String?,
         volumePercent: Int,
-        vibrationEnabled: Boolean
+        vibrationEnabled: Boolean,
+        directBootSnapshot: DirectBootAlarmSnapshot?
     ): Notification {
         val texts = alarmServiceStrings(resources)
         val manager = getSystemService(NotificationManager::class.java)
@@ -353,37 +482,47 @@ class AlarmRingingService : Service() {
             label
         }
 
+        val fullScreenActivityIntent = Intent(this, AlarmAlertActivity::class.java)
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        directBootSnapshot?.let {
+            DirectBootAlarmIntent.putSnapshot(fullScreenActivityIntent, it, null, directBootFallback = true)
+            fullScreenActivityIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        }
         val fullScreenIntent = PendingIntent.getActivity(
             this,
             alarmId.toInt() + 20_000,
-            Intent(this, AlarmAlertActivity::class.java)
-                .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                .putExtra(AlarmReceiver.EXTRA_LABEL, label)
-                .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
-                .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
-                .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
-                .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            fullScreenActivityIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val stopActionIntent = Intent(this, AlarmActionReceiver::class.java)
+            .setAction(ACTION_STOP)
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        directBootSnapshot?.let {
+            DirectBootAlarmIntent.putSnapshot(stopActionIntent, it, null, directBootFallback = true)
+            stopActionIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        }
         val stopIntent = PendingIntent.getBroadcast(
             this,
             alarmId.toInt() + 30_000,
-            Intent(this, AlarmActionReceiver::class.java)
-                .setAction(ACTION_STOP)
-                .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                .putExtra(AlarmReceiver.EXTRA_LABEL, label)
-                .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
-                .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
-                .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
-                .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
+            stopActionIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -423,20 +562,25 @@ class AlarmRingingService : Service() {
                     } else {
                         getString(com.example.shiftalarmmvp.R.string.notification_snooze_after, snoozeMinutes)
                     }
+                    val snoozeActionIntent = Intent(this, AlarmActionReceiver::class.java)
+                        .setAction(ACTION_SNOOZE)
+                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                        .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+                        .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+                        .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+                        .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+                        .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+                    directBootSnapshot?.let {
+                        DirectBootAlarmIntent.putSnapshot(snoozeActionIntent, it, null, directBootFallback = true)
+                        snoozeActionIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+                    }
                     val snoozeIntent = PendingIntent.getBroadcast(
                         this,
                         alarmId.toInt() + 40_000,
-                        Intent(this, AlarmActionReceiver::class.java)
-                            .setAction(ACTION_SNOOZE)
-                            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
-                            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
-                            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
-                            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
-                            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
+                        snoozeActionIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
                     builder.addAction(0, actionText, snoozeIntent)
@@ -444,20 +588,25 @@ class AlarmRingingService : Service() {
 
                 canOneMore -> {
                     builder.setSubText(getString(com.example.shiftalarmmvp.R.string.notification_snooze_limit))
+                    val oneMoreActionIntent = Intent(this, AlarmActionReceiver::class.java)
+                        .setAction(ACTION_ONE_MORE)
+                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                        .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+                        .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+                        .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+                        .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+                        .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+                        .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+                    directBootSnapshot?.let {
+                        DirectBootAlarmIntent.putSnapshot(oneMoreActionIntent, it, null, directBootFallback = true)
+                        oneMoreActionIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+                    }
                     val oneMoreIntent = PendingIntent.getBroadcast(
                         this,
                         alarmId.toInt() + 60_000,
-                        Intent(this, AlarmActionReceiver::class.java)
-                            .setAction(ACTION_ONE_MORE)
-                            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
-                            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
-                            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
-                            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
-                            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
-                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
-                            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount),
+                        oneMoreActionIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
                     builder.addAction(0, getString(com.example.shiftalarmmvp.R.string.notification_one_more), oneMoreIntent)
@@ -472,6 +621,200 @@ class AlarmRingingService : Service() {
         return builder.build()
     }
 
+    private fun postWatchBridgeNotification(
+        alarmId: Long,
+        label: String,
+        snoozeMinutes: Int,
+        snoozeMaxCount: Int,
+        currentSnoozeCount: Int,
+        soundType: AlarmSoundType,
+        customSoundUri: String?,
+        volumePercent: Int,
+        vibrationEnabled: Boolean,
+        directBootSnapshot: DirectBootAlarmSnapshot?
+    ) {
+        val notifier = NotificationManagerCompat.from(this)
+        if (!notifier.areNotificationsEnabled()) return
+
+        runCatching {
+            notifier.notify(
+                WATCH_BRIDGE_NOTIFICATION_ID,
+                buildWatchBridgeNotification(
+                    alarmId = alarmId,
+                    label = label,
+                    snoozeMinutes = snoozeMinutes,
+                    snoozeMaxCount = snoozeMaxCount,
+                    currentSnoozeCount = currentSnoozeCount,
+                    soundType = soundType,
+                    customSoundUri = customSoundUri,
+                    volumePercent = volumePercent,
+                    vibrationEnabled = vibrationEnabled,
+                    directBootSnapshot = directBootSnapshot
+                )
+            )
+        }
+    }
+
+    private fun buildWatchBridgeNotification(
+        alarmId: Long,
+        label: String,
+        snoozeMinutes: Int,
+        snoozeMaxCount: Int,
+        currentSnoozeCount: Int,
+        soundType: AlarmSoundType,
+        customSoundUri: String?,
+        volumePercent: Int,
+        vibrationEnabled: Boolean,
+        directBootSnapshot: DirectBootAlarmSnapshot?
+    ): Notification {
+        val manager = getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            WATCH_BRIDGE_CHANNEL_ID,
+            "Watch alarm control",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            setSound(null, null)
+            enableVibration(true)
+            vibrationPattern = WATCH_BRIDGE_VIBRATION_PATTERN
+            setShowBadge(false)
+        }
+        manager.createNotificationChannel(channel)
+
+        val contentText = if (label.isBlank()) {
+            getString(com.example.shiftalarmmvp.R.string.notification_text)
+        } else {
+            label
+        }
+        val contentIntent = PendingIntent.getActivity(
+            this,
+            alarmId.toInt() + 120_000,
+            Intent(this, AlarmAlertActivity::class.java)
+                .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+                .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, soundType.name)
+                .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, customSoundUri)
+                .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, volumePercent)
+                .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+                .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+                .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
+                .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .also { openIntent ->
+                    directBootSnapshot?.let {
+                        DirectBootAlarmIntent.putSnapshot(openIntent, it, null, directBootFallback = true)
+                        openIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+                    }
+                },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val actions = mutableListOf<NotificationCompat.Action>()
+        actions += createNotificationAction(
+            getString(com.example.shiftalarmmvp.R.string.notification_stop),
+            createAlarmActionPendingIntent(
+                action = ACTION_STOP,
+                requestOffset = 130_000,
+                alarmId = alarmId,
+                label = label,
+                soundType = soundType,
+                customSoundUri = customSoundUri,
+                volumePercent = volumePercent,
+                vibrationEnabled = vibrationEnabled,
+                snoozeMinutes = snoozeMinutes,
+                snoozeMaxCount = snoozeMaxCount,
+                currentSnoozeCount = currentSnoozeCount,
+                directBootSnapshot = directBootSnapshot
+            )
+        )
+
+        val isSelfTestAlarm = alarmId == 999_999L
+        if (!isSelfTestAlarm) {
+            val hasLimit = snoozeMaxCount > 0
+            val canSnooze = !hasLimit || currentSnoozeCount < snoozeMaxCount
+            val canOneMore = hasLimit && currentSnoozeCount == snoozeMaxCount
+
+            when {
+                canSnooze -> {
+                    val actionText = if (hasLimit) {
+                        getString(
+                            com.example.shiftalarmmvp.R.string.notification_snooze_count,
+                            snoozeMinutes,
+                            currentSnoozeCount + 1,
+                            snoozeMaxCount
+                        )
+                    } else {
+                        getString(com.example.shiftalarmmvp.R.string.notification_snooze_after, snoozeMinutes)
+                    }
+                    actions += createNotificationAction(
+                        actionText,
+                        createAlarmActionPendingIntent(
+                            action = ACTION_SNOOZE,
+                            requestOffset = 140_000,
+                            alarmId = alarmId,
+                            label = label,
+                            soundType = soundType,
+                            customSoundUri = customSoundUri,
+                            volumePercent = volumePercent,
+                            vibrationEnabled = vibrationEnabled,
+                            snoozeMinutes = snoozeMinutes,
+                            snoozeMaxCount = snoozeMaxCount,
+                            currentSnoozeCount = currentSnoozeCount,
+                            directBootSnapshot = directBootSnapshot
+                        )
+                    )
+                }
+
+                canOneMore -> {
+                    actions += createNotificationAction(
+                        getString(com.example.shiftalarmmvp.R.string.notification_one_more),
+                        createAlarmActionPendingIntent(
+                            action = ACTION_ONE_MORE,
+                            requestOffset = 160_000,
+                            alarmId = alarmId,
+                            label = label,
+                            soundType = soundType,
+                            customSoundUri = customSoundUri,
+                            volumePercent = volumePercent,
+                            vibrationEnabled = vibrationEnabled,
+                            snoozeMinutes = snoozeMinutes,
+                            snoozeMaxCount = snoozeMaxCount,
+                            currentSnoozeCount = currentSnoozeCount,
+                            directBootSnapshot = directBootSnapshot
+                        )
+                    )
+                }
+            }
+        }
+
+        val wearableExtender = NotificationCompat.WearableExtender()
+        actions.forEach { wearableExtender.addAction(it) }
+
+        return NotificationCompat.Builder(this, WATCH_BRIDGE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle(getString(com.example.shiftalarmmvp.R.string.notification_title))
+            .setContentText(contentText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSound(null)
+            .setVibrate(WATCH_BRIDGE_VIBRATION_PATTERN)
+            .setDefaults(0)
+            .setOnlyAlertOnce(true)
+            .setLocalOnly(false)
+            .setOngoing(false)
+            .setAutoCancel(false)
+            .setContentIntent(contentIntent)
+            .also { builder -> actions.forEach { builder.addAction(it) } }
+            .extend(wearableExtender)
+            .build()
+    }
+
+    private fun cancelWatchBridgeNotification() {
+        runCatching {
+            getSystemService(NotificationManager::class.java)?.cancel(WATCH_BRIDGE_NOTIFICATION_ID)
+        }
+    }
+
     private fun ensureForegroundForControl(
         alarmId: Long,
         label: String,
@@ -481,7 +824,8 @@ class AlarmRingingService : Service() {
         soundType: AlarmSoundType = AlarmSoundType.ALARM,
         customSoundUri: String? = null,
         volumePercent: Int = 100,
-        vibrationEnabled: Boolean = true
+        vibrationEnabled: Boolean = true,
+        directBootSnapshot: DirectBootAlarmSnapshot? = null
     ) {
         if (!isForegroundStarted) {
             val started = runCatching {
@@ -496,7 +840,8 @@ class AlarmRingingService : Service() {
                         soundType,
                         customSoundUri,
                         volumePercent,
-                        vibrationEnabled
+                        vibrationEnabled,
+                        directBootSnapshot
                     )
                 )
                 true
@@ -520,6 +865,8 @@ class AlarmRingingService : Service() {
         runCatching { vibrator?.cancel() }
         vibrator = null
 
+        cancelWatchBridgeNotification()
+
         isForegroundStarted = false
         super.onDestroy()
     }
@@ -535,7 +882,10 @@ class AlarmRingingService : Service() {
         const val ACTION_RELIABILITY_STATE_CHANGED = "com.example.shiftalarmmvp.action.RELIABILITY_STATE_CHANGED"
 
         private const val CHANNEL_ID = "ringing_alarm_channel_silent_v4"
+        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v1"
         private const val NOTIFICATION_ID = 1001
+        private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002
+        private val WATCH_BRIDGE_VIBRATION_PATTERN = longArrayOf(0, 350, 150, 350)
 
         @Volatile
         private var isRingingActive: Boolean = false
@@ -554,6 +904,10 @@ class AlarmRingingService : Service() {
 
             runCatching {
                 appContext.getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
+            }
+
+            runCatching {
+                appContext.getSystemService(NotificationManager::class.java)?.cancel(WATCH_BRIDGE_NOTIFICATION_ID)
             }
 
             runCatching {

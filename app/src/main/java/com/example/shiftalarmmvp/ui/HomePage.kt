@@ -122,10 +122,10 @@ fun HomePage(
     }
 
     val panelColors = CardDefaults.cardColors(
-        containerColor = Color(0xFFFBFBFE)
+        containerColor = MaterialTheme.colorScheme.surface
     )
     val softPanelColors = CardDefaults.cardColors(
-        containerColor = Color(0xFFF3F6FC)
+        containerColor = Color(0xFFF0F4FA)
     )
     val mutedButtonColors = neutralActionButtonColors()
     val selectedModeButtonColors = primaryActionButtonColors()
@@ -164,10 +164,10 @@ fun HomePage(
 
         Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(28.dp)),
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
             colors = panelColors,
-            shape = RoundedCornerShape(28.dp)
+            shape = MaterialTheme.shapes.large
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -265,11 +265,11 @@ fun HomePage(
         if (chosenDate != null) {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(24.dp)),
-                colors = panelColors,
-                shape = RoundedCornerShape(24.dp)
-            ) {
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
+        colors = panelColors,
+        shape = MaterialTheme.shapes.large
+    ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
                         text = when (adjustMode) {
@@ -453,9 +453,9 @@ private fun SelectedDateOverviewCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBFBFE)),
-        shape = RoundedCornerShape(24.dp)
+            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -527,11 +527,11 @@ private fun HomeSelectionChip(
         modifier = modifier
             .border(
                 width = 1.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFD7DEEB),
+                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFD5DDE9),
                 shape = shape
             )
             .background(
-                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFF7F9FD),
+                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFF5F7FB),
                 shape = shape
             )
             .clickable(onClick = onClick)
@@ -584,9 +584,9 @@ private fun SelectedDateAlarmListCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE2E7F2), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F6FC)),
-        shape = RoundedCornerShape(24.dp)
+            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F4FA)),
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -653,26 +653,26 @@ private fun ShiftLegendRow(compact: Boolean) {
     ) {
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_day),
-            bg = Color(0xFFFFF1D4),
-            fg = Color(0xFFB36A00),
+            bg = Color(0xFFFFF4D8),
+            fg = Color(0xFF946200),
             modifier = Modifier.weight(1f)
         )
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_night),
-            bg = Color(0xFFE6EEFF),
-            fg = Color(0xFF2855B9),
+            bg = Color(0xFFE8EDFF),
+            fg = Color(0xFF3346A8),
             modifier = Modifier.weight(1f)
         )
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_duty),
-            bg = Color(0xFFEAF1FF),
-            fg = Color(0xFF4A69CC),
+            bg = Color(0xFFDFF4F1),
+            fg = Color(0xFF0F766E),
             modifier = Modifier.weight(1f)
         )
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_rest),
-            bg = Color(0xFFF7DDEC),
-            fg = Color(0xFFC6427E),
+            bg = Color(0xFFF6E1EA),
+            fg = Color(0xFFA33B68),
             modifier = Modifier.weight(1f)
         )
     }
@@ -737,19 +737,19 @@ private fun HomeHeroCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFF5A8FFF).copy(alpha = 0.18f), RoundedCornerShape(22.dp)),
+            .border(1.dp, Color(0xFFBFD5FF).copy(alpha = 0.38f), MaterialTheme.shapes.large),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(22.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(Color(0xFF2E63EF), Color(0xFF4477EF))
+                        colors = listOf(Color(0xFF153A6F), Color(0xFF0F766E))
                     ),
-                    shape = RoundedCornerShape(22.dp)
+                    shape = MaterialTheme.shapes.large
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -829,7 +829,7 @@ private fun CalendarStepButton(
         modifier = Modifier
             .size(34.dp)
             .semantics { this.contentDescription = contentDescription }
-            .background(Color(0xFFF0F3FA), shape = RoundedCornerShape(17.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f), shape = MaterialTheme.shapes.medium)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

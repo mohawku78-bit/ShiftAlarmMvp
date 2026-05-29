@@ -12,6 +12,16 @@ class BootReceiverTest {
     }
 
     @Test
+    fun `locked boot completed is treated as reschedule action`() {
+        assertTrue(shouldRescheduleOnAction(Intent.ACTION_LOCKED_BOOT_COMPLETED))
+    }
+
+    @Test
+    fun `user unlocked is treated as reschedule action`() {
+        assertTrue(shouldRescheduleOnAction(Intent.ACTION_USER_UNLOCKED))
+    }
+
+    @Test
     fun `time changed is treated as reschedule action`() {
         assertTrue(shouldRescheduleOnAction(Intent.ACTION_TIME_CHANGED))
     }

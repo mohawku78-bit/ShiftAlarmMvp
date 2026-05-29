@@ -3,6 +3,7 @@
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmIntent
 import com.example.shiftalarmmvp.service.AlarmRingingService
 
 class AlarmActionReceiver : BroadcastReceiver() {
@@ -19,6 +20,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
         val snoozeMinutes = safeIntent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 5)
         val snoozeMaxCount = safeIntent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
         val currentSnoozeCount = safeIntent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
+        val directBootSnapshot = DirectBootAlarmIntent.fromIntent(safeIntent)
 
         if (action == AlarmRingingService.ACTION_STOP) {
             AlarmRingingService.stop(context, alarmId)
@@ -36,6 +38,10 @@ class AlarmActionReceiver : BroadcastReceiver() {
             .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
             .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, snoozeMaxCount)
             .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        directBootSnapshot?.let {
+            DirectBootAlarmIntent.putSnapshot(serviceIntent, it, null, directBootFallback = true)
+            serviceIntent.putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, currentSnoozeCount)
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             context.startForegroundService(serviceIntent)

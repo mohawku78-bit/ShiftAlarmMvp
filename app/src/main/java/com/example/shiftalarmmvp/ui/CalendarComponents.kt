@@ -1,4 +1,4 @@
-﻿package com.example.shiftalarmmvp.ui
+package com.example.shiftalarmmvp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,29 +61,29 @@ fun shiftBadgeLabel(resources: android.content.res.Resources, badge: String): St
 
 fun shiftBadgeBackgroundColor(badge: String): Color {
     return when (badge) {
-        SHIFT_BADGE_DAY -> Color(0xFFD9E8FA)
-        SHIFT_BADGE_NIGHT -> Color(0xFFFFE3C8)
-        SHIFT_BADGE_DUTY -> Color(0xFFFFE9D6)
-        SHIFT_BADGE_OFF -> Color(0xFFE3E8EE)
-        SHIFT_BADGE_REST -> Color(0xFFEEF1F4)
-        SHIFT_BADGE_DAY_NIGHT -> Color(0xFFE8E6F8)
-        SHIFT_BADGE_DAY_DUTY -> Color(0xFFE9ECFB)
-        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFFF7E7DB)
-        else -> Color(0xFFE2F0EA)
+        SHIFT_BADGE_DAY -> Color(0xFFFFF4D8)
+        SHIFT_BADGE_NIGHT -> Color(0xFFE8EDFF)
+        SHIFT_BADGE_DUTY -> Color(0xFFDFF4F1)
+        SHIFT_BADGE_OFF -> Color(0xFFF2F4F7)
+        SHIFT_BADGE_REST -> Color(0xFFF7F8FA)
+        SHIFT_BADGE_DAY_NIGHT -> Color(0xFFE9F0F4)
+        SHIFT_BADGE_DAY_DUTY -> Color(0xFFE5F3EA)
+        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFFE5F0F7)
+        else -> Color(0xFFF2F4F7)
     }
 }
 
 fun shiftBadgeColor(badge: String): Color {
     return when (badge) {
-        SHIFT_BADGE_DAY -> Color(0xFF1E4E8C)
-        SHIFT_BADGE_NIGHT -> Color(0xFF9A5400)
-        SHIFT_BADGE_DUTY -> Color(0xFF8A3E00)
-        SHIFT_BADGE_OFF -> Color(0xFF4F6375)
-        SHIFT_BADGE_REST -> Color(0xFF5B6670)
-        SHIFT_BADGE_DAY_NIGHT -> Color(0xFF5A4D99)
-        SHIFT_BADGE_DAY_DUTY -> Color(0xFF4A5EA8)
-        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFF8E4B16)
-        else -> Color(0xFF4D6B5C)
+        SHIFT_BADGE_DAY -> Color(0xFF946200)
+        SHIFT_BADGE_NIGHT -> Color(0xFF3346A8)
+        SHIFT_BADGE_DUTY -> Color(0xFF0F766E)
+        SHIFT_BADGE_OFF -> Color(0xFF747B86)
+        SHIFT_BADGE_REST -> Color(0xFF8A8F98)
+        SHIFT_BADGE_DAY_NIGHT -> Color(0xFF34547F)
+        SHIFT_BADGE_DAY_DUTY -> Color(0xFF24705E)
+        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFF225C7E)
+        else -> Color(0xFF747B86)
     }
 }
 
@@ -117,18 +117,18 @@ fun ShiftCalendarMonthGrid(
         dates += null
     }
 
-    val gridSpacing = if (compact) 3.dp else 4.dp
-    val rowSpacing = if (compact) 5.dp else 6.dp
+    val gridSpacing = if (compact) 4.dp else 6.dp
+    val rowSpacing = if (compact) 6.dp else 8.dp
     val dayLabelStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
     val badgeStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
-    val cellVerticalPadding = if (compact) 5.dp else 6.dp
-    val cellShape = RoundedCornerShape(if (compact) 10.dp else 12.dp)
+    val cellVerticalPadding = if (compact) 8.dp else 10.dp
+    val cellShape = RoundedCornerShape(if (compact) 14.dp else 16.dp)
 
     Column(verticalArrangement = Arrangement.spacedBy(rowSpacing), modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gridSpacing)) {
             dayLabels.forEach { label ->
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(label, style = dayLabelStyle)
+                    Text(label, style = dayLabelStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -145,18 +145,17 @@ fun ShiftCalendarMonthGrid(
                         Color.Transparent
                     }
                     val backgroundColor = when {
-                        isSelected -> baseBackground.copy(alpha = 0.96f)
+                        date == null -> Color.Transparent
+                        isSelected -> baseBackground.copy(alpha = 1.0f)
                         isToday -> baseBackground.copy(alpha = 0.9f)
-                        else -> baseBackground
+                        else -> baseBackground.copy(alpha = 0.82f)
                     }
                     val borderWidth = when {
                         isSelected -> 2.dp
-                        isToday -> 1.2.dp
                         else -> 0.dp
                     }
                     val borderColor = when {
                         isSelected -> MaterialTheme.colorScheme.primary
-                        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
                         else -> Color.Transparent
                     }
 
