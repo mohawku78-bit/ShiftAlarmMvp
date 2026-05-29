@@ -64,6 +64,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -82,7 +83,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -126,6 +126,7 @@ import com.example.shiftalarmmvp.recovery.RescheduleRecoveryState
 import com.example.shiftalarmmvp.recovery.RescheduleRecoveryStore
 import com.example.shiftalarmmvp.recovery.RestorePostCheckStatus
 import com.example.shiftalarmmvp.recovery.RestorePostCheckStore
+import com.example.shiftalarmmvp.recovery.SELF_TEST_ALARM_ID
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.recovery.recoveryStrings
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
@@ -635,6 +636,68 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+private fun PageNavigationShortcutBar(
+    page: AlarmPage,
+    canGoBack: Boolean,
+    onBack: () -> Unit,
+    onHome: () -> Unit
+) {
+    ShiftPanel(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = ShiftDesign.Paper.copy(alpha = 0.96f),
+        borderColor = ShiftDesign.Line,
+        elevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(page.labelResId),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = ShiftDesign.Ink
+                )
+                Text(
+                    text = stringResource(R.string.main_nav_today),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ShiftDesign.InkSoft
+                )
+            }
+            SecondaryActionButton(
+                onClick = onBack,
+                enabled = canGoBack,
+                modifier = Modifier.widthIn(min = 82.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(stringResource(R.string.editor_back))
+            }
+            PrimaryActionButton(
+                onClick = onHome,
+                modifier = Modifier.widthIn(min = 82.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(stringResource(R.string.main_nav_today))
+            }
+        }
+    }
+}
+
+@Composable
 private fun AlarmScreen(
     vm: AlarmViewModel,
     canScheduleExact: Boolean,
@@ -764,28 +827,58 @@ private fun AlarmScreen(
     var importMergeMode by remember { mutableStateOf(true) }
     val isFirstSetupWizardActive = !shiftQuickSetupDone && !shiftQuickSetupHidden
     var currentPage by remember { mutableStateOf(if (isFirstSetupWizardActive) AlarmPage.PATTERN else AlarmPage.TODAY) }
+    val pageHistory = remember { mutableStateListOf<AlarmPage>() }
     val scrollState = remember(currentPage) { ScrollState(initial = 0) }
     var editorForcedStep by remember { mutableStateOf<Int?>(null) }
     var selfTestMessage by remember { mutableStateOf("") }
 
+    fun navigateToPage(page: AlarmPage, trackHistory: Boolean = true) {
+        if (page == currentPage) return
+        if (trackHistory) {
+            pageHistory += currentPage
+            if (pageHistory.size > 12) {
+                pageHistory.removeAt(0)
+            }
+        }
+        currentPage = page
+    }
+
+    fun navigateBackPage() {
+        val target = if (pageHistory.isNotEmpty()) {
+            pageHistory.removeAt(pageHistory.lastIndex)
+        } else {
+            AlarmPage.TODAY
+        }
+        if (target != currentPage) {
+            currentPage = target
+        }
+    }
+
+    fun navigateHomePage() {
+        navigateToPage(AlarmPage.TODAY)
+    }
+
 
     fun openReliabilityCenter() {
         editorForcedStep = 3
-        currentPage = AlarmPage.EDITOR
+        navigateToPage(AlarmPage.EDITOR)
         scope.launch { scrollState.animateScrollTo(0) }
     }
 
     LaunchedEffect(isFirstSetupWizardActive, currentPage) {
         if (isFirstSetupWizardActive && currentPage != AlarmPage.PATTERN) {
+            pageHistory.clear()
             currentPage = AlarmPage.PATTERN
         }
     }
 
     BackHandler(enabled = isFirstSetupWizardActive && currentPage != AlarmPage.PATTERN) {
-        currentPage = AlarmPage.PATTERN
+        pageHistory.clear()
+        navigateToPage(AlarmPage.PATTERN)
     }
 
     BackHandler(enabled = currentPage == AlarmPage.PRESET) {
+        pageHistory.clear()
         currentPage = AlarmPage.PATTERN
     }
 
@@ -1006,7 +1099,7 @@ private fun AlarmScreen(
         skipDates = draft.skipDates
         addDates = draft.addDates
         exceptionDate = draft.exceptionDate
-        currentPage = AlarmPage.EDITOR
+        navigateToPage(AlarmPage.EDITOR)
         scope.launch { scrollState.animateScrollTo(0) }
     }
 
@@ -1355,19 +1448,87 @@ private fun AlarmScreen(
         }
     }
 
-    fun scheduleSelfTest(showToast: Boolean = false) {
-        val result = selfTestActionHandler.schedule(
-            config = SelfTestScheduleConfig(
-                label = selectedLabel,
-                soundType = selectedSoundType,
-                customSoundUri = selectedCustomSoundUri,
-                volumePercent = selectedVolume.toInt(),
-                vibrationEnabled = vibrationEnabled,
-                snoozeMinutes = selectedSnoozeMinutes
-            ),
-            canScheduleExact = canScheduleExact
+    fun currentSelfTestConfig() = SelfTestScheduleConfig(
+        label = selectedLabel,
+        soundType = selectedSoundType,
+        customSoundUri = selectedCustomSoundUri,
+        volumePercent = selectedVolume.toInt(),
+        vibrationEnabled = vibrationEnabled,
+        snoozeMinutes = selectedSnoozeMinutes
+    )
+
+    fun runImmediateSelfTest(showToast: Boolean = false) {
+        val result = selfTestActionHandler.ringNow(
+            config = currentSelfTestConfig()
         )
         applySelfTestActionResult(result, showToast = showToast)
+    }
+
+    fun scheduleSelfTest(
+        showToast: Boolean = false,
+        delayMillis: Long = QUICK_SELF_TEST_DELAY_MILLIS
+    ) {
+        val result = selfTestActionHandler.schedule(
+            config = currentSelfTestConfig(),
+            canScheduleExact = canScheduleExact,
+            delayMillis = delayMillis
+        )
+        applySelfTestActionResult(result, showToast = showToast)
+    }
+
+    fun runReservationCheck(showToast: Boolean = false) {
+        val snapshot = reliabilityCoordinator.recalculateAndSnapshot()
+        selfTestStatusState = snapshot.selfTestStatus
+        nightlyCheckStatusState = snapshot.nightlyCheckStatus
+
+        val enabledAlarms = alarms.filter { it.enabled }
+        val nextTriggerCount = enabledAlarms.count { alarm ->
+            uiScheduler.computeNextTriggerMillis(
+                rule = alarm,
+                now = currentWallClockNow,
+                zone = currentWallClockZoneId
+            ) != null
+        }
+        val issues = buildList {
+            if (enabledAlarms.isEmpty()) {
+                add(context.getString(R.string.quick_test_issue_no_enabled_alarm))
+            }
+            if (enabledAlarms.isNotEmpty() && nextTriggerCount < enabledAlarms.size) {
+                add(
+                    context.getString(
+                        R.string.quick_test_issue_missing_next_trigger_format,
+                        enabledAlarms.size - nextTriggerCount
+                    )
+                )
+            }
+            if (!canPostNotifications) {
+                add(context.getString(R.string.quick_test_issue_notification_permission))
+            }
+            if (!canScheduleExact) {
+                add(context.getString(R.string.quick_test_issue_exact_permission))
+            }
+            if (!isIgnoringBatteryOptimization) {
+                add(context.getString(R.string.quick_test_issue_battery_optimization))
+            }
+            if (enabledAlarms.isNotEmpty() && canScheduleExact && uiScheduler.nextOwnedAlarmClockTriggerMillis() == null) {
+                add(context.getString(R.string.quick_test_issue_system_registration))
+            }
+        }
+        selfTestMessage = if (issues.isEmpty()) {
+            context.getString(
+                R.string.quick_test_diagnostics_ok_format,
+                enabledAlarms.size,
+                nextTriggerCount
+            )
+        } else {
+            context.getString(
+                R.string.quick_test_diagnostics_warn_format,
+                issues.joinToString(" / ")
+            )
+        }
+        if (showToast) {
+            Toast.makeText(context, selfTestMessage, Toast.LENGTH_LONG).show()
+        }
     }
 
     fun cancelSelfTest(showToast: Boolean = false) {
@@ -1586,8 +1747,8 @@ private fun AlarmScreen(
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
-                tonalElevation = 2.dp
+                containerColor = ShiftDesign.Paper.copy(alpha = 0.98f),
+                tonalElevation = 6.dp
             ) {
                 primaryPages.forEach { page ->
                     val selected = when (page) {
@@ -1607,15 +1768,15 @@ private fun AlarmScreen(
                     NavigationBarItem(
                         selected = selected,
                         enabled = !isFirstSetupWizardActive || page == AlarmPage.PATTERN,
-                        onClick = { currentPage = page },
+                        onClick = { navigateToPage(page) },
                         icon = { Icon(icon, contentDescription = null) },
                         label = { Text(stringResource(page.labelResId)) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f),
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            selectedIconColor = ShiftDesign.Navy,
+                            selectedTextColor = ShiftDesign.Navy,
+                            indicatorColor = ShiftDesign.Sun.copy(alpha = 0.28f),
+                            unselectedIconColor = ShiftDesign.InkSoft,
+                            unselectedTextColor = ShiftDesign.InkSoft
                         )
                     )
                 }
@@ -1626,13 +1787,7 @@ private fun AlarmScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.background,
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
+                    brush = shiftAppBackgroundBrush()
                 )
                 .verticalScroll(scrollState)
                 .padding(innerPadding)
@@ -1640,15 +1795,28 @@ private fun AlarmScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
         AnimatedVisibility(
+            visible = currentPage != AlarmPage.TODAY && !isFirstSetupWizardActive,
+            enter = EnterTransition.None,
+            exit = ExitTransition.None
+        ) {
+            PageNavigationShortcutBar(
+                page = currentPage,
+                canGoBack = pageHistory.isNotEmpty(),
+                onBack = { navigateBackPage() },
+                onHome = { navigateHomePage() }
+            )
+        }
+
+        AnimatedVisibility(
             visible = currentPage == AlarmPage.TODAY,
             enter = EnterTransition.None,
             exit = ExitTransition.None
         ) {
-            Card(
+            ShiftPanel(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                shape = MaterialTheme.shapes.large
+                containerColor = ShiftDesign.Paper.copy(alpha = 0.97f),
+                borderColor = ShiftDesign.Line,
+                elevation = 4.dp
             ) {
                 Row(
                     modifier = Modifier
@@ -1663,7 +1831,7 @@ private fun AlarmScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_home_brand_logo),
+                            painter = painterResource(id = R.drawable.ic_launcher_gpt_shift),
                             contentDescription = stringResource(R.string.main_brand_logo_content_description),
                             tint = Color.Unspecified,
                             modifier = Modifier.size(28.dp)
@@ -1671,7 +1839,7 @@ private fun AlarmScreen(
                         Text(
                             text = homeHeaderTitle,
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = ShiftDesign.Ink,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
@@ -1679,7 +1847,7 @@ private fun AlarmScreen(
                         Box(
                             modifier = Modifier
                                 .background(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                                    ShiftDesign.Sun.copy(alpha = 0.24f),
                                     shape = MaterialTheme.shapes.small
                                 )
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1687,7 +1855,7 @@ private fun AlarmScreen(
                             Text(
                                 text = homeHeaderVersion,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = ShiftDesign.Navy,
                                 maxLines = 1
                             )
                         }
@@ -1702,14 +1870,14 @@ private fun AlarmScreen(
                                 .semantics {
                                     contentDescription = settingsButtonContentDescription
                                 }
-                                .clickable { currentPage = AlarmPage.MANAGE },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)),
+                                .clickable { navigateToPage(AlarmPage.MANAGE) },
+                            colors = CardDefaults.cardColors(containerColor = ShiftDesign.Mist.copy(alpha = 0.92f)),
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Settings,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = ShiftDesign.Navy,
                                 modifier = Modifier
                                     .padding(10.dp)
                                     .size(19.dp)
@@ -1726,7 +1894,7 @@ private fun AlarmScreen(
                                         contentDescription = reliabilityButtonContentDescription
                                     }
                                     .clickable { openReliabilityCenter() },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.94f)),
+                                colors = CardDefaults.cardColors(containerColor = ShiftDesign.Coral.copy(alpha = 0.16f)),
                                 shape = MaterialTheme.shapes.medium
                             ) {
                                 Box(
@@ -1736,7 +1904,7 @@ private fun AlarmScreen(
                                     Text(
                                         text = "!",
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.error
+                                        color = ShiftDesign.Coral
                                     )
                                 }
                             }
@@ -1843,7 +2011,7 @@ private fun AlarmScreen(
                     if (LocalDate.now().plusDays(1) in alarm.addDateEpochDays) vm.removeTomorrow(alarm) else vm.addTomorrow(alarm)
                 },
                 onOpenManage = {
-                    currentPage = AlarmPage.MANAGE
+                    navigateToPage(AlarmPage.MANAGE)
                     scope.launch { scrollState.animateScrollTo(0) }
                 },
                 onOpenEditor = {
@@ -1855,7 +2023,7 @@ private fun AlarmScreen(
                     skipDates = emptySet()
                     addDates = emptySet()
                     exceptionDate = LocalDate.now()
-                    currentPage = AlarmPage.EDITOR
+                    navigateToPage(AlarmPage.EDITOR)
                     scope.launch { scrollState.animateScrollTo(0) }
                 }
             )
@@ -1895,7 +2063,7 @@ private fun AlarmScreen(
                 onPlayTestSound = {
                     val testIntent = Intent(context, AlarmRingingService::class.java)
                         .setAction(AlarmRingingService.ACTION_START)
-                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
+                        .putExtra(AlarmReceiver.EXTRA_ALARM_ID, SELF_TEST_ALARM_ID)
                                                 .putExtra(
                             AlarmReceiver.EXTRA_LABEL,
                             if (selectedLabel.isBlank()) {
@@ -1917,8 +2085,10 @@ private fun AlarmScreen(
                         context.startService(testIntent)
                     }
                 },
-                onStopTestSound = { AlarmRingingService.stop(context, 999_999L) },
-                onScheduleSelfTest = { scheduleSelfTest() },
+                onStopTestSound = { AlarmRingingService.stop(context, SELF_TEST_ALARM_ID) },
+                onRunImmediateSelfTest = { runImmediateSelfTest(showToast = true) },
+                onRunReservationCheck = { runReservationCheck(showToast = true) },
+                onScheduleSelfTest = { scheduleSelfTest(showToast = true) },
                 onCancelSelfTest = { cancelSelfTest() },
                 selfTestMessage = selfTestMessage,
                 reliabilityCenterUi = reliabilityCenterUi,
@@ -2071,7 +2241,7 @@ private fun AlarmScreen(
                                     .putBoolean("shift_quick_setup_done", true)
                                     .putBoolean("shift_quick_setup_hidden", true)
                                     .apply()
-                                currentPage = AlarmPage.TODAY
+                                navigateToPage(AlarmPage.TODAY)
                             }
                         },
                         onHideFirstSetupWizard = {
@@ -2083,7 +2253,7 @@ private fun AlarmScreen(
                     if (!isFirstSetupWizardActive) {
                         SecondaryActionButton(
                             onClick = {
-                                currentPage = AlarmPage.PRESET
+                                navigateToPage(AlarmPage.PRESET)
                                 scope.launch { scrollState.animateScrollTo(0) }
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -2101,7 +2271,7 @@ private fun AlarmScreen(
                             if (LocalDate.now().plusDays(1) in alarm.addDateEpochDays) vm.removeTomorrow(alarm) else vm.addTomorrow(alarm)
                         },
                         onOpenManage = {
-                            currentPage = AlarmPage.MANAGE
+                            navigateToPage(AlarmPage.MANAGE)
                             scope.launch { scrollState.animateScrollTo(0) }
                         },
                         onOpenEditor = {
@@ -2113,7 +2283,7 @@ private fun AlarmScreen(
                             skipDates = emptySet()
                             addDates = emptySet()
                             exceptionDate = LocalDate.now()
-                            currentPage = AlarmPage.EDITOR
+                            navigateToPage(AlarmPage.EDITOR)
                             scope.launch { scrollState.animateScrollTo(0) }
                         }
                     )

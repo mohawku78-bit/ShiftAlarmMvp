@@ -1,8 +1,9 @@
 package com.example.shiftalarmmvp.ui
 
 import android.app.DatePickerDialog
-import android.widget.NumberPicker
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +12,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,9 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.example.shiftalarmmvp.R
 import com.example.shiftalarmmvp.data.AlarmRule
 import com.example.shiftalarmmvp.data.AlarmSoundType
@@ -51,13 +49,35 @@ fun TimePickerButton(
     label: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var inputMode by remember { mutableStateOf(false) }
+    var activePart by remember { mutableStateOf(TimeInputPart.HOUR) }
+    var typedDigits by remember { mutableStateOf("") }
     var wheelHour by remember { mutableIntStateOf(time.hour) }
     var wheelMinute by remember { mutableIntStateOf(time.minute) }
     val latestOnTimePicked by rememberUpdatedState(onTimePicked)
     val resolvedLabel = label ?: stringResource(R.string.dialog_time_select)
-    var hourInput by remember(time) { mutableStateOf(String.format("%02d", time.hour)) }
-    var minuteInput by remember(time) { mutableStateOf(String.format("%02d", time.minute)) }
+
+    fun applyTime(nextHour: Int, nextMinute: Int) {
+        val safeHour = wrapTimeValue(nextHour, 24)
+        val safeMinute = wrapTimeValue(nextMinute, 60)
+        wheelHour = safeHour
+        wheelMinute = safeMinute
+        latestOnTimePicked(LocalTime.of(safeHour, safeMinute))
+    }
+
+    fun selectPart(part: TimeInputPart) {
+        expanded = true
+        activePart = part
+        typedDigits = ""
+    }
+
+    fun adjustActivePart(delta: Int) {
+        typedDigits = ""
+        if (activePart == TimeInputPart.HOUR) {
+            applyTime(wheelHour + delta, wheelMinute)
+        } else {
+            applyTime(wheelHour, wheelMinute + delta)
+        }
+    }
 
     LaunchedEffect(time) {
         wheelHour = time.hour
@@ -68,132 +88,285 @@ fun TimePickerButton(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SecondaryActionButton(
-            onClick = { expanded = !expanded },
-            modifier = Modifier.fillMaxWidth()
+        ShiftPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    expanded = true
+                    typedDigits = ""
+                },
+            containerColor = ShiftDesign.Paper,
+            borderColor = if (expanded) ShiftDesign.Harbor.copy(alpha = 0.72f) else ShiftDesign.Line
         ) {
-            Text(stringResource(R.string.page_components_time_picker_button_format, resolvedLabel, time.format(DateTimeFormatter.ofPattern("HH:mm"))))
-        }
-
-        if (expanded) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                )
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = resolvedLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ShiftDesign.InkSoft,
+                        fontWeight = FontWeight.Bold
+                    )
+                    ShiftPill(
+                        text = stringResource(
+                            if (expanded) R.string.dialog_time_adjusting else R.string.dialog_time_tap_hint
+                        ),
+                        containerColor = if (expanded) ShiftDesign.Sun.copy(alpha = 0.28f) else ShiftDesign.Mist,
+                        contentColor = ShiftDesign.Navy
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    EditableTimePart(
+                        label = stringResource(R.string.dialog_hour),
+                        value = wheelHour,
+                        selected = expanded && activePart == TimeInputPart.HOUR,
+                        onClick = { selectPart(TimeInputPart.HOUR) },
+                        onStep = { delta ->
+                            activePart = TimeInputPart.HOUR
+                            adjustActivePart(delta)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = ":",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = ShiftDesign.InkSoft,
+                        fontWeight = FontWeight.Bold
+                    )
+                    EditableTimePart(
+                        label = stringResource(R.string.dialog_minute),
+                        value = wheelMinute,
+                        selected = expanded && activePart == TimeInputPart.MINUTE,
+                        onClick = { selectPart(TimeInputPart.MINUTE) },
+                        onStep = { delta ->
+                            activePart = TimeInputPart.MINUTE
+                            adjustActivePart(delta)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (expanded) {
+                    Text(
+                        text = stringResource(R.string.dialog_time_adjust_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ShiftDesign.InkSoft
+                    )
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = { inputMode = false },
+                        NeutralActionButton(
+                            onClick = { adjustActivePart(-1) },
                             modifier = Modifier.weight(1f),
-                            colors = segmentedActionButtonColors(!inputMode)
                         ) {
-                            Text(stringResource(R.string.dialog_time_wheel_mode))
+                            Text(stringResource(R.string.dialog_time_step_down))
                         }
-                        Button(
-                            onClick = { inputMode = true },
+                        ShiftPill(
+                            text = stringResource(
+                                R.string.dialog_time_keypad_hint,
+                                stringResource(
+                                    if (activePart == TimeInputPart.HOUR) {
+                                        R.string.dialog_time_active_hour
+                                    } else {
+                                        R.string.dialog_time_active_minute
+                                    }
+                                )
+                            ),
                             modifier = Modifier.weight(1f),
-                            colors = segmentedActionButtonColors(inputMode)
+                            containerColor = ShiftDesign.Mist,
+                            contentColor = ShiftDesign.Navy
+                        )
+                        NeutralActionButton(
+                            onClick = { adjustActivePart(1) },
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Text(stringResource(R.string.dialog_time_number_mode))
+                            Text(stringResource(R.string.dialog_time_step_up))
                         }
                     }
 
-                    if (inputMode) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedTextField(
-                                value = hourInput,
-                                onValueChange = { value ->
-                                    val next = value.filter { it.isDigit() }.take(2)
-                                    hourInput = next
-                                    val hour = next.toIntOrNull()
-                                    val minute = minuteInput.toIntOrNull()
-                                    if (hour != null && hour in 0..23 && minute != null && minute in 0..59) {
-                                        latestOnTimePicked(LocalTime.of(hour, minute))
-                                    }
-                                },
-                                label = { Text(stringResource(R.string.dialog_hour)) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedTextField(
-                                value = minuteInput,
-                                onValueChange = { value ->
-                                    val next = value.filter { it.isDigit() }.take(2)
-                                    minuteInput = next
-                                    val hour = hourInput.toIntOrNull()
-                                    val minute = next.toIntOrNull()
-                                    if (hour != null && hour in 0..23 && minute != null && minute in 0..59) {
-                                        latestOnTimePicked(LocalTime.of(hour, minute))
-                                    }
-                                },
-                                label = { Text(stringResource(R.string.dialog_minute)) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            AndroidView(
-                                modifier = Modifier.weight(1f),
-                                factory = { context ->
-                                    NumberPicker(context).apply {
-                                        minValue = 0
-                                        maxValue = 23
-                                        wrapSelectorWheel = true
-                                        setFormatter { String.format("%02d", it) }
-                                        setOnValueChangedListener { _, _, newVal ->
-                                            if (newVal != wheelHour) {
-                                                wheelHour = newVal
-                                                latestOnTimePicked(LocalTime.of(wheelHour, wheelMinute))
-                                            }
-                                        }
-                                    }
-                                },
-                                update = { picker ->
-                                    if (picker.value != wheelHour) picker.value = wheelHour
+                    TimeNumericKeypad(
+                        activePart = activePart,
+                        onDigit = { digit ->
+                            val max = if (activePart == TimeInputPart.HOUR) 23 else 59
+                            val nextDigits = (typedDigits + digit).takeLast(2)
+                            val parsed = nextDigits.toIntOrNull()
+                            if (parsed != null) {
+                                val normalized = parsed.coerceIn(0, max)
+                                typedDigits = if (parsed == normalized) {
+                                    nextDigits
+                                } else {
+                                    String.format("%02d", normalized)
                                 }
-                            )
-                            AndroidView(
-                                modifier = Modifier.weight(1f),
-                                factory = { context ->
-                                    NumberPicker(context).apply {
-                                        minValue = 0
-                                        maxValue = 59
-                                        wrapSelectorWheel = true
-                                        setFormatter { String.format("%02d", it) }
-                                        setOnValueChangedListener { _, _, newVal ->
-                                            if (newVal != wheelMinute) {
-                                                wheelMinute = newVal
-                                                latestOnTimePicked(LocalTime.of(wheelHour, wheelMinute))
-                                            }
-                                        }
-                                    }
-                                },
-                                update = { picker ->
-                                    if (picker.value != wheelMinute) picker.value = wheelMinute
+                                if (activePart == TimeInputPart.HOUR) {
+                                    applyTime(normalized, wheelMinute)
+                                } else {
+                                    applyTime(wheelHour, normalized)
                                 }
-                            )
+                            }
+                        },
+                        onBackspace = {
+                            typedDigits = typedDigits.dropLast(1)
+                        },
+                        onDone = {
+                            typedDigits = ""
+                            expanded = false
                         }
-                    }
-
-                    Text(stringResource(R.string.dialog_current_selection_format, time.format(DateTimeFormatter.ofPattern("HH:mm"))))
+                    )
                 }
+            }
+        }
+    }
+}
+
+private enum class TimeInputPart {
+    HOUR,
+    MINUTE
+}
+
+private fun wrapTimeValue(value: Int, maxExclusive: Int): Int {
+    val mod = value % maxExclusive
+    return if (mod < 0) mod + maxExclusive else mod
+}
+
+@Composable
+private fun EditableTimePart(
+    label: String,
+    value: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onStep: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ShiftPanel(
+        modifier = modifier.clickable(onClick = onClick),
+        containerColor = if (selected) ShiftDesign.Paper else ShiftDesign.Mist.copy(alpha = 0.54f),
+        borderColor = if (selected) ShiftDesign.Sun else ShiftDesign.Line
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (selected) ShiftDesign.Navy else ShiftDesign.InkSoft,
+                fontWeight = FontWeight.Bold
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = String.format("%02d", value),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = ShiftDesign.Ink,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Column(
+                    modifier = Modifier.weight(0.82f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    TimeStepButton(label = "+", selected = selected, onClick = { onStep(1) })
+                    TimeStepButton(label = "-", selected = selected, onClick = { onStep(-1) })
+                }
+            }
+            Text(
+                text = stringResource(
+                    if (selected) R.string.dialog_time_drag_hint else R.string.dialog_time_tap_hint
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = ShiftDesign.InkSoft
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimeStepButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Text(
+        text = label,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                if (selected) ShiftDesign.Sun.copy(alpha = 0.28f) else ShiftDesign.Mist,
+                RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.titleLarge,
+        color = ShiftDesign.Navy,
+        fontWeight = FontWeight.ExtraBold
+    )
+}
+
+@Composable
+private fun TimeNumericKeypad(
+    activePart: TimeInputPart,
+    onDigit: (String) -> Unit,
+    onBackspace: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeLabel = stringResource(
+        if (activePart == TimeInputPart.HOUR) {
+            R.string.dialog_time_active_hour
+        } else {
+            R.string.dialog_time_active_minute
+        }
+    )
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.dialog_time_keypad_hint, activeLabel),
+            style = MaterialTheme.typography.bodyMedium,
+            color = ShiftDesign.InkSoft
+        )
+        val rows = listOf(
+            listOf("1", "2", "3"),
+            listOf("4", "5", "6"),
+            listOf("7", "8", "9")
+        )
+        rows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { digit ->
+                    NeutralActionButton(onClick = { onDigit(digit) }, modifier = Modifier.weight(1f)) {
+                        Text(digit, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            NeutralActionButton(onClick = onBackspace, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.common_backspace))
+            }
+            NeutralActionButton(onClick = { onDigit("0") }, modifier = Modifier.weight(1f)) {
+                Text("0", style = MaterialTheme.typography.titleMedium)
+            }
+            PrimaryActionButton(onClick = onDone, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.common_done))
             }
         }
     }
@@ -297,11 +470,10 @@ fun AlarmItem(
     var showDetails by remember(alarm.id) { mutableStateOf(false) }
     var showActions by remember(alarm.id) { mutableStateOf(false) }
 
-    Card(
+    ShiftPanel(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (alarm.enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
-        )
+        containerColor = if (alarm.enabled) ShiftDesign.Paper else ShiftDesign.Mist.copy(alpha = 0.72f),
+        borderColor = if (alarm.enabled) ShiftDesign.Line else ShiftDesign.Line.copy(alpha = 0.72f)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
@@ -311,35 +483,63 @@ fun AlarmItem(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                     if (isEditing) {
-                        StatusChip(stringResource(R.string.page_components_editing), MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                        StatusChip(
+                            stringResource(R.string.page_components_editing),
+                            ShiftDesign.Sun.copy(alpha = 0.24f),
+                            ShiftDesign.Day
+                        )
                     }
                     if (alarm.label.isNotBlank()) {
-                        Text(alarm.label, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            alarm.label,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = ShiftDesign.Ink
+                        )
                     }
-                    Text(String.format("%02d:%02d", alarm.hour, alarm.minute), style = MaterialTheme.typography.headlineMedium)
-                    Text(stringResource(R.string.exception_next_alarm, nextAlarmLabel))
+                    Text(
+                        String.format("%02d:%02d", alarm.hour, alarm.minute),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = ShiftDesign.Navy,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        stringResource(R.string.exception_next_alarm, nextAlarmLabel),
+                        color = ShiftDesign.InkSoft,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.page_components_enabled))
+                    Text(stringResource(R.string.page_components_enabled), color = ShiftDesign.InkSoft)
                     Switch(checked = alarm.enabled, onCheckedChange = { onToggle() })
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                StatusChip(stringResource(R.string.editor_rotation_cycle_value_format, alarm.intervalWeeks), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
-                StatusChip(soundLabel, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                StatusChip(stringResource(R.string.page_components_snooze_chip_format, alarm.snoozeMinutes), MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+            ) {
+                StatusChip(
+                    stringResource(R.string.editor_rotation_cycle_value_format, alarm.intervalWeeks),
+                    ShiftDesign.Navy.copy(alpha = 0.12f),
+                    ShiftDesign.Navy
+                )
+                StatusChip(soundLabel, ShiftDesign.Mist, ShiftDesign.Harbor)
+                StatusChip(
+                    stringResource(R.string.page_components_snooze_chip_format, alarm.snoozeMinutes),
+                    ShiftDesign.Mist,
+                    ShiftDesign.InkSoft
+                )
                 if (exceptionSummary.isNotBlank()) {
-                    StatusChip(exceptionSummary, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+                    StatusChip(exceptionSummary, ShiftDesign.Sun.copy(alpha = 0.22f), ShiftDesign.Day)
                 }
             }
 
             if (showDetails) {
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(stringResource(R.string.page_components_anchor_date_format, alarm.anchorDate))
-                    Text(stringResource(R.string.page_components_volume_vibration_count_format, alarm.volumePercent, if (alarm.vibrationEnabled) stringResource(R.string.common_on) else stringResource(R.string.common_off), snoozeLimitLabel))
+                    Text(stringResource(R.string.page_components_anchor_date_format, alarm.anchorDate), color = ShiftDesign.InkSoft)
+                    Text(stringResource(R.string.page_components_volume_vibration_count_format, alarm.volumePercent, if (alarm.vibrationEnabled) stringResource(R.string.common_on) else stringResource(R.string.common_off), snoozeLimitLabel), color = ShiftDesign.InkSoft)
                     if (weekSummary.isNotEmpty()) {
-                        weekSummary.forEach { Text(it) }
+                        weekSummary.forEach { Text(it, color = ShiftDesign.InkSoft) }
                     }
                     if (alarm.skipDateEpochDays.isNotEmpty() || alarm.addDateEpochDays.isNotEmpty()) {
                         Text(
@@ -347,11 +547,18 @@ fun AlarmItem(
                                 R.string.page_components_exception_dates_format,
                                 alarm.skipDateEpochDays.sorted().joinToString(),
                                 alarm.addDateEpochDays.sorted().joinToString()
-                            )
+                            ),
+                            color = ShiftDesign.InkSoft
                         )
                     }
                     if (alarm.soundType == AlarmSoundType.CUSTOM) {
-                        Text(stringResource(R.string.page_components_custom_uri_format, alarm.customSoundUri ?: stringResource(R.string.common_none)))
+                        Text(
+                            stringResource(
+                                R.string.page_components_custom_uri_format,
+                                alarm.customSoundUri ?: stringResource(R.string.common_none)
+                            ),
+                            color = ShiftDesign.InkSoft
+                        )
                     }
                 }
             }
@@ -388,10 +595,15 @@ fun AlarmItem(
 private fun StatusChip(text: String, bg: Color, fg: Color) {
     Box(
         modifier = Modifier
-            .background(bg, shape = RoundedCornerShape(10.dp))
+            .background(bg, shape = RoundedCornerShape(999.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Text(text = text, color = fg, style = MaterialTheme.typography.labelMedium)
+        Text(
+            text = text,
+            color = fg,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

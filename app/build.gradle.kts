@@ -30,6 +30,13 @@ android {
     }
 
     buildTypes {
+        create("sideBySide") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".next"
+            versionNameSuffix = "-next"
+            matchingFallbacks += listOf("debug")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(

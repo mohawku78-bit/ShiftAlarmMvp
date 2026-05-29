@@ -11,6 +11,8 @@
     <string name="notification_screen_title">알람</string>
     <string name="notification_retry">%1$d분 후 다시</string>
     <string name="notification_snooze_finished">스누즈 종료 (끄기만 가능)</string>
+    <string name="notification_watch_bridge_channel_name">갤럭시워치 알람 신호</string>
+    <string name="notification_watch_bridge_channel_description">알람이 울릴 때 워치로 진동 신호와 끄기/다시 울림 버튼을 보냅니다.</string>
 
     <string name="editor_step_basic">기본</string>
     <string name="editor_step_repeat">반복</string>
@@ -31,8 +33,11 @@
     <string name="editor_reschedule_alarms">알람 재예약</string>
     <string name="editor_app_info">앱 정보</string>
     <string name="editor_hide_setup_card">설정 완료, 카드 숨기기</string>
-    <string name="editor_self_test_title">2분 셀프 테스트</string>
-    <string name="editor_self_test_run">2분 뒤 테스트</string>
+    <string name="editor_self_test_title">빠른 알람 테스트</string>
+    <string name="editor_self_test_description">시간을 오래 기다리지 않고 울림, 예약 상태, 실제 OS 예약 경로를 나눠 확인합니다.</string>
+    <string name="editor_self_test_run_now">지금 울려보기</string>
+    <string name="editor_self_test_check_now">예약 상태 점검</string>
+    <string name="editor_self_test_run">10초 뒤 실제 예약</string>
     <string name="editor_self_test_cancel">테스트 취소</string>
     <string name="editor_next_reservations_title">다음 예약 3회</string>
     <string name="editor_next_reservations_empty">예정된 예약이 없습니다.</string>
@@ -90,12 +95,21 @@
 
     <string name="reliability_label_recovery">복구</string>
     <string name="reliability_label_latest_recovery">최근 복구</string>
-    <string name="reliability_label_self_test">셀프 테스트</string>
+    <string name="reliability_label_self_test">빠른 테스트</string>
     <string name="reliability_label_nightly_check">야간 점검</string>
 
     <string name="dialog_time_select">시간 선택</string>
     <string name="dialog_time_wheel_mode">휠 조절</string>
     <string name="dialog_time_number_mode">숫자 입력</string>
+    <string name="dialog_time_tap_hint">눌러 조정</string>
+    <string name="dialog_time_adjusting">조정 중</string>
+    <string name="dialog_time_adjust_hint">시/분 숫자를 직접 누른 뒤 +/- 버튼이나 숫자표로 입력하세요.</string>
+    <string name="dialog_time_keypad_hint">%1$s 숫자 입력</string>
+    <string name="dialog_time_drag_hint">+/- 조정</string>
+    <string name="dialog_time_step_down">-1</string>
+    <string name="dialog_time_step_up">+1</string>
+    <string name="dialog_time_active_hour">시</string>
+    <string name="dialog_time_active_minute">분</string>
     <string name="dialog_hour">시</string>
     <string name="dialog_minute">분</string>
     <string name="dialog_current_selection_format">현재 선택: %1$s</string>
@@ -103,6 +117,8 @@
     <string name="common_cancel">취소</string>
     <string name="common_delete">삭제</string>
     <string name="common_none">없음</string>
+    <string name="common_done">완료</string>
+    <string name="common_backspace">지움</string>
 
     <string name="alarm_list_delete_title">알람 삭제</string>
     <string name="alarm_list_delete_message">%1$s 알람을 삭제할까요?</string>
@@ -271,16 +287,16 @@
     <string name="recovery_status_safe">지금 안전함</string>
 
     <string name="recovery_home_reason_recovery_needs_reschedule">일부 알람 복구가 누락되어 재예약이 필요합니다.</string>
-    <string name="recovery_home_reason_self_test_failed">최근 2분 테스트가 실패했습니다.</string>
+    <string name="recovery_home_reason_self_test_failed">최근 빠른 테스트가 실패했습니다.</string>
     <string name="recovery_home_action_open_center">신뢰도 화면 열기</string>
     <string name="recovery_home_action_refresh_status">상태 다시 확인</string>
-    <string name="recovery_home_action_run_self_test">2분 테스트</string>
+    <string name="recovery_home_action_run_self_test">빠른 테스트</string>
     <string name="recovery_home_action_recheck">재점검</string>
-    <string name="recovery_home_follow_up_scheduled">2분 테스트가 예약되었습니다. 알람이 울리면 끄기를 눌러 확인해 주세요.</string>
+    <string name="recovery_home_follow_up_scheduled">빠른 테스트가 예약되었습니다. 알람이 울리면 끄기를 눌러 확인해 주세요.</string>
     <string name="recovery_home_follow_up_triggered">테스트 알람이 울렸다면 끄기만 누르면 확인이 완료됩니다.</string>
-    <string name="recovery_home_follow_up_uncertain">이전 테스트를 확인하지 못했습니다. 2분 테스트를 다시 해 주세요.</string>
-    <string name="recovery_home_follow_up_canceled">2분 테스트가 취소되었습니다. 다시 실행해 주세요.</string>
-    <string name="recovery_home_follow_up_default">2분 테스트로 오늘 울림 상태를 확인해 주세요.</string>
+    <string name="recovery_home_follow_up_uncertain">이전 테스트를 확인하지 못했습니다. 빠른 테스트를 다시 해 주세요.</string>
+    <string name="recovery_home_follow_up_canceled">빠른 테스트가 취소되었습니다. 다시 실행해 주세요.</string>
+    <string name="recovery_home_follow_up_default">빠른 테스트로 오늘 울림 상태를 확인해 주세요.</string>
     <string name="recovery_home_reason_nightly_issue">최근 점검에서 확인 항목이 있어 재점검이 권장됩니다.</string>
     <string name="recovery_home_reason_safe">알람 신뢰도 상태가 정상입니다.</string>
 
@@ -305,7 +321,7 @@
 
     <string name="recovery_overview_recovery_empty">복구 기록 없음</string>
     <string name="recovery_overview_latest_action_empty">최근 복구 조치 없음</string>
-    <string name="recovery_overview_self_test_empty">2분 테스트 이력 없음</string>
+    <string name="recovery_overview_self_test_empty">빠른 테스트 이력 없음</string>
     <string name="recovery_overview_nightly_check_empty">최근 점검 없음 · 재점검으로 지금 확인</string>
 
     <string name="recovery_nightly_state_check_needed">확인 필요</string>
@@ -335,11 +351,11 @@
     <string name="recovery_self_test_status_uncertain">확인 못함</string>
     <string name="recovery_self_test_status_failed">실패 기록됨</string>
     <string name="recovery_self_test_status_canceled">테스트 취소됨</string>
-    <string name="recovery_self_test_home_summary_format">2분 테스트 %1$s · %2$s</string>
+    <string name="recovery_self_test_home_summary_format">빠른 테스트 %1$s · %2$s</string>
 
-    <string name="recovery_inspector_issue_self_test_failed">2분 테스트 실패</string>
-    <string name="recovery_inspector_issue_self_test_recheck_recommended">2분 테스트 재확인 권장</string>
-    <string name="recovery_inspector_issue_self_test_check_needed">2분 테스트 확인 필요</string>
+    <string name="recovery_inspector_issue_self_test_failed">빠른 테스트 실패</string>
+    <string name="recovery_inspector_issue_self_test_recheck_recommended">빠른 테스트 재확인 권장</string>
+    <string name="recovery_inspector_issue_self_test_check_needed">빠른 테스트 확인 필요</string>
     <string name="recovery_inspector_issue_battery_not_exempt">배터리 예외 미설정</string>
     <string name="recovery_inspector_issue_recovery_partial">일부 알람 미복구</string>
     <string name="recovery_inspector_summary_ready">문제 없이 준비됨</string>
@@ -357,20 +373,24 @@
     <string name="alarm_service_log_stop_user">사용자 끄기</string>
     <string name="alarm_service_log_snooze_detail_format">%1$d분, %2$d회차</string>
     <string name="alarm_service_log_one_more_detail_format">%1$d분</string>
-    <string name="alarm_service_self_test_subtext">2분 테스트 알람 · 울림 확인 후 끄기를 누르세요.</string>
+    <string name="alarm_service_self_test_subtext">빠른 테스트 알람 · 울림 확인 후 끄기를 누르세요.</string>
 
     <string name="alert_alarm_id_format">알람 ID: %1$d</string>
-    <string name="alert_self_test_hint">2분 테스트 알람이 울렸다면 \'끄기\'를 눌러 완료하세요.</string>
+    <string name="alert_alarm_label_empty">교대 알람</string>
+    <string name="alert_ringing_now">울리는 중</string>
+    <string name="alert_stop_primary">알람 끄기</string>
+    <string name="alert_self_test_hint">빠른 테스트 알람이 울렸다면 \'끄기\'를 눌러 완료하세요.</string>
 
     <string name="backup_parse_invalid_format">앱 백업 파일 형식이 아닙니다.</string>
     <string name="backup_parse_unsupported_version">지원하지 않는 백업 버전입니다.</string>
     <string name="backup_parse_unreadable">앱 백업 파일을 읽을 수 없습니다.</string>
 
-    <string name="self_test_default_alarm_label">2분 테스트 알람</string>
+    <string name="self_test_default_alarm_label">빠른 테스트 알람</string>
     <string name="self_test_alarm_label_format">%1$s 테스트</string>
-    <string name="self_test_schedule_success_format">2분 테스트 예약됨: %1$s</string>
+    <string name="self_test_ring_now_started">지금 테스트 알람을 울립니다. 화면이 뜨면 끄기를 눌러 완료하세요.</string>
+    <string name="self_test_schedule_success_format">빠른 테스트 예약됨: %1$s (%2$s 뒤)</string>
     <string name="self_test_cancel_empty">취소할 테스트 예약이 없습니다.</string>
-    <string name="self_test_cancel_success">2분 테스트 예약을 취소했습니다.</string>
+    <string name="self_test_cancel_success">빠른 테스트 예약을 취소했습니다.</string>
     <string name="self_test_feedback_passed">테스트 결과: 울림 확인</string>
     <string name="self_test_feedback_uncertain">테스트 결과: 확인 못함</string>
     <string name="self_test_feedback_failed">테스트 결과: 실패</string>
@@ -475,6 +495,7 @@
     <string name="shift_step_alarm_hint">2차 알람은 아래 상세 설정에서 필요할 때만 켜세요.</string>
     <string name="shift_no_work_types">등록된 근무 유형이 없습니다.</string>
     <string name="shift_select_work_type">근무 유형 선택</string>
+    <string name="shift_work_type_alarm_list_hint">아래 카드에서 각 근무별 알람 사용 여부와 시간을 따로 맞추세요.</string>
     <string name="shift_alarm_enabled">알람 사용</string>
     <string name="shift_primary_alarm_title">출근 알람(1차)</string>
     <string name="shift_show_secondary_settings">2차/상세 설정 보기</string>
@@ -641,7 +662,15 @@
     <string name="recovery_watchdog_notification_title">알람 누락 가능성이 감지되었습니다.</string>
     <string name="recovery_watchdog_overview_empty">워치독 기록 없음</string>
     <string name="recovery_watchdog_unknown_alarm_label">이름 없는 알람</string>
-    <string name="self_test_schedule_failure">2분 셀프 테스트 예약에 실패했습니다.</string>
+    <string name="quick_test_diagnostics_ok_format">예약 상태 정상: 켜진 알람 %1$d개, 다음 울림 계산 %2$d개를 확인했습니다.</string>
+    <string name="quick_test_diagnostics_warn_format">예약 상태 확인 필요: %1$s</string>
+    <string name="quick_test_issue_no_enabled_alarm">켜진 알람 없음</string>
+    <string name="quick_test_issue_missing_next_trigger_format">다음 울림 계산 안 됨 %1$d개</string>
+    <string name="quick_test_issue_notification_permission">알림 권한 꺼짐</string>
+    <string name="quick_test_issue_exact_permission">정확 알람 권한 꺼짐</string>
+    <string name="quick_test_issue_battery_optimization">배터리 제한 확인 필요</string>
+    <string name="quick_test_issue_system_registration">시스템 다음 알람 등록 미확인</string>
+    <string name="self_test_schedule_failure">빠른 테스트 예약에 실패했습니다.</string>
     <string name="shift_category_three_shift">3교대</string>
     <string name="shift_category_two_shift">2교대</string>
     <string name="shift_step_pattern_support">한 번 설정하면 자동으로\n로테이션됩니다.</string>
@@ -651,7 +680,7 @@
     <string name="shift_profession_hospital_title">병원·간호</string>
     <string name="shift_profession_hospital_support">3교대 시작점 · 주간/야간/비번 중심</string>
     <string name="shift_profession_hospital_badge">3교대</string>
-    <string name="shift_profession_fire_title">소방·구조</string>
+    <string name="shift_profession_fire_title">시설관리·소방</string>
     <string name="shift_profession_fire_support">격일 시작점 · 당직/비번 패턴</string>
     <string name="shift_profession_fire_badge">격일</string>
     <string name="shift_profession_factory_title">공장·제조</string>

@@ -10,6 +10,7 @@ import com.example.shiftalarmmvp.data.AlarmSoundType
 import com.example.shiftalarmmvp.receiver.AlarmReceiver
 import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
 import com.example.shiftalarmmvp.recovery.ReliabilityStateSnapshot
+import com.example.shiftalarmmvp.recovery.SELF_TEST_ALARM_ID
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.scheduler.AlarmExactStrategy
 import com.example.shiftalarmmvp.scheduler.scheduleRtcWakeupIntent
@@ -17,6 +18,8 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+internal const val QUICK_SELF_TEST_DELAY_MILLIS = 10_000L
 
 data class SelfTestScheduleConfig(
     val label: String,
@@ -40,38 +43,46 @@ internal fun formatSelfTestTriggerTime(
     return triggerAt.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 }
 
+internal fun formatSelfTestDelay(delayMillis: Long): String {
+    val totalSeconds = (delayMillis / 1000L).coerceAtLeast(1L)
+    return if (totalSeconds >= 60L && totalSeconds % 60L == 0L) {
+        "${totalSeconds / 60L}분"
+    } else {
+        "${totalSeconds}초"
+    }
+}
+
 class SelfTestActionHandler(
     context: Context,
     private val reliabilityCoordinator: ReliabilityStateCoordinator
 ) {
     private val appContext = context.applicationContext
 
+    fun ringNow(
+        config: SelfTestScheduleConfig,
+        nowMillis: Long = System.currentTimeMillis()
+    ): SelfTestActionResult {
+        val snapshot = reliabilityCoordinator.recordSelfTestScheduled(nowMillis)
+        appContext.sendBroadcast(buildTestIntent(config, nowMillis))
+        return SelfTestActionResult(
+            message = appContext.getString(R.string.self_test_ring_now_started),
+            snapshot = snapshot
+        )
+    }
+
     fun schedule(
         config: SelfTestScheduleConfig,
         canScheduleExact: Boolean,
+        delayMillis: Long = QUICK_SELF_TEST_DELAY_MILLIS,
         nowMillis: Long = System.currentTimeMillis()
     ): SelfTestActionResult {
         val alarmManager = appContext.getSystemService(AlarmManager::class.java)
-        val triggerAtMillis = nowMillis + 2 * 60 * 1000L
-        val testLabel = if (config.label.isBlank()) {
-            appContext.getString(R.string.self_test_default_alarm_label)
-        } else {
-            appContext.getString(R.string.self_test_alarm_label_format, config.label)
-        }
-        val testIntent = Intent(appContext, AlarmReceiver::class.java)
-            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, 999_999L)
-            .putExtra(AlarmReceiver.EXTRA_LABEL, testLabel)
-            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, config.soundType.name)
-            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, config.customSoundUri)
-            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, config.volumePercent)
-            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, config.vibrationEnabled)
-            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, config.snoozeMinutes)
-            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
-            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
+        val triggerAtMillis = nowMillis + delayMillis.coerceAtLeast(1_000L)
+        val testIntent = buildTestIntent(config, triggerAtMillis)
 
         val pendingIntent = PendingIntent.getBroadcast(
             appContext,
-            999_999,
+            SELF_TEST_ALARM_ID.toInt(),
             testIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -95,7 +106,8 @@ class SelfTestActionHandler(
         return SelfTestActionResult(
             message = appContext.getString(
                 R.string.self_test_schedule_success_format,
-                formatSelfTestTriggerTime(triggerAtMillis)
+                formatSelfTestTriggerTime(triggerAtMillis),
+                formatSelfTestDelay(delayMillis)
             ),
             snapshot = snapshot
         )
@@ -105,7 +117,7 @@ class SelfTestActionHandler(
         val alarmManager = appContext.getSystemService(AlarmManager::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             appContext,
-            999_999,
+            SELF_TEST_ALARM_ID.toInt(),
             Intent(appContext, AlarmReceiver::class.java),
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
@@ -124,6 +136,25 @@ class SelfTestActionHandler(
             message = appContext.getString(R.string.self_test_cancel_success),
             snapshot = snapshot
         )
+    }
+
+    private fun buildTestIntent(config: SelfTestScheduleConfig, expectedTriggerMillis: Long): Intent {
+        val testLabel = if (config.label.isBlank()) {
+            appContext.getString(R.string.self_test_default_alarm_label)
+        } else {
+            appContext.getString(R.string.self_test_alarm_label_format, config.label)
+        }
+        return Intent(appContext, AlarmReceiver::class.java)
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, SELF_TEST_ALARM_ID)
+            .putExtra(AlarmReceiver.EXTRA_LABEL, testLabel)
+            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, config.soundType.name)
+            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, config.customSoundUri)
+            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, config.volumePercent)
+            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, config.vibrationEnabled)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, config.snoozeMinutes)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 0)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
+            .putExtra(AlarmReceiver.EXTRA_EXPECTED_TRIGGER_MILLIS, expectedTriggerMillis)
     }
 
     fun markFeedback(feedback: SelfTestStatus.Feedback): SelfTestActionResult {

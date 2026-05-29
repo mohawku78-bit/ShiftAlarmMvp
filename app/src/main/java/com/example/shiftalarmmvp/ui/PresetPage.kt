@@ -9,8 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.shiftalarmmvp.R
 
@@ -148,11 +147,19 @@ internal fun PresetPage(
         )
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ShiftPanel(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = ShiftDesign.Paper,
+        borderColor = ShiftDesign.Line
+    ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.Settings, contentDescription = null)
-                Text(stringResource(R.string.preset_title), style = MaterialTheme.typography.titleMedium)
+                Icon(Icons.Filled.Settings, contentDescription = null, tint = ShiftDesign.Navy)
+                Text(
+                    stringResource(R.string.preset_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ShiftDesign.Ink
+                )
             }
             OutlinedTextField(
                 value = presetNameInput,
@@ -195,20 +202,29 @@ internal fun PresetPage(
                 )
             }
             if (presetFeedbackMessage.isNotBlank()) {
-                Text(presetFeedbackMessage, color = MaterialTheme.colorScheme.primary)
+                Text(presetFeedbackMessage, color = ShiftDesign.Harbor)
             }
         }
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ShiftPanel(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = ShiftDesign.Mist.copy(alpha = 0.62f),
+        borderColor = ShiftDesign.Line
+    ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.Settings, contentDescription = null)
-                Text(stringResource(R.string.preset_backup_title), style = MaterialTheme.typography.titleMedium)
+                Icon(Icons.Filled.Settings, contentDescription = null, tint = ShiftDesign.Harbor)
+                Text(
+                    stringResource(R.string.preset_backup_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ShiftDesign.Ink
+                )
             }
             Text(
                 stringResource(R.string.preset_backup_description),
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = ShiftDesign.InkSoft
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 SecondaryActionButton(
@@ -229,33 +245,33 @@ internal fun PresetPage(
             Text(
                 stringResource(R.string.preset_backup_restore_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = ShiftDesign.InkSoft
             )
             if (backupFeedbackMessage.isNotBlank()) {
-                Text(backupFeedbackMessage, color = MaterialTheme.colorScheme.primary)
+                Text(backupFeedbackMessage, color = ShiftDesign.Harbor)
             }
         }
     }
 
     if (savedPresets.isEmpty()) {
-        Card(
+        ShiftPanel(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            containerColor = ShiftDesign.Mist.copy(alpha = 0.62f),
+            borderColor = ShiftDesign.Line
         ) {
-            Text(stringResource(R.string.preset_empty), modifier = Modifier.padding(14.dp))
+            Text(
+                stringResource(R.string.preset_empty),
+                modifier = Modifier.padding(14.dp),
+                color = ShiftDesign.InkSoft
+            )
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             savedPresets.forEachIndexed { index, preset ->
-                Card(
+                ShiftPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (preset.isDefault) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        }
-                    )
+                    containerColor = if (preset.isDefault) ShiftDesign.Sun.copy(alpha = 0.18f) else ShiftDesign.Paper,
+                    borderColor = if (preset.isDefault) ShiftDesign.Sun.copy(alpha = 0.50f) else ShiftDesign.Line
                 ) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val title = if (preset.isDefault) {
@@ -263,11 +279,23 @@ internal fun PresetPage(
                         } else {
                             preset.name
                         }
-                        Text(title, style = MaterialTheme.typography.titleMedium)
-                        Text(stringResource(R.string.preset_badge_format, inferShiftPatternBadge(resources, preset)))
-                        Text(stringResource(R.string.preset_cycle_format, preset.intervalWeeks, preset.anchorDate))
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = ShiftDesign.Ink,
+                            fontWeight = FontWeight.Bold
+                        )
+                        ShiftPill(
+                            text = stringResource(R.string.preset_badge_format, inferShiftPatternBadge(resources, preset)),
+                            containerColor = if (preset.isDefault) ShiftDesign.Paper.copy(alpha = 0.70f) else ShiftDesign.Mist,
+                            contentColor = if (preset.isDefault) ShiftDesign.Day else ShiftDesign.Harbor
+                        )
+                        Text(
+                            stringResource(R.string.preset_cycle_format, preset.intervalWeeks, preset.anchorDate),
+                            color = ShiftDesign.InkSoft
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.preset_infinite_rotation))
+                            Text(stringResource(R.string.preset_infinite_rotation), color = ShiftDesign.InkSoft)
                             Switch(
                                 checked = preset.infiniteRotationEnabled,
                                 onCheckedChange = { checked -> onSetPresetInfinite(preset.name, checked) }
@@ -277,7 +305,8 @@ internal fun PresetPage(
                                     stringResource(R.string.common_on)
                                 } else {
                                     stringResource(R.string.common_off)
-                                }
+                                },
+                                color = ShiftDesign.InkSoft
                             )
                         }
                         preset.weekPatterns.forEachIndexed { idx, days ->
@@ -286,7 +315,11 @@ internal fun PresetPage(
                             } else {
                                 days.sortedBy { it.value }.joinToString { dayOfWeekLabel(resources, it) }
                             }
-                            Text(stringResource(R.string.preset_week_pattern_format, idx + 1, dayText))
+                            Text(
+                                stringResource(R.string.preset_week_pattern_format, idx + 1, dayText),
+                                color = ShiftDesign.InkSoft,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             PrimaryActionButton(onClick = { onApplyPreset(preset) }, modifier = Modifier.weight(1f)) {

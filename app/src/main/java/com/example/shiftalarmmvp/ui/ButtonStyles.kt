@@ -10,37 +10,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-private val ShiftButtonShape = RoundedCornerShape(16.dp)
+private val ShiftButtonShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun primaryActionButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
-    containerColor = MaterialTheme.colorScheme.primary,
+    containerColor = ShiftDesign.Navy,
     contentColor = MaterialTheme.colorScheme.onPrimary,
-    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    disabledContainerColor = ShiftDesign.MistStrong,
     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
 )
 
 @Composable
 fun secondaryActionButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
-    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    containerColor = ShiftDesign.Mist,
+    contentColor = ShiftDesign.Navy,
+    disabledContainerColor = ShiftDesign.MistStrong,
     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
 )
 
 @Composable
 fun neutralActionButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
-    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+    containerColor = ShiftDesign.Paper,
+    contentColor = ShiftDesign.InkSoft,
+    disabledContainerColor = ShiftDesign.Mist.copy(alpha = 0.65f),
     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
 )
 
 @Composable
 fun destructiveActionButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
     containerColor = MaterialTheme.colorScheme.errorContainer,
-    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor = MaterialTheme.colorScheme.error,
+    disabledContainerColor = ShiftDesign.MistStrong,
     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
 )
 

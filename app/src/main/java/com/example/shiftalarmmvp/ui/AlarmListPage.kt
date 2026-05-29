@@ -9,8 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -80,11 +78,19 @@ fun AlarmListPage(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ShiftPanel(
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = ShiftDesign.Paper,
+            borderColor = ShiftDesign.Line
+        ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text(stringResource(R.string.alarm_list_registered_title), style = MaterialTheme.typography.titleMedium)
+                    Icon(Icons.Filled.Settings, contentDescription = null, tint = ShiftDesign.Navy)
+                    Text(
+                        stringResource(R.string.alarm_list_registered_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ShiftDesign.Ink
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     PrimaryActionButton(onClick = onReconfigurePattern, modifier = Modifier.weight(1f)) {
@@ -92,7 +98,10 @@ fun AlarmListPage(
                     }
                 }
                 if (alarms.isEmpty()) {
-                    Text(stringResource(R.string.alarm_list_empty))
+                    Text(
+                        stringResource(R.string.alarm_list_empty),
+                        color = ShiftDesign.InkSoft
+                    )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         alarms.forEach { alarm ->
@@ -112,14 +121,19 @@ fun AlarmListPage(
             }
         }
 
-        Card(
+        ShiftPanel(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            containerColor = ShiftDesign.Mist.copy(alpha = 0.62f),
+            borderColor = ShiftDesign.Line
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Edit, contentDescription = null)
-                    Text(stringResource(R.string.alarm_list_logs_title), style = MaterialTheme.typography.titleMedium)
+                    Icon(Icons.Filled.Edit, contentDescription = null, tint = ShiftDesign.Harbor)
+                    Text(
+                        stringResource(R.string.alarm_list_logs_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ShiftDesign.Ink
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     SecondaryActionButton(onClick = onRefreshLogs, modifier = Modifier.weight(1f)) {
@@ -130,7 +144,10 @@ fun AlarmListPage(
                     }
                 }
                 if (alarmLogs.isEmpty()) {
-                    Text(stringResource(R.string.alarm_list_logs_empty))
+                    Text(
+                        stringResource(R.string.alarm_list_logs_empty),
+                        color = ShiftDesign.InkSoft
+                    )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         alarmLogs.forEach { entry ->
@@ -153,7 +170,9 @@ fun AlarmListPage(
                                     labelText,
                                     entry.alarmId,
                                     detailText
-                                )
+                                ),
+                                color = ShiftDesign.InkSoft,
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }

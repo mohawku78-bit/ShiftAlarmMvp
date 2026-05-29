@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -110,6 +109,8 @@ internal fun EditorPage(
     onAutoSaveOnDuplicateChange: (Boolean) -> Unit,
     onPlayTestSound: () -> Unit,
     onStopTestSound: () -> Unit,
+    onRunImmediateSelfTest: () -> Unit,
+    onRunReservationCheck: () -> Unit,
     onScheduleSelfTest: () -> Unit,
     onCancelSelfTest: () -> Unit,
     selfTestMessage: String,
@@ -195,7 +196,7 @@ internal fun EditorPage(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ShiftPanel(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.editor_step_title), style = MaterialTheme.typography.titleSmall)
                 Row(
@@ -225,7 +226,7 @@ internal fun EditorPage(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_current_time_reference), style = MaterialTheme.typography.titleSmall)
                         Text(currentNow.format(DateTimeFormatter.ofPattern("HH:mm:ss")), style = MaterialTheme.typography.headlineSmall)
@@ -305,7 +306,7 @@ internal fun EditorPage(
                     onWeekPatternsChange(copy)
                 })
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -439,7 +440,7 @@ internal fun EditorPage(
                     }
                 }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_reliability_check_title), style = MaterialTheme.typography.titleSmall)
                         Text(
@@ -470,12 +471,16 @@ internal fun EditorPage(
                     }
                 }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_reliability_check_title), style = MaterialTheme.typography.titleSmall)
                         Text(reliabilityCenterUi.setup.summaryText, style = MaterialTheme.typography.bodySmall)
                         reliabilityCenterUi.setup.primaryStep?.let { step ->
-                            Card(modifier = Modifier.fillMaxWidth()) {
+                            ShiftPanel(
+                                modifier = Modifier.fillMaxWidth(),
+                                containerColor = ShiftDesign.Mist.copy(alpha = 0.62f),
+                                borderColor = ShiftDesign.Line
+                            ) {
                                 Column(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -516,7 +521,7 @@ internal fun EditorPage(
                     }
                 }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_recent_reliability_records), style = MaterialTheme.typography.titleSmall)
                         reliabilityCenterUi.recent.lines.forEach { line ->
@@ -531,14 +536,27 @@ internal fun EditorPage(
                         }
                     }
                 }
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_self_test_title), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.editor_self_test_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ShiftDesign.InkSoft
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = onScheduleSelfTest, modifier = Modifier.weight(1f)) {
+                            PrimaryActionButton(onClick = onRunImmediateSelfTest, modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.editor_self_test_run_now))
+                            }
+                            SecondaryActionButton(onClick = onRunReservationCheck, modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.editor_self_test_check_now))
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            SecondaryActionButton(onClick = onScheduleSelfTest, modifier = Modifier.weight(1f)) {
                                 Text(stringResource(R.string.editor_self_test_run))
                             }
-                            Button(onClick = onCancelSelfTest, modifier = Modifier.weight(1f)) {
+                            NeutralActionButton(onClick = onCancelSelfTest, modifier = Modifier.weight(1f)) {
                                 Text(stringResource(R.string.editor_self_test_cancel))
                             }
                         }
@@ -547,7 +565,7 @@ internal fun EditorPage(
                         }
                     }
                 }
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.editor_next_reservations_title), style = MaterialTheme.typography.titleSmall)
                         if (next3Preview.isEmpty()) {

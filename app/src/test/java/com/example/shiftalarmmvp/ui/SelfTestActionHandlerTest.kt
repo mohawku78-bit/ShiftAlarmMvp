@@ -20,4 +20,14 @@ class SelfTestActionHandlerTest {
 
         assertEquals("10:02:34", formatted)
     }
+
+    @Test
+    fun `formatSelfTestDelay uses seconds for quick test`() {
+        assertEquals("10초", formatSelfTestDelay(10_000L))
+    }
+
+    @Test
+    fun `formatSelfTestDelay uses minutes for legacy intervals`() {
+        assertEquals("2분", formatSelfTestDelay(120_000L))
+    }
 }

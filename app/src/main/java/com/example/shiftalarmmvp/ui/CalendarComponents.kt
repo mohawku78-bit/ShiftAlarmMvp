@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,29 +62,29 @@ fun shiftBadgeLabel(resources: android.content.res.Resources, badge: String): St
 
 fun shiftBadgeBackgroundColor(badge: String): Color {
     return when (badge) {
-        SHIFT_BADGE_DAY -> Color(0xFFFFF4D8)
-        SHIFT_BADGE_NIGHT -> Color(0xFFE8EDFF)
-        SHIFT_BADGE_DUTY -> Color(0xFFDFF4F1)
-        SHIFT_BADGE_OFF -> Color(0xFFF2F4F7)
-        SHIFT_BADGE_REST -> Color(0xFFF7F8FA)
-        SHIFT_BADGE_DAY_NIGHT -> Color(0xFFE9F0F4)
-        SHIFT_BADGE_DAY_DUTY -> Color(0xFFE5F3EA)
-        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFFE5F0F7)
-        else -> Color(0xFFF2F4F7)
+        SHIFT_BADGE_DAY -> Color(0xFFFFF0CB)
+        SHIFT_BADGE_NIGHT -> Color(0xFFE4EAFE)
+        SHIFT_BADGE_DUTY -> Color(0xFFD9F1EC)
+        SHIFT_BADGE_OFF -> Color(0xFFF1F3F0)
+        SHIFT_BADGE_REST -> Color(0xFFF7F4EC)
+        SHIFT_BADGE_DAY_NIGHT -> Color(0xFFECE8D9)
+        SHIFT_BADGE_DAY_DUTY -> Color(0xFFE7F0DA)
+        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFFE0EEF2)
+        else -> ShiftDesign.Mist
     }
 }
 
 fun shiftBadgeColor(badge: String): Color {
     return when (badge) {
-        SHIFT_BADGE_DAY -> Color(0xFF946200)
-        SHIFT_BADGE_NIGHT -> Color(0xFF3346A8)
-        SHIFT_BADGE_DUTY -> Color(0xFF0F766E)
-        SHIFT_BADGE_OFF -> Color(0xFF747B86)
-        SHIFT_BADGE_REST -> Color(0xFF8A8F98)
-        SHIFT_BADGE_DAY_NIGHT -> Color(0xFF34547F)
-        SHIFT_BADGE_DAY_DUTY -> Color(0xFF24705E)
-        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFF225C7E)
-        else -> Color(0xFF747B86)
+        SHIFT_BADGE_DAY -> ShiftDesign.Day
+        SHIFT_BADGE_NIGHT -> ShiftDesign.Night
+        SHIFT_BADGE_DUTY -> ShiftDesign.Duty
+        SHIFT_BADGE_OFF -> ShiftDesign.Rest
+        SHIFT_BADGE_REST -> ShiftDesign.Rest
+        SHIFT_BADGE_DAY_NIGHT -> Color(0xFF5A5360)
+        SHIFT_BADGE_DAY_DUTY -> Color(0xFF547342)
+        SHIFT_BADGE_NIGHT_DUTY -> Color(0xFF2D6574)
+        else -> ShiftDesign.InkSoft
     }
 }
 
@@ -96,7 +97,6 @@ fun ShiftCalendarMonthGrid(
     badgeForDate: (LocalDate) -> String,
     compact: Boolean
 ) {
-    val resources = LocalContext.current.resources
     val dayLabels = listOf(
         stringResource(R.string.shift_day_mon),
         stringResource(R.string.shift_day_tue),
@@ -120,9 +120,8 @@ fun ShiftCalendarMonthGrid(
     val gridSpacing = if (compact) 4.dp else 6.dp
     val rowSpacing = if (compact) 6.dp else 8.dp
     val dayLabelStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
-    val badgeStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
-    val cellVerticalPadding = if (compact) 8.dp else 10.dp
-    val cellShape = RoundedCornerShape(if (compact) 14.dp else 16.dp)
+    val cellHeight = if (compact) 48.dp else 58.dp
+    val cellShape = RoundedCornerShape(if (compact) 16.dp else 18.dp)
 
     Column(verticalArrangement = Arrangement.spacedBy(rowSpacing), modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gridSpacing)) {
@@ -147,41 +146,53 @@ fun ShiftCalendarMonthGrid(
                     val backgroundColor = when {
                         date == null -> Color.Transparent
                         isSelected -> baseBackground.copy(alpha = 1.0f)
-                        isToday -> baseBackground.copy(alpha = 0.9f)
-                        else -> baseBackground.copy(alpha = 0.82f)
+                        isToday -> baseBackground.copy(alpha = 0.78f)
+                        else -> baseBackground.copy(alpha = 0.56f)
                     }
                     val borderWidth = when {
                         isSelected -> 2.dp
                         else -> 0.dp
                     }
                     val borderColor = when {
-                        isSelected -> MaterialTheme.colorScheme.primary
+                        isSelected -> ShiftDesign.Navy
                         else -> Color.Transparent
                     }
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .height(cellHeight)
                             .background(backgroundColor, shape = cellShape)
                             .border(borderWidth, borderColor, cellShape)
-                            .clickable(enabled = date != null) { if (date != null) onDateSelected(date) }
-                            .padding(vertical = cellVerticalPadding),
+                            .clickable(enabled = date != null) { if (date != null) onDateSelected(date) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                date?.dayOfMonth?.toString() ?: "",
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium
+                        if (badge.isNotBlank()) {
+                            ShiftTypeWatermark(
+                                badge = badge,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(if (compact) 3.dp else 4.dp),
+                                alpha = if (isSelected || isToday) 0.30f else 0.22f
                             )
-                            if (badge.isNotBlank()) {
-                                Text(
-                                    shiftBadgeLabel(resources, badge),
-                                    color = shiftBadgeColor(badge),
-                                    style = badgeStyle,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                        }
+                        if (date != null) {
+                            Text(
+                                text = date.dayOfMonth.toString(),
+                                modifier = Modifier
+                                    .background(
+                                        color = if (isSelected) {
+                                            ShiftDesign.Navy
+                                        } else {
+                                            Color.White.copy(alpha = 0.74f)
+                                        },
+                                        shape = RoundedCornerShape(999.dp)
+                                    )
+                                    .padding(horizontal = if (compact) 6.dp else 7.dp, vertical = 2.dp),
+                                color = if (isSelected) Color.White else ShiftDesign.Ink,
+                                fontWeight = FontWeight.ExtraBold,
+                                style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
+                            )
                         }
                     }
                 }

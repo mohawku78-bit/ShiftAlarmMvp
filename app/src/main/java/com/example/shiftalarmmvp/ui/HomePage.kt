@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -122,10 +121,10 @@ fun HomePage(
     }
 
     val panelColors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = ShiftDesign.Paper
     )
     val softPanelColors = CardDefaults.cardColors(
-        containerColor = Color(0xFFF0F4FA)
+        containerColor = ShiftDesign.Mist
     )
     val mutedButtonColors = neutralActionButtonColors()
     val selectedModeButtonColors = primaryActionButtonColors()
@@ -165,7 +164,7 @@ fun HomePage(
         Card(
             modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
+            .border(1.dp, ShiftDesign.Line, MaterialTheme.shapes.large),
             colors = panelColors,
             shape = MaterialTheme.shapes.large
         ) {
@@ -217,13 +216,9 @@ fun HomePage(
                 } else {
                     val tomorrow = today.plusDays(1)
                     val selectedDateHeadline = chosenDate.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))
-                    val selectedBadgeLabel = shiftBadgeLabel(resources, selectedBadge)
-
                     SelectedDateOverviewCard(
                         dateText = selectedDateHeadline,
-                        badgeLabel = selectedBadgeLabel,
-                        badgeBackground = shiftBadgeBackgroundColor(selectedBadge),
-                        badgeColor = shiftBadgeColor(selectedBadge),
+                        badge = selectedBadge,
                         isToday = chosenDate == today,
                         isTomorrow = chosenDate == tomorrow,
                         onSelectToday = {
@@ -266,7 +261,7 @@ fun HomePage(
             Card(
                 modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
+            .border(1.dp, ShiftDesign.Line, MaterialTheme.shapes.large),
         colors = panelColors,
         shape = MaterialTheme.shapes.large
     ) {
@@ -442,19 +437,20 @@ fun HomePage(
 @Composable
 private fun SelectedDateOverviewCard(
     dateText: String,
-    badgeLabel: String,
-    badgeBackground: Color,
-    badgeColor: Color,
+    badge: String,
     isToday: Boolean,
     isTomorrow: Boolean,
     onSelectToday: () -> Unit,
     onSelectTomorrow: () -> Unit
 ) {
+    val resources = LocalContext.current.resources
+    val badgeLabel = shiftBadgeLabel(resources, badge)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            .border(1.dp, ShiftDesign.Line, MaterialTheme.shapes.large),
+        colors = CardDefaults.cardColors(containerColor = ShiftDesign.Paper),
         shape = MaterialTheme.shapes.large
     ) {
         Column(
@@ -481,15 +477,23 @@ private fun SelectedDateOverviewCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .background(badgeBackground, shape = RoundedCornerShape(999.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
+                    ShiftTypeIllustration(
+                        badge = badge,
+                        modifier = Modifier.size(54.dp),
+                        selected = true
+                    )
                     Text(
                         text = badgeLabel,
-                        color = badgeColor,
-                        style = MaterialTheme.typography.labelLarge
+                        modifier = Modifier
+                            .background(shiftBadgeBackgroundColor(badge), shape = RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        color = shiftBadgeColor(badge),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -531,7 +535,7 @@ private fun HomeSelectionChip(
                 shape = shape
             )
             .background(
-                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFF5F7FB),
+                color = if (selected) ShiftDesign.Navy else ShiftDesign.Paper,
                 shape = shape
             )
             .clickable(onClick = onClick)
@@ -541,7 +545,7 @@ private fun HomeSelectionChip(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (selected) Color.White else ShiftDesign.InkSoft,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
@@ -579,13 +583,11 @@ private fun SelectedDateAlarmListCard(
     alarmsForSelectedDate: List<AlarmRule>,
     unnamedAlarmText: String
 ) {
-    val resources = LocalContext.current.resources
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFDCE4F0), MaterialTheme.shapes.large),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F4FA)),
+            .border(1.dp, ShiftDesign.Line, MaterialTheme.shapes.large),
+        colors = CardDefaults.cardColors(containerColor = ShiftDesign.Mist),
         shape = MaterialTheme.shapes.large
     ) {
         Column(
@@ -627,17 +629,10 @@ private fun SelectedDateAlarmListCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Box(
-                            modifier = Modifier
-                                .background(shiftBadgeBackgroundColor(badge), shape = RoundedCornerShape(12.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = shiftBadgeLabel(resources, badge),
-                                color = shiftBadgeColor(badge),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
+                        ShiftTypeIllustration(
+                            badge = badge,
+                            modifier = Modifier.size(42.dp)
+                        )
                     }
                 }
             }
@@ -653,26 +648,30 @@ private fun ShiftLegendRow(compact: Boolean) {
     ) {
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_day),
-            bg = Color(0xFFFFF4D8),
-            fg = Color(0xFF946200),
+            badge = SHIFT_BADGE_DAY,
+            bg = Color(0xFFFFF0CB),
+            fg = ShiftDesign.Day,
             modifier = Modifier.weight(1f)
         )
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_night),
-            bg = Color(0xFFE8EDFF),
-            fg = Color(0xFF3346A8),
+            badge = SHIFT_BADGE_NIGHT,
+            bg = Color(0xFFE4EAFE),
+            fg = ShiftDesign.Night,
             modifier = Modifier.weight(1f)
         )
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_duty),
-            bg = Color(0xFFDFF4F1),
-            fg = Color(0xFF0F766E),
+            badge = SHIFT_BADGE_DUTY,
+            bg = Color(0xFFD9F1EC),
+            fg = ShiftDesign.Duty,
             modifier = Modifier.weight(1f)
         )
         ShiftLegendChip(
             label = stringResource(R.string.home_legend_rest),
-            bg = Color(0xFFF6E1EA),
-            fg = Color(0xFFA33B68),
+            badge = SHIFT_BADGE_REST,
+            bg = Color(0xFFF7F4EC),
+            fg = ShiftDesign.Rest,
             modifier = Modifier.weight(1f)
         )
     }
@@ -681,6 +680,7 @@ private fun ShiftLegendRow(compact: Boolean) {
 @Composable
 private fun ShiftLegendChip(
     label: String,
+    badge: String,
     bg: Color,
     fg: Color,
     modifier: Modifier = Modifier
@@ -692,14 +692,13 @@ private fun ShiftLegendChip(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .background(fg, CircleShape)
+        ShiftTypeIllustration(
+            badge = badge,
+            modifier = Modifier.size(22.dp)
         )
         Text(
             text = label,
-            modifier = Modifier.padding(start = 6.dp),
+            modifier = Modifier.padding(start = 5.dp),
             color = fg,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
@@ -737,16 +736,14 @@ private fun HomeHeroCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFBFD5FF).copy(alpha = 0.38f), MaterialTheme.shapes.large),
+            .border(1.dp, Color.White.copy(alpha = 0.38f), MaterialTheme.shapes.large),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(Color(0xFF153A6F), Color(0xFF0F766E))
-                    ),
+                    brush = shiftHeroBrush(),
                     shape = MaterialTheme.shapes.large
                 )
                 .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -788,6 +785,11 @@ private fun HomeHeroCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            ShiftTypeIllustration(
+                badge = badge,
+                modifier = Modifier.size(if (compact) 54.dp else 66.dp),
+                selected = true
+            )
             Box(
                 modifier = Modifier
                     .size(1.dp, if (compact) 34.dp else 38.dp)
@@ -829,7 +831,7 @@ private fun CalendarStepButton(
         modifier = Modifier
             .size(34.dp)
             .semantics { this.contentDescription = contentDescription }
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f), shape = MaterialTheme.shapes.medium)
+            .background(ShiftDesign.Mist.copy(alpha = 0.92f), shape = MaterialTheme.shapes.medium)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

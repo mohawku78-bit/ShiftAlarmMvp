@@ -10,8 +10,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -27,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -52,7 +57,7 @@ private val PROFESSION_PRESET_RECOMMENDATIONS = listOf(
         titleResId = R.string.shift_profession_hospital_title,
         supportingResId = R.string.shift_profession_hospital_support,
         badgeResId = R.string.shift_profession_hospital_badge,
-        accentColor = Color(0xFFF472B6),
+        accentColor = ShiftDesign.Lagoon,
         category = ShiftCategory.THREE_SHIFT,
         templateId = QUICK_TEMPLATE_ID_DAY_NIGHT_OFF,
         previewTypes = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT, WORK_TYPE_OFF)
@@ -61,7 +66,7 @@ private val PROFESSION_PRESET_RECOMMENDATIONS = listOf(
         titleResId = R.string.shift_profession_fire_title,
         supportingResId = R.string.shift_profession_fire_support,
         badgeResId = R.string.shift_profession_fire_badge,
-        accentColor = Color(0xFFEF4444),
+        accentColor = ShiftDesign.Coral,
         category = ShiftCategory.TWO_SHIFT,
         templateId = QUICK_TEMPLATE_ID_DUTY_OFF,
         previewTypes = listOf(WORK_TYPE_DUTY, WORK_TYPE_OFF)
@@ -70,7 +75,7 @@ private val PROFESSION_PRESET_RECOMMENDATIONS = listOf(
         titleResId = R.string.shift_profession_factory_title,
         supportingResId = R.string.shift_profession_factory_support,
         badgeResId = R.string.shift_profession_factory_badge,
-        accentColor = Color(0xFFF59E0B),
+        accentColor = ShiftDesign.Sun,
         category = ShiftCategory.TWO_SHIFT,
         templateId = QUICK_TEMPLATE_ID_DAY_NIGHT,
         previewTypes = listOf(WORK_TYPE_DAY, WORK_TYPE_NIGHT)
@@ -79,12 +84,16 @@ private val PROFESSION_PRESET_RECOMMENDATIONS = listOf(
         titleResId = R.string.shift_profession_custom_title,
         supportingResId = R.string.shift_profession_custom_support,
         badgeResId = R.string.shift_profession_custom_badge,
-        accentColor = Color(0xFFA78BFA),
+        accentColor = ShiftDesign.Harbor,
         category = ShiftCategory.CUSTOM,
         templateId = null,
         previewTypes = listOf(WORK_TYPE_DAY, WORK_TYPE_DUTY, WORK_TYPE_OFF)
     )
 )
+
+private val ProfessionPresetCardHeight = 256.dp
+private val PatternTemplateCardMinHeight = 150.dp
+private val WorkTypeAlarmCardMinHeight = 210.dp
 
 @Composable
 fun ShiftPage(
@@ -111,9 +120,15 @@ fun ShiftPage(
     val anchorDate = normalizedDraft.anchorDate
     val wizardStep = normalizedWizardState.step
     val showAdvanced = normalizedWizardState.showAdvanced
-    val showStep1Advanced = normalizedWizardState.showStep1Advanced
-    val selectedStep1TypeIndex = normalizedWizardState.selectedStep1TypeIndex
-    val selectedAlarmSlot = normalizedWizardState.selectedAlarmSlot
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val professionPresetColumnCount = if (screenWidthDp >= 560) 2 else 1
+    val selectedStep1TypeIndex = if (normalizedWizardState.selectedStep1TypeIndex in workTypeConfigs.indices) {
+        normalizedWizardState.selectedStep1TypeIndex
+    } else if (workTypeConfigs.isNotEmpty()) {
+        0
+    } else {
+        -1
+    }
 
     fun updateDraft(transform: (ShiftSetupDraft) -> ShiftSetupDraft) {
         onDraftChange(transform)
@@ -270,7 +285,7 @@ fun ShiftPage(
 
 
     if (!showFirstSetupWizard) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ShiftPanel(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -309,10 +324,11 @@ fun ShiftPage(
             else -> stringResource(R.string.shift_completion_message)
         }
 
-        Card(
+        ShiftPanel(
             modifier = Modifier.fillMaxWidth().testTag(ShiftSetupTestTags.WIZARD_ROOT),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            containerColor = ShiftDesign.Paper,
+            borderColor = ShiftDesign.Line
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 PatternWizardHeroCard(
@@ -332,7 +348,7 @@ fun ShiftPage(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            PROFESSION_PRESET_RECOMMENDATIONS.chunked(2).forEach { rowItems ->
+                            PROFESSION_PRESET_RECOMMENDATIONS.chunked(professionPresetColumnCount).forEach { rowItems ->
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -345,7 +361,7 @@ fun ShiftPage(
                                             onClick = { onProfessionPresetSelected(preset) }
                                         )
                                     }
-                                    repeat(2 - rowItems.size) {
+                                    repeat(professionPresetColumnCount - rowItems.size) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
@@ -466,7 +482,6 @@ fun ShiftPage(
                             } else {
                                 0
                             }
-                            val selectedConfig = workTypeConfigs[selectedConfigIndex]
                             Text(stringResource(R.string.shift_select_work_type))
                             workTypeConfigs.mapIndexed { index, config -> index to config.type }
                                 .chunked(4)
@@ -476,24 +491,14 @@ fun ShiftPage(
                                             val selected = selectedStep1TypeIndex == index
                                             Button(
                                                 onClick = {
-                                                    if (selected) {
-                                                        advanceWizard()
-                                                    } else {
-                                                        updateWizardState { it.copy(selectedStep1TypeIndex = index) }
-                                                    }
+                                                    updateWizardState { it.copy(selectedStep1TypeIndex = index) }
                                                 },
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .testTag(ShiftSetupTestTags.workType(index)),
                                                 colors = segmentedActionButtonColors(selected)
                                             ) {
-                                                Text(
-                                                    if (selected) {
-                                                        stringResource(R.string.shift_next)
-                                                    } else {
-                                                        step1TypeChipLabel(type)
-                                                    }
-                                                )
+                                                Text(step1TypeChipLabel(type))
                                             }
                                         }
                                         repeat(4 - rowItems.size) {
@@ -502,164 +507,39 @@ fun ShiftPage(
                                     }
                                 }
 
-                            val primaryDisplay = parseHm(selectedConfig.primaryTime)
-                                ?: parseHm(defaultPrimaryTime(selectedConfig.type))
-                                ?: LocalTime.of(7, 0)
-                            val secondaryEnabled = selectedConfig.secondaryTime.isNotBlank()
-                            val secondaryDisplay = parseHm(selectedConfig.secondaryTime) ?: primaryDisplay
-                            val showStep1Details = showStep1Advanced || secondaryEnabled || selectedAlarmSlot == 1
-
-                            val editingSecondary = showStep1Details && selectedAlarmSlot == 1
-                            val activeTime = if (editingSecondary) secondaryDisplay else primaryDisplay
-
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(selectedConfig.type, style = MaterialTheme.typography.titleMedium)
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                        Text(stringResource(R.string.shift_alarm_enabled))
-                                        Switch(
-                                            checked = selectedConfig.enabled,
-                                            onCheckedChange = { checked -> onToggleConfigEnabled(selectedConfigIndex, checked) }
-                                        )
-                                    }
-
-                                    Text(stringResource(R.string.shift_primary_alarm_title))
-                                    Text(
-                                        String.format("%02d:%02d", primaryDisplay.hour, primaryDisplay.minute),
-                                        style = MaterialTheme.typography.headlineMedium
-                                    )
-                                    TimePickerButton(
-                                        time = primaryDisplay,
-                                        onTimePicked = { picked ->
-                                            onConfigPrimaryChange(selectedConfigIndex, String.format("%02d:%02d", picked.hour, picked.minute))
-                                        }
-                                    )
-
-                                    NeutralActionButton(
-                                        onClick = { dispatch(ShiftSetupAction.ToggleStep1Advanced) },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            if (showStep1Details) {
-                                                stringResource(R.string.shift_hide_secondary_settings)
-                                            } else {
-                                                stringResource(R.string.shift_show_secondary_settings)
+                            Text(
+                                stringResource(R.string.shift_work_type_alarm_list_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ShiftDesign.InkSoft
+                            )
+                            workTypeConfigs.forEachIndexed { index, config ->
+                                WorkTypeAlarmConfigCard(
+                                    config = config,
+                                    selected = selectedConfigIndex == index,
+                                    onSelect = {
+                                        updateWizardState { it.copy(selectedStep1TypeIndex = index) }
+                                    },
+                                    onToggleEnabled = { checked -> onToggleConfigEnabled(index, checked) },
+                                    onPrimaryTimePicked = { picked ->
+                                        onConfigPrimaryChange(index, String.format("%02d:%02d", picked.hour, picked.minute))
+                                    },
+                                    onSecondaryEnabledChange = { checked ->
+                                        if (checked) {
+                                            val primaryDisplay = parseHm(config.primaryTime)
+                                                ?: parseHm(defaultPrimaryTime(config.type))
+                                                ?: LocalTime.of(7, 0)
+                                            val defaultSecond = config.secondaryTime.ifBlank {
+                                                String.format("%02d:%02d", primaryDisplay.hour, primaryDisplay.minute)
                                             }
-                                        )
-                                    }
-
-                                    if (showStep1Details) {
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = CardDefaults.cardColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                            )
-                                        ) {
-                                            Column(
-                                                modifier = Modifier.padding(10.dp),
-                                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Button(
-                                                        onClick = { updateWizardState { it.copy(selectedAlarmSlot = 0) } },
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .testTag(ShiftSetupTestTags.ALARM_SLOT_PRIMARY),
-                                                        colors = segmentedActionButtonColors(!editingSecondary)
-                                                    ) {
-                                                        Text(stringResource(R.string.shift_alarm_slot_primary))
-                                                    }
-                                                    Button(
-                                                        onClick = {
-                                                            updateWizardState { it.copy(selectedAlarmSlot = 1) }
-                                                            if (!secondaryEnabled) {
-                                                                val defaultSecond = selectedConfig.secondaryTime.ifBlank {
-                                                                    selectedConfig.primaryTime.ifBlank {
-                                                                        String.format(
-                                                                            "%02d:%02d",
-                                                                            primaryDisplay.hour,
-                                                                            primaryDisplay.minute
-                                                                        )
-                                                                    }
-                                                                }
-                                                                onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
-                                                            }
-                                                        },
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .testTag(ShiftSetupTestTags.ALARM_SLOT_SECONDARY),
-                                                        colors = segmentedActionButtonColors(editingSecondary)
-                                                    ) {
-                                                        Text(stringResource(R.string.shift_alarm_slot_secondary))
-                                                    }
-                                                }
-
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Text(
-                                                        stringResource(
-                                                            R.string.shift_secondary_alarm_status_format,
-                                                            if (secondaryEnabled) {
-                                                                stringResource(R.string.common_on)
-                                                            } else {
-                                                                stringResource(R.string.common_off)
-                                                            }
-                                                        )
-                                                    )
-                                                    Switch(
-                                                        checked = secondaryEnabled,
-                                                        onCheckedChange = { checked ->
-                                                            if (checked) {
-                                                                val defaultSecond = selectedConfig.secondaryTime.ifBlank {
-                                                                    selectedConfig.primaryTime.ifBlank {
-                                                                        String.format(
-                                                                            "%02d:%02d",
-                                                                            primaryDisplay.hour,
-                                                                            primaryDisplay.minute
-                                                                        )
-                                                                    }
-                                                                }
-                                                                onConfigSecondaryChange(selectedConfigIndex, defaultSecond)
-                                                                updateWizardState { it.copy(selectedAlarmSlot = 1) }
-                                                            } else {
-                                                                onConfigSecondaryChange(selectedConfigIndex, "")
-                                                                updateWizardState { it.copy(selectedAlarmSlot = 0) }
-                                                            }
-                                                        }
-                                                    )
-                                                }
-
-                                                Text(
-                                                    if (editingSecondary) {
-                                                        stringResource(R.string.shift_secondary_main_time)
-                                                    } else {
-                                                        stringResource(R.string.shift_primary_main_time)
-                                                    }
-                                                )
-                                                Text(
-                                                    String.format("%02d:%02d", activeTime.hour, activeTime.minute),
-                                                    style = MaterialTheme.typography.headlineMedium
-                                                )
-                                                TimePickerButton(
-                                                    time = activeTime,
-                                                    onTimePicked = { picked ->
-                                                        val formatted = String.format("%02d:%02d", picked.hour, picked.minute)
-                                                        if (editingSecondary) {
-                                                            onConfigSecondaryChange(selectedConfigIndex, formatted)
-                                                        } else {
-                                                            onConfigPrimaryChange(selectedConfigIndex, formatted)
-                                                        }
-                                                    }
-                                                )
-                                            }
+                                            onConfigSecondaryChange(index, defaultSecond)
+                                        } else {
+                                            onConfigSecondaryChange(index, "")
                                         }
+                                    },
+                                    onSecondaryTimePicked = { picked ->
+                                        onConfigSecondaryChange(index, String.format("%02d:%02d", picked.hour, picked.minute))
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -743,11 +623,15 @@ fun ShiftPage(
 
     if (!showAdvanced) return
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ShiftPanel(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.Settings, contentDescription = null)
-                Text(stringResource(R.string.shift_advanced_title), style = MaterialTheme.typography.titleMedium)
+                Icon(Icons.Filled.Settings, contentDescription = null, tint = ShiftDesign.Navy)
+                Text(
+                    stringResource(R.string.shift_advanced_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ShiftDesign.Ink
+                )
             }
 
             OutlinedTextField(
@@ -829,6 +713,133 @@ fun ShiftPage(
 }
 
 @Composable
+private fun WorkTypeAlarmConfigCard(
+    config: WorkTypeAlarmConfig,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
+    onPrimaryTimePicked: (LocalTime) -> Unit,
+    onSecondaryEnabledChange: (Boolean) -> Unit,
+    onSecondaryTimePicked: (LocalTime) -> Unit
+) {
+    val primaryDisplay = parseHm(config.primaryTime)
+        ?: parseHm(defaultPrimaryTime(config.type))
+        ?: LocalTime.of(7, 0)
+    val secondaryEnabled = config.secondaryTime.isNotBlank()
+    val secondaryDisplay = parseHm(config.secondaryTime) ?: primaryDisplay
+
+    ShiftPanel(
+        modifier = Modifier
+            .fillMaxWidth()
+            .sizeIn(minHeight = WorkTypeAlarmCardMinHeight),
+        containerColor = ShiftDesign.Paper,
+        borderColor = if (selected) ShiftDesign.Harbor.copy(alpha = 0.72f) else ShiftDesign.Line
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShiftTypeIllustrationForType(
+                        type = config.type,
+                        modifier = Modifier.size(56.dp),
+                        selected = selected
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            config.type,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = ShiftDesign.Ink,
+                            fontWeight = FontWeight.Bold
+                        )
+                        ShiftPill(
+                            text = if (config.enabled) {
+                                stringResource(R.string.common_on)
+                            } else {
+                                stringResource(R.string.common_off)
+                            },
+                            containerColor = if (config.enabled) {
+                                ShiftDesign.Mist
+                            } else {
+                                ShiftDesign.MistStrong.copy(alpha = 0.66f)
+                            },
+                            contentColor = if (config.enabled) ShiftDesign.Navy else ShiftDesign.InkSoft
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.shift_alarm_enabled), color = ShiftDesign.InkSoft)
+                    Switch(
+                        checked = config.enabled,
+                        onCheckedChange = { checked ->
+                            onSelect()
+                            onToggleEnabled(checked)
+                        }
+                    )
+                }
+            }
+
+            TimePickerButton(
+                time = primaryDisplay,
+                onTimePicked = { picked ->
+                    onSelect()
+                    onPrimaryTimePicked(picked)
+                },
+                label = stringResource(R.string.shift_primary_main_time)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(
+                        R.string.shift_secondary_alarm_status_format,
+                        if (secondaryEnabled) {
+                            stringResource(R.string.common_on)
+                        } else {
+                            stringResource(R.string.common_off)
+                        }
+                    ),
+                    color = ShiftDesign.InkSoft
+                )
+                Switch(
+                    checked = secondaryEnabled,
+                    onCheckedChange = { checked ->
+                        onSelect()
+                        onSecondaryEnabledChange(checked)
+                    }
+                )
+            }
+
+            if (secondaryEnabled) {
+                TimePickerButton(
+                    time = secondaryDisplay,
+                    onTimePicked = { picked ->
+                        onSelect()
+                        onSecondaryTimePicked(picked)
+                    },
+                    label = stringResource(R.string.shift_secondary_main_time)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun RowScope.CategoryButton(
     label: String,
     selected: Boolean,
@@ -837,7 +848,9 @@ private fun RowScope.CategoryButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.weight(1f),
+        modifier = modifier
+            .weight(1f)
+            .height(52.dp),
         colors = segmentedActionButtonColors(selected)
     ) {
         Text(label)
@@ -855,7 +868,7 @@ private fun PatternWizardHeroCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2B56D9))
+        colors = CardDefaults.cardColors(containerColor = ShiftDesign.Navy)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -894,12 +907,11 @@ private fun PatternWizardSectionCard(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    Card(
+    ShiftPanel(
         modifier = modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
-        )
+        containerColor = ShiftDesign.Mist.copy(alpha = 0.58f),
+        borderColor = ShiftDesign.Line
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -925,67 +937,68 @@ private fun ProfessionPresetCard(
     val containerColor = if (selected) {
         preset.accentColor.copy(alpha = 0.10f)
     } else {
-        MaterialTheme.colorScheme.surface
+        ShiftDesign.Paper
     }
     val borderColor = if (selected) {
         preset.accentColor.copy(alpha = 0.40f)
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
+        ShiftDesign.Line
     }
 
     Card(
-        modifier = modifier,
+        modifier = modifier.height(ProfessionPresetCardHeight),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .border(1.dp, borderColor, androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = preset.accentColor.copy(alpha = if (selected) 0.20f else 0.12f),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShiftTypeIllustrationForType(
+                        type = preset.previewTypes.firstOrNull().orEmpty(),
+                        modifier = Modifier.size(56.dp),
+                        selected = selected
+                    )
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = preset.accentColor.copy(alpha = if (selected) 0.20f else 0.12f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(preset.badgeResId),
+                            color = preset.accentColor,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.ExtraBold
                         )
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(preset.badgeResId),
-                        color = preset.accentColor,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                    }
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = stringResource(preset.titleResId),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(preset.supportingResId),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                preset.previewTypes.forEach { type ->
-                    PatternTemplateTypeChip(type = type)
+                Text(
+                    text = stringResource(preset.titleResId),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ShiftDesign.Ink
+                )
+                Text(
+                    text = stringResource(preset.supportingResId),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ShiftDesign.InkSoft
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    preset.previewTypes.forEach { type ->
+                        PatternTemplateTypeChip(type = type)
+                    }
                 }
             }
             Button(
@@ -1013,41 +1026,56 @@ private fun PatternTemplateCard(
     onClick: () -> Unit
 ) {
     val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+        ShiftDesign.Navy.copy(alpha = 0.10f)
     } else {
-        MaterialTheme.colorScheme.surface
+        ShiftDesign.Paper
     }
     val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
+        ShiftDesign.Navy.copy(alpha = 0.34f)
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
+        ShiftDesign.Line
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .sizeIn(minHeight = PatternTemplateCardMinHeight),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .sizeIn(minHeight = PatternTemplateCardMinHeight)
                 .border(1.dp, borderColor, androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
                 .padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = template.sequence.firstOrNull()?.let { step1TypeChipLabel(it) } ?: "?",
-                modifier = Modifier
-                    .background(
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.ExtraBold,
-                style = MaterialTheme.typography.titleMedium
-            )
+            val leadType = template.sequence.firstOrNull().orEmpty()
+            Column(
+                modifier = Modifier.width(72.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                ShiftTypeIllustrationForType(
+                    type = leadType,
+                    modifier = Modifier.size(58.dp),
+                    selected = selected
+                )
+                Text(
+                    text = leadType.takeIf { it.isNotBlank() }?.let { step1TypeChipLabel(it) } ?: "?",
+                    modifier = Modifier
+                        .background(
+                            color = if (selected) ShiftDesign.Navy else ShiftDesign.Navy.copy(alpha = 0.12f),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp)
+                        )
+                        .padding(horizontal = 9.dp, vertical = 4.dp),
+                    color = if (selected) MaterialTheme.colorScheme.onPrimary else ShiftDesign.Navy,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1060,7 +1088,7 @@ private fun PatternTemplateCard(
                 Text(
                     text = template.sequence.joinToString(stringResource(R.string.shift_template_sequence_separator)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = ShiftDesign.InkSoft
                 )
                 template.sequence.chunked(4).forEach { rowItems ->
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

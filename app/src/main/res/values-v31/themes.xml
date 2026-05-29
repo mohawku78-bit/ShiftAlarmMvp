@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.ShiftAlarmMvp.Splash" parent="Theme.ShiftAlarmMvp">
-        <item name="android:windowSplashScreenBackground">#F6FAFF</item>
+        <item name="android:windowSplashScreenBackground">#FFF3DE</item>
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">#F6FAFF</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#FFF3DE</item>
     </style>
 </resources>

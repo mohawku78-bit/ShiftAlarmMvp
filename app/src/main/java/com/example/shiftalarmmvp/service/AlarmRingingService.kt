@@ -28,6 +28,7 @@ import com.example.shiftalarmmvp.recovery.ReliabilityStateCoordinator
 import com.example.shiftalarmmvp.scheduler.AlarmExactStrategy
 import com.example.shiftalarmmvp.scheduler.scheduleRtcWakeupIntent
 import com.example.shiftalarmmvp.recovery.alarmServiceStrings
+import com.example.shiftalarmmvp.recovery.SELF_TEST_ALARM_ID
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
 import com.example.shiftalarmmvp.ui.AlarmLogStore
@@ -542,7 +543,7 @@ class AlarmRingingService : Service() {
             .setFullScreenIntent(fullScreenIntent, true)
             .addAction(0, getString(com.example.shiftalarmmvp.R.string.notification_stop), stopIntent)
 
-        val isSelfTestAlarm = alarmId == 999_999L
+        val isSelfTestAlarm = alarmId == SELF_TEST_ALARM_ID
         if (isSelfTestAlarm) {
             builder.setSubText(texts.selfTestSubText)
         } else {
@@ -670,13 +671,14 @@ class AlarmRingingService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             WATCH_BRIDGE_CHANNEL_ID,
-            "Watch alarm control",
-            NotificationManager.IMPORTANCE_HIGH
+            getString(com.example.shiftalarmmvp.R.string.notification_watch_bridge_channel_name),
+            NotificationManager.IMPORTANCE_MAX
         ).apply {
-            setSound(null, null)
             enableVibration(true)
             vibrationPattern = WATCH_BRIDGE_VIBRATION_PATTERN
+            description = getString(com.example.shiftalarmmvp.R.string.notification_watch_bridge_channel_description)
             setShowBadge(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)
 
@@ -726,7 +728,7 @@ class AlarmRingingService : Service() {
             )
         )
 
-        val isSelfTestAlarm = alarmId == 999_999L
+        val isSelfTestAlarm = alarmId == SELF_TEST_ALARM_ID
         if (!isSelfTestAlarm) {
             val hasLimit = snoozeMaxCount > 0
             val canSnooze = !hasLimit || currentSnoozeCount < snoozeMaxCount
@@ -796,14 +798,15 @@ class AlarmRingingService : Service() {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSound(null)
+            .setSilent(false)
             .setVibrate(WATCH_BRIDGE_VIBRATION_PATTERN)
-            .setDefaults(0)
-            .setOnlyAlertOnce(true)
+            .setDefaults(Notification.DEFAULT_VIBRATE)
+            .setOnlyAlertOnce(false)
             .setLocalOnly(false)
             .setOngoing(false)
             .setAutoCancel(false)
             .setContentIntent(contentIntent)
+            .setTimeoutAfter(WATCH_BRIDGE_TIMEOUT_MILLIS)
             .also { builder -> actions.forEach { builder.addAction(it) } }
             .extend(wearableExtender)
             .build()
@@ -882,17 +885,18 @@ class AlarmRingingService : Service() {
         const val ACTION_RELIABILITY_STATE_CHANGED = "com.example.shiftalarmmvp.action.RELIABILITY_STATE_CHANGED"
 
         private const val CHANNEL_ID = "ringing_alarm_channel_silent_v4"
-        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v1"
+        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v2"
         private const val NOTIFICATION_ID = 1001
         private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002
-        private val WATCH_BRIDGE_VIBRATION_PATTERN = longArrayOf(0, 350, 150, 350)
+        private const val WATCH_BRIDGE_TIMEOUT_MILLIS = 2 * 60 * 1000L
+        private val WATCH_BRIDGE_VIBRATION_PATTERN = longArrayOf(0, 500, 180, 500, 180, 500)
 
         @Volatile
         private var isRingingActive: Boolean = false
 
         fun stop(context: Context, alarmId: Long) {
             val appContext = context.applicationContext
-            if (alarmId == 999_999L) {
+            if (alarmId == SELF_TEST_ALARM_ID) {
                 val coordinator = ReliabilityStateCoordinator(appContext)
                 val selfTestEvent = coordinator.snapshot().selfTestStatus?.lastEvent
                 val shouldPass = selfTestEvent == SelfTestStatus.Event.TRIGGERED ||

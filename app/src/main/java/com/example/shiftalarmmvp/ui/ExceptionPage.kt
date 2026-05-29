@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,13 +31,24 @@ fun ExceptionPage(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ShiftPanel(
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = ShiftDesign.Paper,
+            borderColor = ShiftDesign.Line
+        ) {
             Column(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(stringResource(R.string.exception_title), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.exception_description))
+                Text(
+                    stringResource(R.string.exception_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ShiftDesign.Ink
+                )
+                Text(
+                    stringResource(R.string.exception_description),
+                    color = ShiftDesign.InkSoft
+                )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -54,9 +64,16 @@ fun ExceptionPage(
         }
 
         if (alarms.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            ShiftPanel(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = ShiftDesign.Mist.copy(alpha = 0.62f),
+                borderColor = ShiftDesign.Line
+            ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(stringResource(R.string.exception_empty))
+                    Text(
+                        stringResource(R.string.exception_empty),
+                        color = ShiftDesign.InkSoft
+                    )
                 }
             }
         } else {
@@ -79,13 +96,20 @@ fun ExceptionPage(
                     )
                 }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ShiftPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = ShiftDesign.Paper,
+                    borderColor = ShiftDesign.Line
+                ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(label, style = MaterialTheme.typography.titleSmall)
-                        Text(stringResource(R.string.exception_next_alarm, nextLabel))
+                        Text(label, style = MaterialTheme.typography.titleSmall, color = ShiftDesign.Ink)
+                        Text(
+                            stringResource(R.string.exception_next_alarm, nextLabel),
+                            color = ShiftDesign.InkSoft
+                        )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()

@@ -220,6 +220,9 @@ class AlarmReceiver : BroadcastReceiver() {
             runCatching { context.startService(serviceIntent) }
         }
 
+        // Give the watch-mirroring notification a brief head start before the phone screen wakes.
+        runCatching { Thread.sleep(WATCH_BRIDGE_LEAD_TIME_MILLIS) }
+
         runCatching {
             context.startActivity(
                 Intent(context, AlarmAlertActivity::class.java)
@@ -277,5 +280,6 @@ class AlarmReceiver : BroadcastReceiver() {
         const val EXTRA_SNOOZE_CURRENT_COUNT = "extra_snooze_current_count"
         const val EXTRA_EXPECTED_TRIGGER_MILLIS = "extra_expected_trigger_millis"
         const val EXTRA_DIRECT_BOOT_FALLBACK = "extra_direct_boot_fallback"
+        private const val WATCH_BRIDGE_LEAD_TIME_MILLIS = 1_200L
     }
 }
