@@ -31,7 +31,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - The full-screen watch alarm also maps delivered hardware stem/back/volume-style key events to stop or snooze, while consuming those keys so the alarm screen is not accidentally dismissed.
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.
 - Phone de-duplicates message/DataItem control events by alarm cycle, so only the first `끄기` or `스누즈` command wins for a single alarm occurrence.
-- Phone records the latest watch ACK, its display mode, and accepted watch control, then shows them in the test area as `최근 워치 수신 확인` and `최근 워치 제어 처리`.
+- Phone records the latest watch send attempt, watch ACK, accepted watch control, and rejected watch control reason, then shows them in the test area as `최근 워치 전송 시도`, `최근 워치 수신 확인`, `최근 워치 제어 처리`, and `최근 워치 제어 거부`.
 
 This does not call the private Samsung Clock alarm UI. The watch alarm UI is app-owned, because third-party apps cannot reliably open Samsung's native alarm screen with stop/snooze controls.
 
@@ -235,4 +235,4 @@ The unit tests cover the phone/watch alarm payload contract, unsafe number clamp
 - If the phone rings but the watch does nothing, confirm both APKs use the same package id variant. For side-by-side testing, both must be `.next`.
 - If only a watch notification appears but no alarm screen opens, open the watch app once and grant notification permission. Some Wear OS builds restrict background activity starts, so the notification is also used as a fallback entry point.
 - If watch buttons do not stop the phone, confirm the phone and watch are paired and connected, then reinstall both APKs from the same build.
-- Galaxy Watch physical Home/Back buttons are system-controlled and should not be treated as reliable third-party alarm stop/snooze inputs. The implemented reliable controls are on-screen watch buttons and notification actions.
+- Galaxy Watch physical Home/Back buttons are model/OS dependent. The app maps delivered stem/back/volume-style key events to stop/snooze and the validation script can inject key events, but the primary reliable controls remain the on-screen watch buttons and notification actions.

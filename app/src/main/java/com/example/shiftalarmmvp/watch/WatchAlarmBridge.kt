@@ -151,7 +151,10 @@ class WatchAlarmBridge(context: Context) {
         onResult: ((WatchAlarmSendResult) -> Unit)? = null
     ) {
         val json = payload.toJson()
-        sendToConnectedNodes(PATH_ALARM_START, json, onResult)
+        sendToConnectedNodes(PATH_ALARM_START, json) { result ->
+            WatchAlarmDiagnosticsStore(appContext).recordSendAttempt(payload, result)
+            onResult?.invoke(result)
+        }
         putDataItem(PATH_ALARM_ACTIVE, json)
     }
 

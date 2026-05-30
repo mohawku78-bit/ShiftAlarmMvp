@@ -137,6 +137,7 @@ import com.example.shiftalarmmvp.scheduler.NightlyReliabilityCheckScheduler
 import com.example.shiftalarmmvp.service.AlarmRingingService
 import com.example.shiftalarmmvp.watch.WatchAlarmBridge
 import com.example.shiftalarmmvp.watch.WatchAlarmDiagnosticsStore
+import com.example.shiftalarmmvp.watch.WatchAlarmSendAttempt
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -381,6 +382,9 @@ class MainActivity : ComponentActivity() {
     private fun refreshWatchAlarmDiagnosticsState() {
         val store = WatchAlarmDiagnosticsStore(this)
         val statusLines = mutableListOf<String>()
+        store.latestSendAttempt()?.let {
+            statusLines += watchSendAttemptStatusLine(it)
+        }
         store.latestAck()?.let {
             statusLines += getString(
                 R.string.editor_watch_ack_status_format,
@@ -397,7 +401,53 @@ class MainActivity : ComponentActivity() {
                 formatWatchAlarmDiagnosticsTime(it.receivedAtMillis)
             )
         }
+        store.latestRejectedControl()?.let {
+            statusLines += getString(
+                R.string.editor_watch_control_rejected_status_format,
+                watchControlActionLabel(it.action),
+                if (it.label.isBlank()) getString(R.string.editor_watch_ack_default_label) else it.label,
+                watchControlRejectionReasonLabel(it.reason),
+                formatWatchAlarmDiagnosticsTime(it.receivedAtMillis)
+            )
+        }
         watchAlarmStatusMessage = statusLines.takeIf { it.isNotEmpty() }?.joinToString("\n")
+    }
+
+    private fun watchSendAttemptStatusLine(sendAttempt: WatchAlarmSendAttempt): String {
+        val label = if (sendAttempt.label.isBlank()) {
+            getString(R.string.editor_watch_ack_default_label)
+        } else {
+            sendAttempt.label
+        }
+        val time = formatWatchAlarmDiagnosticsTime(sendAttempt.sentAtMillis)
+        val issue = when {
+            !sendAttempt.errorMessage.isNullOrBlank() -> sendAttempt.errorMessage
+            sendAttempt.connectedNodeCount == 0 -> getString(R.string.editor_watch_send_issue_no_device)
+            !sendAttempt.watchAppLookupErrorMessage.isNullOrBlank() -> getString(
+                R.string.editor_watch_send_issue_app_lookup_failed_format,
+                sendAttempt.watchAppLookupErrorMessage
+            )
+            sendAttempt.reachableWatchAppNodeCount == 0 -> getString(R.string.editor_watch_send_issue_no_watch_app)
+            else -> null
+        }
+
+        return if (issue == null) {
+            getString(
+                R.string.editor_watch_send_status_format,
+                label,
+                sendAttempt.connectedNodeCount,
+                sendAttempt.reachableWatchAppNodeCount,
+                sendAttempt.messageSendAttempts,
+                time
+            )
+        } else {
+            getString(
+                R.string.editor_watch_send_issue_status_format,
+                label,
+                issue,
+                time
+            )
+        }
     }
 
     private fun formatWatchAlarmDiagnosticsTime(timeMillis: Long): String {
@@ -411,6 +461,16 @@ class MainActivity : ComponentActivity() {
             WatchAlarmBridge.PATH_ALARM_STOP -> getString(R.string.editor_watch_control_stop_action)
             WatchAlarmBridge.PATH_ALARM_SNOOZE -> getString(R.string.editor_watch_control_snooze_action)
             else -> getString(R.string.editor_watch_control_unknown_action)
+        }
+    }
+
+    private fun watchControlRejectionReasonLabel(reason: String): String {
+        return when (reason) {
+            WatchAlarmDiagnosticsStore.REJECTION_STALE_ALARM -> getString(R.string.editor_watch_control_rejection_stale)
+            WatchAlarmDiagnosticsStore.REJECTION_DUPLICATE_CONTROL -> getString(R.string.editor_watch_control_rejection_duplicate)
+            WatchAlarmDiagnosticsStore.REJECTION_SNOOZE_NOT_ALLOWED -> getString(R.string.editor_watch_control_rejection_snooze_not_allowed)
+            WatchAlarmDiagnosticsStore.REJECTION_UNSUPPORTED_ACTION -> getString(R.string.editor_watch_control_rejection_unsupported)
+            else -> getString(R.string.editor_watch_control_rejection_unknown)
         }
     }
 

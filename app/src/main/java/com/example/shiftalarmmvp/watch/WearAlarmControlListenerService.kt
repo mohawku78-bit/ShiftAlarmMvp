@@ -49,6 +49,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
     }
 
     private fun handleControl(action: String, payload: WatchAlarmPayload) {
+        val diagnostics = WatchAlarmDiagnosticsStore(applicationContext)
         if (WatchAlarmAcceptedControlStore.matchesRecent(applicationContext, action, payload)) {
             Log.i(TAG, "resend accepted watch control ack action=$action alarmId=${payload.alarmId}")
             WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
@@ -60,6 +61,11 @@ class WearAlarmControlListenerService : WearableListenerService() {
                 TAG,
                 "ignore stale control action=$action alarmId=${payload.alarmId} triggeredAt=${payload.triggeredAtMillis}"
             )
+            diagnostics.recordControlRejected(
+                action,
+                payload,
+                WatchAlarmDiagnosticsStore.REJECTION_STALE_ALARM
+            )
             return
         }
 
@@ -67,6 +73,11 @@ class WearAlarmControlListenerService : WearableListenerService() {
             WatchAlarmBridge.PATH_ALARM_STOP -> {
                 if (!WatchAlarmControlGate.accept(applicationContext, action, payload)) {
                     Log.i(TAG, "ignore duplicate stop control alarmId=${payload.alarmId}")
+                    diagnostics.recordControlRejected(
+                        action,
+                        payload,
+                        WatchAlarmDiagnosticsStore.REJECTION_DUPLICATE_CONTROL
+                    )
                     return
                 }
                 Log.i(TAG, "stop from watch alarmId=${payload.alarmId}")
@@ -77,10 +88,20 @@ class WearAlarmControlListenerService : WearableListenerService() {
             WatchAlarmBridge.PATH_ALARM_SNOOZE -> {
                 if (!payload.canSnooze) {
                     Log.i(TAG, "ignore snooze not allowed alarmId=${payload.alarmId}")
+                    diagnostics.recordControlRejected(
+                        action,
+                        payload,
+                        WatchAlarmDiagnosticsStore.REJECTION_SNOOZE_NOT_ALLOWED
+                    )
                     return
                 }
                 if (!WatchAlarmControlGate.accept(applicationContext, action, payload)) {
                     Log.i(TAG, "ignore duplicate snooze control alarmId=${payload.alarmId}")
+                    diagnostics.recordControlRejected(
+                        action,
+                        payload,
+                        WatchAlarmDiagnosticsStore.REJECTION_DUPLICATE_CONTROL
+                    )
                     return
                 }
                 Log.i(TAG, "snooze from watch alarmId=${payload.alarmId} minutes=${payload.snoozeMinutes}")
@@ -96,6 +117,15 @@ class WearAlarmControlListenerService : WearableListenerService() {
                     customSoundUri = payload.customSoundUri,
                     volumePercent = payload.volumePercent,
                     vibrationEnabled = payload.vibrationEnabled
+                )
+            }
+
+            else -> {
+                Log.i(TAG, "ignore unsupported control action=$action alarmId=${payload.alarmId}")
+                diagnostics.recordControlRejected(
+                    action,
+                    payload,
+                    WatchAlarmDiagnosticsStore.REJECTION_UNSUPPORTED_ACTION
                 )
             }
         }

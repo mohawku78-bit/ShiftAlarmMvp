@@ -41,10 +41,13 @@ $appSideBySideManifest = Read-RepoFile "app\src\sideBySide\AndroidManifest.xml"
 $wearManifest = Read-RepoFile "wear\src\main\AndroidManifest.xml"
 $wearSideBySideManifest = Read-RepoFile "wear\src\sideBySide\AndroidManifest.xml"
 $wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
+$appStrings = Read-RepoFile "app\src\main\res\values\strings.xml"
 $wearStrings = Read-RepoFile "wear\src\main\res\values\strings.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
 $phoneControlListener = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WearAlarmControlListenerService.kt"
 $phoneAcceptedControlStore = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmAcceptedControlStore.kt"
+$phoneDiagnosticsStore = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmDiagnosticsStore.kt"
+$mainActivity = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\ui\MainActivity.kt"
 $sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shiftalarmmvp\watch\SideBySideWatchAlarmTestReceiver.kt"
 $sideBySideWatchActionReceiver = Read-RepoFile "wear\src\sideBySide\java\com\example\shiftalarmmvp\wear\SideBySideWatchAlarmActionTestReceiver.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
@@ -100,6 +103,7 @@ Assert-Contains "wear capabilities" $wearCapabilities 'android_wear_capabilities
 Assert-Contains "wear capabilities" $wearCapabilities 'shift_alarm_watch_control'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'getCapability(CAPABILITY_WATCH_ALARM_CONTROL, CapabilityClient.FILTER_REACHABLE)'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'recordSendAttempt'
 
 $requiredProtocolConstants = @(
     'PATH_ALARM_START = "/shift_alarm/alarm/start"',
@@ -159,8 +163,20 @@ Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'send
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmAcceptedControlStore.matchesRecent'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'resend accepted watch control ack'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'acknowledgeAcceptedControl'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'recordControlRejected'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'REJECTION_STALE_ALARM'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun record'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun matchesRecent'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data class WatchAlarmSendAttempt'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data class WatchAlarmControlRejection'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun recordSendAttempt'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun latestSendAttempt'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun recordControlRejected'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun latestRejectedControl'
+Assert-Contains "MainActivity.kt" $mainActivity 'watchSendAttemptStatusLine'
+Assert-Contains "MainActivity.kt" $mainActivity 'watchControlRejectionReasonLabel'
+Assert-Contains "app strings" $appStrings 'editor_watch_send_status_format'
+Assert-Contains "app strings" $appStrings 'editor_watch_control_rejected_status_format'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
 Assert-Contains "WatchAlarmActions.kt" $watchActions 'fun controlPathFor'
