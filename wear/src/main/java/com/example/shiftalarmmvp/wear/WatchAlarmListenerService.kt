@@ -25,6 +25,7 @@ class WatchAlarmListenerService : WearableListenerService() {
                 val ack = WatchAlarmProtocol.parseControlAcknowledgement(messageEvent.data) ?: return
                 Log.i(TAG, "control ack message action=${ack.action} alarmId=${ack.payload.alarmId}")
                 WatchAlarmControlAckStore.record(this, ack.action, ack.payload)
+                WatchAlarmActiveStore.clearIfMatching(this, ack.payload.alarmId, ack.payload.triggeredAtMillis)
                 WatchAlarmRingingService.stop(this)
                 WatchAlarmNotifier.cancel(this)
                 AlarmActivity.dismissIfControlAcknowledged(ack.action, ack.payload)
@@ -53,6 +54,7 @@ class WatchAlarmListenerService : WearableListenerService() {
                         val ack = WatchAlarmProtocol.parseControlAcknowledgement(event.dataItem) ?: return@forEach
                         Log.i(TAG, "control ack data action=${ack.action} alarmId=${ack.payload.alarmId}")
                         WatchAlarmControlAckStore.record(this, ack.action, ack.payload)
+                        WatchAlarmActiveStore.clearIfMatching(this, ack.payload.alarmId, ack.payload.triggeredAtMillis)
                         WatchAlarmRingingService.stop(this)
                         WatchAlarmNotifier.cancel(this)
                         AlarmActivity.dismissIfControlAcknowledged(ack.action, ack.payload)
@@ -71,6 +73,7 @@ class WatchAlarmListenerService : WearableListenerService() {
             return
         }
         Log.i(TAG, "show alarm alarmId=${payload.alarmId} canSnooze=${payload.canSnooze}")
+        WatchAlarmActiveStore.record(this, payload)
         val serviceStarted = WatchAlarmRingingService.start(this, payload)
         if (!serviceStarted) {
             WatchAlarmNotifier.show(this, payload)
@@ -92,6 +95,7 @@ class WatchAlarmListenerService : WearableListenerService() {
             return
         }
         Log.i(TAG, "cancel alarm alarmId=${cancellation.alarmId}")
+        WatchAlarmActiveStore.clearIfMatching(this, cancellation.alarmId, cancellation.eventTimeMillis)
         WatchAlarmRingingService.stop(this)
         AlarmActivity.dismissIfMatching(cancellation.alarmId)
     }

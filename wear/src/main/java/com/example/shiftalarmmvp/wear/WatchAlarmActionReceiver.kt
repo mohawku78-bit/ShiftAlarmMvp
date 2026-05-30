@@ -15,26 +15,30 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
         val requestStartedAtMillis = System.currentTimeMillis()
         val handler = Handler(Looper.getMainLooper())
         var shouldHoldForRetry = false
+        var controlAction: String? = null
 
         try {
             when (safeIntent.action) {
                 WatchAlarmActions.ACTION_STOP -> {
                     shouldHoldForRetry = true
-                    PhoneMessageBridge.send(context, WatchAlarmProtocol.PATH_ALARM_STOP, payload)
-                    awaitPhoneAck(context, WatchAlarmProtocol.PATH_ALARM_STOP, payload)
+                    controlAction = WatchAlarmProtocol.PATH_ALARM_STOP
+                    PhoneMessageBridge.send(context, controlAction, payload)
+                    awaitPhoneAck(context, controlAction, payload)
                 }
 
                 WatchAlarmActions.ACTION_SNOOZE -> {
                     if (!payload.canSnooze) return
                     shouldHoldForRetry = true
-                    PhoneMessageBridge.send(context, WatchAlarmProtocol.PATH_ALARM_SNOOZE, payload)
-                    awaitPhoneAck(context, WatchAlarmProtocol.PATH_ALARM_SNOOZE, payload)
+                    controlAction = WatchAlarmProtocol.PATH_ALARM_SNOOZE
+                    PhoneMessageBridge.send(context, controlAction, payload)
+                    awaitPhoneAck(context, controlAction, payload)
                 }
             }
         } finally {
-            if (shouldHoldForRetry) {
+            val requestedControlAction = controlAction
+            if (shouldHoldForRetry && requestedControlAction != null) {
                 handler.postDelayed(
-                    { restoreIfPhoneAckMissing(context, safeIntent.action.orEmpty(), payload, requestStartedAtMillis) },
+                    { restoreIfPhoneAckMissing(context, requestedControlAction, payload, requestStartedAtMillis) },
                     CONTROL_ACK_TIMEOUT_MILLIS
                 )
                 handler.postDelayed(

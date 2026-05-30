@@ -39,10 +39,12 @@ $wearBuild = Read-RepoFile "wear\build.gradle.kts"
 $appManifest = Read-RepoFile "app\src\main\AndroidManifest.xml"
 $appSideBySideManifest = Read-RepoFile "app\src\sideBySide\AndroidManifest.xml"
 $wearManifest = Read-RepoFile "wear\src\main\AndroidManifest.xml"
+$wearSideBySideManifest = Read-RepoFile "wear\src\sideBySide\AndroidManifest.xml"
 $wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
 $phoneControlListener = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WearAlarmControlListenerService.kt"
 $sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shiftalarmmvp\watch\SideBySideWatchAlarmTestReceiver.kt"
+$sideBySideWatchActionReceiver = Read-RepoFile "wear\src\sideBySide\java\com\example\shiftalarmmvp\wear\SideBySideWatchAlarmActionTestReceiver.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
 $watchService = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
@@ -52,6 +54,7 @@ $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmm
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
 $watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
+$watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
 
@@ -83,6 +86,9 @@ Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.FOREGRO
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android:foregroundServiceType="specialUse"'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android:pathPrefix="/shift_alarm/alarm"'
+Assert-Contains "wear sideBySide AndroidManifest" $wearSideBySideManifest '.SideBySideWatchAlarmActionTestReceiver'
+Assert-Contains "wear sideBySide AndroidManifest" $wearSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_TEST_STOP'
+Assert-Contains "wear sideBySide AndroidManifest" $wearSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE'
 Assert-Contains "wear capabilities" $wearCapabilities 'android_wear_capabilities'
 Assert-Contains "wear capabilities" $wearCapabilities 'shift_alarm_watch_control'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"'
@@ -122,6 +128,8 @@ Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedSt
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'parseControlAcknowledgement'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'dismissIfControlAcknowledged'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmControlAckStore.record'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.record'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.clearIfMatching'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'sendActionAndAwaitAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'awaitControlAcknowledgement'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreAfterMissingControlAck'
@@ -132,8 +140,19 @@ Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'goAsync()'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'awaitPhoneAck'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlAction = WatchAlarmProtocol.PATH_ALARM_STOP'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlAction = WatchAlarmProtocol.PATH_ALARM_SNOOZE'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing(context, requestedControlAction'
 Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowledgementSince'
+Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun record'
+Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun read'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
+Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActiveStore.read'
+Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActionReceiver::class.java'
+Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchAction'
+Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchActionAttempts'
+Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'WATCH_TEST_STOP'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch sent expected control'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

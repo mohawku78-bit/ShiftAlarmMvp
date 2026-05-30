@@ -96,6 +96,11 @@ if ($Mode -eq "control") {
     $acceptedStop = $phone -match "stop from watch alarmId="
     $acceptedSnooze = $phone -match "snooze from watch alarmId="
     $acceptedAction = $acceptedStop -or $acceptedSnooze
+    $expectedControlPathPattern = switch ($ExpectedAction) {
+        "stop" { "/shift_alarm/alarm/stop" }
+        "snooze" { "/shift_alarm/alarm/snooze" }
+        default { "/shift_alarm/alarm/(stop|snooze)" }
+    }
 
     $expectedActionAccepted = switch ($ExpectedAction) {
         "stop" { $acceptedStop }
@@ -107,6 +112,7 @@ if ($Mode -eq "control") {
     $checks += Add-Check "phone sent active alarm to watch" ($phone -match "sendAlarmStarted alarmId=888887|sendMessage path=/shift_alarm/alarm/start")
     $checks += Add-Check "watch received alarm start" ($watch -match "alarm start message|alarm active data")
     $checks += Add-Check "watch displayed alarm" ($watch -match "show alarm alarmId=888887|show alarm alarmId=")
+    $checks += Add-Check "watch sent expected control" ($watch -match "send control path=$expectedControlPathPattern|put control data path=$expectedControlPathPattern") "expected=$ExpectedAction"
     $checks += Add-Check "phone received watch control" ($phone -match "watch control message path=/shift_alarm/alarm/(stop|snooze)|watch control data action=/shift_alarm/alarm/(stop|snooze)")
     $checks += Add-Check "phone accepted expected watch control" $expectedActionAccepted "expected=$ExpectedAction stop=$acceptedStop snooze=$acceptedSnooze"
     $checks += Add-Check "watch received phone control ack" ($watch -match "control ack message action=/shift_alarm/alarm/(stop|snooze)|control ack data action=/shift_alarm/alarm/(stop|snooze)")

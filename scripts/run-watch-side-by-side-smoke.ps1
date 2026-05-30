@@ -14,6 +14,11 @@ param(
     [int]$SnoozeMinutes = 1,
     [int]$VolumePercent = 70,
     [bool]$VibrationEnabled = $true,
+    [ValidateSet("none", "stop", "snooze")]
+    [string]$AutoWatchAction = "none",
+    [int]$AutoWatchActionDelaySeconds = 4,
+    [int]$AutoWatchActionAttempts = 3,
+    [int]$AutoWatchActionRetrySeconds = 2,
     [int]$WaitSeconds = 20,
     [switch]$Assert,
     [ValidateSet("any", "stop", "snooze")]
@@ -30,6 +35,11 @@ $Actions = @{
     preview = "com.example.shiftalarmmvp.action.WATCH_PREVIEW_TEST"
     control = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST"
     stop = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST_STOP"
+}
+
+$WatchActions = @{
+    stop = "com.example.shiftalarmmvp.action.WATCH_TEST_STOP"
+    snooze = "com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE"
 }
 
 function Invoke-Adb {
@@ -75,6 +85,10 @@ Invoke-Adb devices -l
 Assert-Device -Serial $PhoneSerial -Label "Phone"
 Assert-Device -Serial $WatchSerial -Label "Watch"
 
+if ($AutoWatchAction -ne "none" -and $Mode -ne "control") {
+    throw "-AutoWatchAction can only be used with -Mode control."
+}
+
 if ($Clear) {
     Invoke-Adb -s $PhoneSerial logcat -c
     Invoke-Adb -s $WatchSerial logcat -c
@@ -104,8 +118,28 @@ Write-Host "Sending $Mode smoke broadcast to $PackageName on phone $PhoneSerial"
 Invoke-Adb @broadcastArgs
 
 if ($Mode -eq "control") {
-    Write-Host ""
-    Write-Host "Control mode: tap Stop or Snooze on the watch during the wait window."
+    if ($AutoWatchAction -eq "none") {
+        Write-Host ""
+        Write-Host "Control mode: tap Stop or Snooze on the watch during the wait window."
+    } else {
+        $delay = [Math]::Max(0, $AutoWatchActionDelaySeconds)
+        if ($delay -gt 0) {
+            Write-Host "Waiting $delay seconds before sending automatic watch $AutoWatchAction action..."
+            Start-Sleep -Seconds $delay
+        }
+
+        $watchAction = $WatchActions[$AutoWatchAction]
+        $attempts = [Math]::Max(1, $AutoWatchActionAttempts)
+        $retrySeconds = [Math]::Max(0, $AutoWatchActionRetrySeconds)
+        for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+            Write-Host ""
+            Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
+            Invoke-Adb -s $WatchSerial shell am broadcast -p $PackageName -a $watchAction
+            if ($attempt -lt $attempts -and $retrySeconds -gt 0) {
+                Start-Sleep -Seconds $retrySeconds
+            }
+        }
+    }
 }
 
 if ($WaitSeconds -gt 0) {
@@ -128,9 +162,14 @@ Write-Host "Smoke trigger complete."
 if ($Assert -and $Mode -ne "stop") {
     Write-Host ""
     Write-Host "Running smoke assertion."
+    $resolvedExpectedAction = if ($Mode -eq "control" -and $AutoWatchAction -ne "none" -and $ExpectedAction -eq "any") {
+        $AutoWatchAction
+    } else {
+        $ExpectedAction
+    }
     & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "assert-watch-smoke-result.ps1") `
         -Mode $Mode `
         -PhoneLog $phoneLog `
         -WatchLog $watchLog `
-        -ExpectedAction $ExpectedAction
+        -ExpectedAction $resolvedExpectedAction
 }
