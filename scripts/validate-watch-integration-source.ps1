@@ -44,6 +44,7 @@ $wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
 $wearStrings = Read-RepoFile "wear\src\main\res\values\strings.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
 $phoneControlListener = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WearAlarmControlListenerService.kt"
+$phoneAcceptedControlStore = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmAcceptedControlStore.kt"
 $sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shiftalarmmvp\watch\SideBySideWatchAlarmTestReceiver.kt"
 $sideBySideWatchActionReceiver = Read-RepoFile "wear\src\sideBySide\java\com\example\shiftalarmmvp\wear\SideBySideWatchAlarmActionTestReceiver.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
@@ -144,6 +145,11 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILL
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_waiting_stop_ack'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_missing_phone_ack'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmAcceptedControlStore.matchesRecent'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'resend accepted watch control ack'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'acknowledgeAcceptedControl'
+Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun record'
+Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun matchesRecent'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
 Assert-Contains "WatchAlarmActions.kt" $watchActions 'fun controlPathFor'

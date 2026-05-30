@@ -133,4 +133,59 @@ class WatchAlarmBridgeTest {
         assertTrue(first != nextCycle)
         assertNull(WatchAlarmControlGate.eventKey(payload.copy(alarmId = -1L)))
     }
+
+    @Test
+    fun acceptedControlReplay_matchesOnlySameRecentControl() {
+        val payload = WatchAlarmPayload(
+            alarmId = 77L,
+            label = "?쇨컙 洹쇰Т",
+            snoozeMinutes = 5,
+            snoozeMaxCount = 3,
+            currentSnoozeCount = 1,
+            soundType = null,
+            customSoundUri = null,
+            volumePercent = 100,
+            vibrationEnabled = true,
+            snoozeAllowed = true,
+            triggeredAtMillis = 10_000L
+        )
+        val acceptedAt = 50_000L
+
+        assertTrue(
+            WatchAlarmAcceptedControlStore.matchesRecent(
+                action = WatchAlarmBridge.PATH_ALARM_SNOOZE,
+                payload = payload,
+                acceptedAction = WatchAlarmBridge.PATH_ALARM_SNOOZE,
+                acceptedAlarmId = 77L,
+                acceptedTriggeredAtMillis = 10_000L,
+                acceptedCurrentSnoozeCount = 1,
+                acceptedAtMillis = acceptedAt,
+                nowMillis = acceptedAt + 5_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmAcceptedControlStore.matchesRecent(
+                action = WatchAlarmBridge.PATH_ALARM_STOP,
+                payload = payload,
+                acceptedAction = WatchAlarmBridge.PATH_ALARM_SNOOZE,
+                acceptedAlarmId = 77L,
+                acceptedTriggeredAtMillis = 10_000L,
+                acceptedCurrentSnoozeCount = 1,
+                acceptedAtMillis = acceptedAt,
+                nowMillis = acceptedAt + 5_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmAcceptedControlStore.matchesRecent(
+                action = WatchAlarmBridge.PATH_ALARM_SNOOZE,
+                payload = payload,
+                acceptedAction = WatchAlarmBridge.PATH_ALARM_SNOOZE,
+                acceptedAlarmId = 77L,
+                acceptedTriggeredAtMillis = 10_000L,
+                acceptedCurrentSnoozeCount = 1,
+                acceptedAtMillis = acceptedAt,
+                nowMillis = acceptedAt + 121_000L
+            )
+        )
+    }
 }

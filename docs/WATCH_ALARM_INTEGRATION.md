@@ -21,6 +21,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Watch stop/snooze controls are sent in a short three-attempt burst, and notification actions keep their receiver alive briefly with `goAsync()` so a single transient Data Layer miss is less likely to lose the control.
 - Phone receives watch controls in `WearAlarmControlListenerService` and routes them to the existing phone alarm service.
 - Phone sends `/shift_alarm/alarm/control_ack` back after it accepts a watch stop/snooze command, so validation logs can prove the phone actually processed the watch button.
+- If the first control ACK is lost, the phone replays the ACK for a recently accepted matching watch control so watch retry bursts can still finish cleanly after the phone alarm has already stopped or snoozed.
 - The full-screen watch alarm UI waits for that control ACK before closing; if the ACK does not arrive, it re-enables the buttons so the user can retry.
 - The full-screen watch alarm UI also keeps a pending confirmation alarm notification visible while waiting for the phone control ACK.
 - Watch notification actions also switch to a pending confirmation notification instead of disappearing immediately; the notification is cleared when the phone control ACK arrives.

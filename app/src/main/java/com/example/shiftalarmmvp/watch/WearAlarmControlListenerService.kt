@@ -49,6 +49,12 @@ class WearAlarmControlListenerService : WearableListenerService() {
     }
 
     private fun handleControl(action: String, payload: WatchAlarmPayload) {
+        if (WatchAlarmAcceptedControlStore.matchesRecent(applicationContext, action, payload)) {
+            Log.i(TAG, "resend accepted watch control ack action=$action alarmId=${payload.alarmId}")
+            WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
+            return
+        }
+
         if (!AlarmRingingService.isRinging(payload.alarmId, payload.triggeredAtMillis)) {
             Log.i(
                 TAG,
@@ -64,9 +70,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
                     return
                 }
                 Log.i(TAG, "stop from watch alarmId=${payload.alarmId}")
-                WatchAlarmDiagnosticsStore(applicationContext)
-                    .recordControlAccepted(action, payload)
-                WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
+                acknowledgeAcceptedControl(action, payload)
                 AlarmRingingService.stop(applicationContext, payload.alarmId)
             }
 
@@ -80,9 +84,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
                     return
                 }
                 Log.i(TAG, "snooze from watch alarmId=${payload.alarmId} minutes=${payload.snoozeMinutes}")
-                WatchAlarmDiagnosticsStore(applicationContext)
-                    .recordControlAccepted(action, payload)
-                WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
+                acknowledgeAcceptedControl(action, payload)
                 AlarmRingingService.snooze(
                     context = applicationContext,
                     alarmId = payload.alarmId,
@@ -97,6 +99,13 @@ class WearAlarmControlListenerService : WearableListenerService() {
                 )
             }
         }
+    }
+
+    private fun acknowledgeAcceptedControl(action: String, payload: WatchAlarmPayload) {
+        WatchAlarmAcceptedControlStore.record(applicationContext, action, payload)
+        WatchAlarmDiagnosticsStore(applicationContext)
+            .recordControlAccepted(action, payload)
+        WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
     }
 
     companion object {
