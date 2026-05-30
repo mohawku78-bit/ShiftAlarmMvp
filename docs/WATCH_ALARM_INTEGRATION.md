@@ -9,8 +9,9 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Phone also writes `/shift_alarm/alarm/active` as an urgent `DataItem`, so the watch has a backup sync path if the immediate message is missed.
 - Phone-to-watch start, cancel, and control-ACK messages are sent in a short three-attempt burst so a brief Bluetooth/Data Layer hiccup is less likely to lose the alarm signal.
 - Watch receives the message in `WatchAlarmListenerService`.
-- Watch starts `WatchAlarmRingingService` as a foreground service so the high-priority alarm notification and repeating vibration can continue even if Wear OS blocks an immediate background activity launch.
-- While foreground ringing is active, the watch service holds a short partial wake lock so the alarm vibration path is less likely to stall while the watch screen is off or the device is briefly idle.
+- Watch starts `WatchAlarmRingingService` as a foreground service so the high-priority alarm notification and short vibration signal can be delivered even if Wear OS blocks an immediate background activity launch.
+- To protect battery life, the watch uses only a short one-shot vibration signal, caps the foreground signal service at 15 seconds, caps the partial wake lock at 20 seconds, then leaves the actionable notification/control UI instead of keeping an always-ringing service alive.
+- While the short foreground signal is active, the watch service holds a short partial wake lock so the alarm vibration path is less likely to stall while the watch screen is off or the device is briefly idle.
 - Watch also tries to open a full-screen custom alarm activity. If that launch is restricted, the notification remains as the fallback entry point.
 - If foreground startup fails, the service leaves the fallback alarm notification visible instead of clearing it during service teardown.
 - Watch keeps separate duplicate gates for alarm start and cancel events, so a fast stop/cancel event is not rejected as a duplicate of the just-received start event.
@@ -31,7 +32,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - While switching from ringing to pending confirmation, the watch detaches the foreground notification before stopping the ringing service so teardown does not cancel the pending confirmation notification.
 - If the phone control ACK does not arrive, the watch restores the retryable alarm notification and re-enables the full-screen buttons when that screen is open.
 - If the full-screen watch alarm button or notification action times out waiting for the phone control ACK, the watch restarts its alarm ringing path, restores retry UI, and lets the user retry the control.
-- The full-screen watch alarm also maps delivered hardware stem/back/volume-style key events to stop or snooze, while consuming those keys so the alarm screen is not accidentally dismissed.
+- The full-screen watch alarm also maps delivered hardware Home/Assist/stem/back/volume-style key events to stop or snooze, while consuming those keys so the alarm screen is not accidentally dismissed. If Wear OS reserves the physical Home key and does not deliver it to the app, the alarm stays active through the foreground service and notification fallback instead of treating Home as a stop command.
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.
 - Phone de-duplicates message/DataItem control events by alarm cycle, so only the first `끄기` or `스누즈` command wins for a single alarm occurrence.
 - Phone records the latest watch send attempt, watch ACK, accepted watch control, and rejected watch control reason, then shows them in the test area as `최근 워치 전송 시도`, `최근 워치 수신 확인`, `최근 워치 제어 처리`, and `최근 워치 제어 거부`.
@@ -263,4 +264,4 @@ The unit tests cover the phone/watch alarm payload contract, unsafe number clamp
 - If the phone rings but the watch does nothing, confirm both APKs use the same package id variant. For side-by-side testing, both must be `.next`.
 - If only a watch notification appears but no alarm screen opens, open the watch app once and grant notification permission. Some Wear OS builds restrict background activity starts, so the notification is also used as a fallback entry point.
 - If watch buttons do not stop the phone, confirm the phone and watch are paired and connected, then reinstall both APKs from the same build.
-- Galaxy Watch physical Home/Back buttons are model/OS dependent. The app maps delivered stem/back/volume-style key events to stop/snooze and the validation script can inject key events, but the primary reliable controls remain the on-screen watch buttons and notification actions.
+- Galaxy Watch physical Home/Back buttons are model/OS dependent. The app maps delivered Home/Assist/stem/back/volume-style key events to stop/snooze and logs ignored hardware keys from the alarm screen, but Wear OS may reserve Home before third-party apps can handle it. If Home is reserved on a device, use the on-screen watch buttons, notification actions, Back/stem keys that are delivered to the app, or the Ultra quick button if it emits a delivered key code.

@@ -4,7 +4,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -14,6 +16,8 @@ import android.util.Log
 class WatchAlarmRingingService : Service() {
     private var vibrator: Vibrator? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private val signalTimeoutHandler = Handler(Looper.getMainLooper())
+    private var signalTimeoutRunnable: Runnable? = null
     private var activeAlarmId: Long = -1L
     private var cancelNotificationOnDestroy: Boolean = true
 
@@ -49,11 +53,13 @@ class WatchAlarmRingingService : Service() {
         cancelNotificationOnDestroy = true
         acquireWakeLock(payload)
         startVibration(payload)
+        scheduleSignalTimeout(payload)
         PhoneMessageBridge.sendAck(this, payload, WatchAlarmProtocol.ACK_DISPLAY_MODE_FOREGROUND_SERVICE)
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        clearSignalTimeout()
         stopVibration()
         releaseWakeLock()
         val keepNotification = consumeKeepNotificationOnNextStop()
@@ -75,13 +81,28 @@ class WatchAlarmRingingService : Service() {
         }
         vibrator = vibe
 
-        val pattern = longArrayOf(0, 650, 180, 650, 420)
+        val pattern = longArrayOf(0, 450, 160, 450, 220, 450, 160, 450)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibe.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            vibe.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {
             @Suppress("DEPRECATION")
-            vibe.vibrate(pattern, 0)
+            vibe.vibrate(pattern, -1)
         }
+    }
+
+    private fun scheduleSignalTimeout(payload: WatchAlarmPayload) {
+        clearSignalTimeout()
+        val timeout = Runnable {
+            Log.i(TAG, "power saver stop watch signal alarmId=${payload.alarmId}")
+            stopRingingAndSelf(removeNotification = false)
+        }
+        signalTimeoutRunnable = timeout
+        signalTimeoutHandler.postDelayed(timeout, SIGNAL_SERVICE_TIMEOUT_MILLIS)
+    }
+
+    private fun clearSignalTimeout() {
+        signalTimeoutRunnable?.let { signalTimeoutHandler.removeCallbacks(it) }
+        signalTimeoutRunnable = null
     }
 
     private fun startForegroundSafely(payload: WatchAlarmPayload): Boolean {
@@ -134,6 +155,7 @@ class WatchAlarmRingingService : Service() {
 
     private fun stopRingingAndSelf(removeNotification: Boolean = true) {
         Log.i(TAG, "stop foreground ringing alarmId=$activeAlarmId")
+        clearSignalTimeout()
         cancelNotificationOnDestroy = removeNotification
         stopVibration()
         releaseWakeLock()
@@ -151,7 +173,8 @@ class WatchAlarmRingingService : Service() {
         private const val ACTION_START = "com.example.shiftalarmmvp.wear.action.START_RINGING"
         private const val ACTION_STOP = "com.example.shiftalarmmvp.wear.action.STOP_RINGING"
         private const val ACTION_STOP_KEEP_NOTIFICATION = "com.example.shiftalarmmvp.wear.action.STOP_RINGING_KEEP_NOTIFICATION"
-        private const val WAKE_LOCK_TIMEOUT_MILLIS = 2 * 60 * 1000L
+        private const val SIGNAL_SERVICE_TIMEOUT_MILLIS = 15_000L
+        private const val WAKE_LOCK_TIMEOUT_MILLIS = 20_000L
 
         fun start(context: Context, payload: WatchAlarmPayload): Boolean {
             val appContext = context.applicationContext

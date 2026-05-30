@@ -271,11 +271,23 @@ class WatchAlarmProtocolTest {
     fun hardwareKeysMapToStopAndSnoozeControls() {
         assertEquals(
             WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_HOME, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_ASSIST, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
             WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_STEM_PRIMARY, canSnooze = true)
         )
         assertEquals(
             WatchAlarmProtocol.PATH_ALARM_STOP,
             WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_STEM_1, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_STEM_3, canSnooze = true)
         )
         assertEquals(
             WatchAlarmProtocol.PATH_ALARM_STOP,
@@ -295,6 +307,7 @@ class WatchAlarmProtocolTest {
         )
         assertNull(WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_BACK, canSnooze = false))
         assertNull(WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_DPAD_CENTER, canSnooze = true))
+        assertTrue(WatchAlarmHardwareKeys.shouldConsume(KeyEvent.KEYCODE_HOME))
         assertTrue(WatchAlarmHardwareKeys.shouldConsume(KeyEvent.KEYCODE_BACK))
     }
 }

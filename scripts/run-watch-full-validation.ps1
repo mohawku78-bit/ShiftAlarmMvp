@@ -156,6 +156,14 @@ function Invoke-Gradle {
     }
 }
 
+function Assert-LastExitCode {
+    param([string]$StepName)
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$StepName failed with exit code $LASTEXITCODE"
+    }
+}
+
 function Invoke-Smoke {
     param(
         [ValidateSet("preview", "stop", "snooze", "orphan")]
@@ -200,6 +208,7 @@ function Invoke-Smoke {
     }
 
     & powershell @args
+    Assert-LastExitCode "run-watch-side-by-side-smoke.ps1"
 }
 
 function Write-Summary {
@@ -240,6 +249,7 @@ try {
     try {
         Invoke-ValidationStep "Source preflight" {
             & powershell -ExecutionPolicy Bypass -File .\scripts\validate-watch-integration-source.ps1
+            Assert-LastExitCode "validate-watch-integration-source.ps1"
         }
 
         if (-not $SkipInstall) {
@@ -259,6 +269,7 @@ try {
                     $installArgs += "-SkipLaunch"
                 }
                 & powershell @installArgs
+                Assert-LastExitCode "install-watch-side-by-side.ps1"
             }
         } else {
             if (-not $SkipBuild) {
@@ -271,6 +282,7 @@ try {
                     -PhoneSerial $PhoneSerial `
                     -WatchSerial $WatchSerial `
                     -AdbPath $AdbPath
+                Assert-LastExitCode "verify-watch-side-by-side.ps1"
             }
         }
 

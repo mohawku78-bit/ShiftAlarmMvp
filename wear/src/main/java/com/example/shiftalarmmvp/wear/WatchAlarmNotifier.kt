@@ -89,7 +89,7 @@ object WatchAlarmNotifier {
             .setContentText(payload.label.ifBlank { appContext.getString(R.string.alarm_default_label) })
             .setCategory(Notification.CATEGORY_ALARM)
             .setOngoing(true)
-            .setOnlyAlertOnce(false)
+            .setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setFullScreenIntent(openIntent, true)
             .setContentIntent(openIntent)
@@ -134,7 +134,7 @@ object WatchAlarmNotifier {
         ).apply {
             description = context.getString(R.string.notification_channel_description)
             enableVibration(true)
-            vibrationPattern = longArrayOf(0, 650, 180, 650, 420)
+            vibrationPattern = longArrayOf(0, 450, 160, 450)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)

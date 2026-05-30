@@ -54,10 +54,9 @@ $HardwareKeys = @{
 
 function Invoke-Adb {
     param(
-        [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]]$Args
+        [string[]]$AdbArgs
     )
-    & $AdbPath @Args
+    & $AdbPath @AdbArgs
 }
 
 function Assert-Device {
@@ -66,7 +65,7 @@ function Assert-Device {
         [string]$Label
     )
 
-    $state = (Invoke-Adb -s $Serial get-state) -join ""
+    $state = (Invoke-Adb -AdbArgs @("-s", $Serial, "get-state")) -join ""
     if ($state.Trim() -ne "device") {
         throw "$Label is not ready through adb: $Serial ($state)"
     }
@@ -80,7 +79,7 @@ function Save-FilteredLog {
     )
 
     $args = @("-s", $Serial, "logcat", "-d", "-v", "time") + $Tags + @("*:S")
-    Invoke-Adb @args | Set-Content -Encoding UTF8 -LiteralPath $Path
+    Invoke-Adb -AdbArgs $args | Set-Content -Encoding UTF8 -LiteralPath $Path
 }
 
 if (-not (Test-Path -LiteralPath $AdbPath)) {
@@ -90,7 +89,7 @@ if (-not (Test-Path -LiteralPath $AdbPath)) {
 New-Item -ItemType Directory -Force -Path $ResolvedOutputDir | Out-Null
 
 Write-Host "Connected devices:"
-Invoke-Adb devices -l
+Invoke-Adb -AdbArgs @("devices", "-l")
 
 Assert-Device -Serial $PhoneSerial -Label "Phone"
 Assert-Device -Serial $WatchSerial -Label "Watch"
@@ -100,8 +99,8 @@ if ($AutoWatchAction -ne "none" -and $Mode -notin @("control", "orphan")) {
 }
 
 if ($Clear) {
-    Invoke-Adb -s $PhoneSerial logcat -c
-    Invoke-Adb -s $WatchSerial logcat -c
+    Invoke-Adb -AdbArgs @("-s", $PhoneSerial, "logcat", "-c")
+    Invoke-Adb -AdbArgs @("-s", $WatchSerial, "logcat", "-c")
 }
 
 $action = $Actions[$Mode]
@@ -129,7 +128,7 @@ $broadcastArgs = @(
 
 Write-Host ""
 Write-Host "Sending $Mode smoke broadcast to $PackageName on phone $PhoneSerial"
-Invoke-Adb @broadcastArgs
+Invoke-Adb -AdbArgs $broadcastArgs
 
 if ($Mode -in @("control", "orphan")) {
     if ($AutoWatchAction -eq "none") {
@@ -150,10 +149,10 @@ if ($Mode -in @("control", "orphan")) {
             Write-Host ""
             if ($AutoWatchActionSource -eq "hardwareKey") {
                 Write-Host "Sending automatic watch $AutoWatchAction hardware key $hardwareKey attempt $attempt/$attempts on watch $WatchSerial"
-                Invoke-Adb -s $WatchSerial shell input keyevent $hardwareKey
+                Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "input", "keyevent", $hardwareKey)
             } else {
                 Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
-                Invoke-Adb -s $WatchSerial shell am broadcast -p $PackageName -a $watchAction
+                Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $watchAction)
             }
             if ($attempt -lt $attempts -and $retrySeconds -gt 0) {
                 Start-Sleep -Seconds $retrySeconds

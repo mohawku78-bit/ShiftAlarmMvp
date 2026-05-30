@@ -38,6 +38,8 @@ class AlarmActivity : Activity() {
     private var actionStatusText: TextView? = null
     private var stopActionButton: Button? = null
     private var snoozeActionButton: Button? = null
+    private var lastHardwareControlKeyCode: Int = KeyEvent.KEYCODE_UNKNOWN
+    private var lastHardwareControlAtMillis: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -392,12 +394,12 @@ class AlarmActivity : Activity() {
         }
         vibrator = vibe
 
-        val pattern = longArrayOf(0, 650, 180, 650, 420)
+        val pattern = longArrayOf(0, 450, 160, 450, 220, 450, 160, 450)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibe.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            vibe.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {
             @Suppress("DEPRECATION")
-            vibe.vibrate(pattern, 0)
+            vibe.vibrate(pattern, -1)
         }
     }
 
@@ -419,16 +421,43 @@ class AlarmActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return if (handleHardwareKey(keyCode, event, "down")) true else super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        return if (handleHardwareKey(keyCode, event, "up")) true else super.onKeyUp(keyCode, event)
+    }
+
+    private fun handleHardwareKey(keyCode: Int, event: KeyEvent?, phase: String): Boolean {
         val currentPayload = payload
         val hardwareAction = currentPayload?.let {
             WatchAlarmHardwareKeys.controlPathFor(keyCode, it.canSnooze)
         }
         if (hardwareAction != null) {
-            Log.i(TAG, "hardware key control keyCode=$keyCode action=$hardwareAction alarmId=${currentPayload.alarmId}")
-            sendActionAndAwaitAck(hardwareAction)
+            val now = System.currentTimeMillis()
+            val isDuplicateUp = phase == "up" &&
+                keyCode == lastHardwareControlKeyCode &&
+                now - lastHardwareControlAtMillis < HARDWARE_KEY_UP_DEDUPE_MILLIS
+            Log.i(
+                TAG,
+                "hardware key control phase=$phase keyCode=$keyCode action=$hardwareAction " +
+                    "alarmId=${currentPayload.alarmId}"
+            )
+            if (!isDuplicateUp) {
+                lastHardwareControlKeyCode = keyCode
+                lastHardwareControlAtMillis = now
+                sendActionAndAwaitAck(hardwareAction)
+            }
             return true
         }
-        return if (WatchAlarmHardwareKeys.shouldConsume(keyCode)) true else super.onKeyDown(keyCode, event)
+        if (currentPayload != null) {
+            Log.i(
+                TAG,
+                "hardware key ignored phase=$phase keyCode=$keyCode repeat=${event?.repeatCount ?: 0} " +
+                    "canSnooze=${currentPayload.canSnooze}"
+            )
+        }
+        return WatchAlarmHardwareKeys.shouldConsume(keyCode)
     }
 
     override fun onDestroy() {
@@ -452,6 +481,7 @@ class AlarmActivity : Activity() {
         private var activeActivity: WeakReference<AlarmActivity>? = null
 
         private const val TAG = "ShiftWearAlarm"
+        private const val HARDWARE_KEY_UP_DEDUPE_MILLIS = 1_000L
         private const val EXTRA_USE_LOCAL_VIBRATION = "extra_use_local_vibration"
         private const val EXTRA_PENDING_CONTROL_ACTION = "extra_pending_control_action"
         private const val EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS = "extra_pending_control_started_at_millis"
