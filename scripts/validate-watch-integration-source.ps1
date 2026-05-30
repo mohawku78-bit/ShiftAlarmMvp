@@ -38,6 +38,7 @@ $appBuild = Read-RepoFile "app\build.gradle.kts"
 $wearBuild = Read-RepoFile "wear\build.gradle.kts"
 $appManifest = Read-RepoFile "app\src\main\AndroidManifest.xml"
 $wearManifest = Read-RepoFile "wear\src\main\AndroidManifest.xml"
+$wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
@@ -63,6 +64,10 @@ Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.FOREGRO
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android:foregroundServiceType="specialUse"'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android:pathPrefix="/shift_alarm/alarm"'
+Assert-Contains "wear capabilities" $wearCapabilities 'android_wear_capabilities'
+Assert-Contains "wear capabilities" $wearCapabilities 'shift_alarm_watch_control'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'getCapability(CAPABILITY_WATCH_ALARM_CONTROL, CapabilityClient.FILTER_REACHABLE)'
 
 $requiredProtocolConstants = @(
     'PATH_ALARM_START = "/shift_alarm/alarm/start"',

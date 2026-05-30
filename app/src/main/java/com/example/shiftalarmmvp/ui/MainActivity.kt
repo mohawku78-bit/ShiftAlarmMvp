@@ -1562,9 +1562,15 @@ private fun AlarmScreen(
                 )
 
                 result.connectedNodeCount == 0 -> context.getString(R.string.editor_watch_preview_no_device)
+                result.watchAppLookupErrorMessage != null -> context.getString(
+                    R.string.editor_watch_preview_app_lookup_failed_format,
+                    result.watchAppLookupErrorMessage
+                )
+                result.reachableWatchAppNodeCount == 0 -> context.getString(R.string.editor_watch_preview_no_watch_app)
                 else -> context.getString(
-                    R.string.editor_watch_preview_sent_format,
+                    R.string.editor_watch_preview_sent_with_app_format,
                     result.connectedNodeCount,
+                    result.reachableWatchAppNodeCount,
                     result.messageSendAttempts
                 )
             }

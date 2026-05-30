@@ -3,6 +3,7 @@ package com.example.shiftalarmmvp.watch
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.DataItem
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.PutDataMapRequest
@@ -39,6 +40,9 @@ data class WatchAlarmAckEnvelope(
 data class WatchAlarmSendResult(
     val connectedNodeCount: Int,
     val messageSendAttempts: Int,
+    val reachableWatchAppNodeCount: Int,
+    val reachableWatchAppNodeNames: List<String>,
+    val watchAppLookupErrorMessage: String?,
     val errorMessage: String?
 )
 
@@ -160,13 +164,20 @@ class WatchAlarmBridge(context: Context) {
                         .addOnSuccessListener { Log.i(TAG, "sendMessage ok path=$path node=${node.displayName}") }
                         .addOnFailureListener { error -> Log.w(TAG, "sendMessage failed path=$path node=${node.displayName}", error) }
                 }
-                onResult?.invoke(
-                    WatchAlarmSendResult(
-                        connectedNodeCount = nodes.size,
-                        messageSendAttempts = nodes.size,
-                        errorMessage = null
-                    )
-                )
+                if (onResult != null) {
+                    resolveReachableWatchAppNodes { watchAppNodeCount, watchAppNodeNames, watchAppError ->
+                        onResult.invoke(
+                            WatchAlarmSendResult(
+                                connectedNodeCount = nodes.size,
+                                messageSendAttempts = nodes.size,
+                                reachableWatchAppNodeCount = watchAppNodeCount,
+                                reachableWatchAppNodeNames = watchAppNodeNames,
+                                watchAppLookupErrorMessage = watchAppError,
+                                errorMessage = null
+                            )
+                        )
+                    }
+                }
             }
             .addOnFailureListener { error ->
                 Log.w(TAG, "connectedNodes failed path=$path", error)
@@ -174,8 +185,35 @@ class WatchAlarmBridge(context: Context) {
                     WatchAlarmSendResult(
                         connectedNodeCount = 0,
                         messageSendAttempts = 0,
+                        reachableWatchAppNodeCount = 0,
+                        reachableWatchAppNodeNames = emptyList(),
+                        watchAppLookupErrorMessage = null,
                         errorMessage = error.message ?: error.javaClass.simpleName
                     )
+                )
+            }
+    }
+
+    private fun resolveReachableWatchAppNodes(
+        onResult: (nodeCount: Int, nodeNames: List<String>, errorMessage: String?) -> Unit
+    ) {
+        Wearable.getCapabilityClient(appContext)
+            .getCapability(CAPABILITY_WATCH_ALARM_CONTROL, CapabilityClient.FILTER_REACHABLE)
+            .addOnSuccessListener { capabilityInfo ->
+                val nodes = capabilityInfo.nodes.toList()
+                Log.i(TAG, "capability $CAPABILITY_WATCH_ALARM_CONTROL reachableNodes=${nodes.size}")
+                onResult(
+                    nodes.size,
+                    nodes.map { it.displayName }.filter { it.isNotBlank() },
+                    null
+                )
+            }
+            .addOnFailureListener { error ->
+                Log.w(TAG, "capability lookup failed $CAPABILITY_WATCH_ALARM_CONTROL", error)
+                onResult(
+                    0,
+                    emptyList(),
+                    error.message ?: error.javaClass.simpleName
                 )
             }
     }
@@ -214,6 +252,7 @@ class WatchAlarmBridge(context: Context) {
         const val PATH_ALARM_CONTROL = "/shift_alarm/alarm/control"
         const val PATH_PREFIX = "/shift_alarm/alarm"
         const val WATCH_PREVIEW_ALARM_ID = 888_888L
+        const val CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"
         const val ACK_DISPLAY_MODE_FOREGROUND_SERVICE = "foreground_service"
         const val ACK_DISPLAY_MODE_FALLBACK = "fallback"
 

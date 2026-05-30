@@ -705,4 +705,8 @@
     <string name="shift_profession_factory_badge">주야</string>
     <string name="shift_profession_custom_title">직접 설정</string>
     <string name="shift_profession_custom_support">유형과 순서를 직접 구성</string>
-    <string name="shift_profession_custom_badge">직접</string></resources>
+    <string name="shift_profession_custom_badge">직접</string>
+    <string name="editor_watch_preview_no_watch_app">워치는 연결됐지만 교대알람 워치 앱이 확인되지 않았습니다. 폰/워치 APK를 같은 빌드로 다시 설치하세요.</string>
+    <string name="editor_watch_preview_app_lookup_failed_format">워치 앱 확인 실패: %1$s</string>
+    <string name="editor_watch_preview_sent_with_app_format">워치 알람 미리보기 신호를 보냈습니다. 연결된 워치 %1$d대, 워치 앱 %2$d대 확인, 메시지 %3$d회 전송 시도.</string>
+</resources>

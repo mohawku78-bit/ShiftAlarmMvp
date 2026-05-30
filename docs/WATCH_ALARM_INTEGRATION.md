@@ -13,6 +13,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - If foreground startup fails, the service leaves the fallback alarm notification visible instead of clearing it during service teardown.
 - Watch keeps separate duplicate gates for alarm start and cancel events, so a fast stop/cancel event is not rejected as a duplicate of the just-received start event.
 - Phone cancellation payloads keep the original alarm occurrence timestamp, and the watch ignores cancellation events that do not match the accepted start occurrence. If cancel arrives before start for the same occurrence, the watch records it and ignores a late start for that occurrence.
+- Watch advertises the `shift_alarm_watch_control` Wear capability. The phone preview test checks this capability, so it can distinguish "a watch is connected" from "the matching Shift Alarm watch app is installed and reachable".
 - Watch sends `/shift_alarm/alarm/ack` back to the phone with the display path it used: foreground vibration service or notification fallback.
 - Watch `끄기` sends `/shift_alarm/alarm/stop` back to the phone through both message and control `DataItem`.
 - Watch `스누즈` sends `/shift_alarm/alarm/snooze` back to the phone with the original snooze payload through both message and control `DataItem`.
@@ -35,6 +36,7 @@ Both side-by-side APKs use the matching package id suffix:
 - `com.example.shiftalarmmvp.next`
 
 The matching package id and signing key are important because Wear Data Layer delivery is app-scoped.
+The watch module also declares the `shift_alarm_watch_control` capability in `wear/src/main/res/values/wear.xml`; if the phone preview says the watch is connected but the watch app is not confirmed, reinstall both APKs from the same build.
 
 ## Source preflight
 
