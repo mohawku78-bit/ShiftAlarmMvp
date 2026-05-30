@@ -64,6 +64,7 @@ $watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
+$verifyScript = Read-RepoFile "scripts\verify-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
 $fullValidationScript = Read-RepoFile "scripts\run-watch-full-validation.ps1"
@@ -222,6 +223,11 @@ Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActi
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActionReceiver::class.java'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'JavaHome'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Invoke-Gradle'
+Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'Assert-DeviceKind'
+Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'Assert-SideBySideVersion'
+Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'Assert-NotificationPermission'
+Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'android.hardware.type.watch'
+Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'android.permission.POST_NOTIFICATIONS'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchAction'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchActionSource'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'input keyevent'

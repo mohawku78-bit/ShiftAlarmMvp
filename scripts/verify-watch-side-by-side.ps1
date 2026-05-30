@@ -48,14 +48,70 @@ function Test-PackageInstalled {
     Write-Host $packagePath
 }
 
-function Show-PackageSummary {
+function Get-DeviceSdkInt {
+    param([string]$Serial)
+
+    $raw = (Invoke-Adb -s $Serial shell getprop ro.build.version.sdk) -join ""
+    $value = $raw.Trim()
+    $sdk = 0
+    if (-not [int]::TryParse($value, [ref]$sdk)) {
+        throw "Could not read Android SDK level from ${Serial}: $value"
+    }
+    return $sdk
+}
+
+function Get-DeviceProp {
     param(
         [string]$Serial,
+        [string]$Name
+    )
+
+    return ((Invoke-Adb -s $Serial shell getprop $Name) -join "").Trim()
+}
+
+function Get-PackageDump {
+    param([string]$Serial)
+
+    return @(Invoke-Adb -s $Serial shell dumpsys package $PackageName)
+}
+
+function Get-PackageVersionName {
+    param([string[]]$Dump)
+
+    foreach ($line in $Dump) {
+        if ($line -match "^\s*versionName=(.+)\s*$") {
+            return $Matches[1].Trim()
+        }
+    }
+    return ""
+}
+
+function Assert-SideBySideVersion {
+    param(
+        [string[]]$Dump,
         [string]$Label
     )
 
-    $dump = Invoke-Adb -s $Serial shell dumpsys package $PackageName
-    $summary = $dump | Select-String -Pattern "versionCode|versionName|android.permission.POST_NOTIFICATIONS|granted=true"
+    if (-not $PackageName.EndsWith(".next")) {
+        return
+    }
+
+    $versionName = Get-PackageVersionName -Dump $Dump
+    if ([string]::IsNullOrWhiteSpace($versionName)) {
+        throw "Could not verify $Label versionName for $PackageName."
+    }
+    if ($versionName -notmatch "-next$") {
+        throw "$Label package is installed, but it does not look like the side-by-side build: versionName=$versionName"
+    }
+}
+
+function Show-PackageSummary {
+    param(
+        [string[]]$Dump,
+        [string]$Label
+    )
+
+    $summary = $Dump | Select-String -Pattern "versionCode|versionName|android.permission.POST_NOTIFICATIONS"
 
     Write-Host ""
     Write-Host "$Label package summary:"
@@ -66,18 +122,70 @@ function Show-PackageSummary {
     }
 }
 
-function Show-WatchFeatureCheck {
-    param([string]$Serial)
+function Assert-DeviceKind {
+    param(
+        [string]$Serial,
+        [string]$Label,
+        [bool]$ShouldBeWatch
+    )
 
     $features = Invoke-Adb -s $Serial shell pm list features
-    $hasWatchFeature = $features | Select-String -Pattern "android.hardware.type.watch"
+    $hasWatchFeature = ($features | Select-String -Pattern "android.hardware.type.watch" -Quiet) -eq $true
 
     Write-Host ""
-    if ($hasWatchFeature) {
-        Write-Host "Watch feature check: OK"
-    } else {
-        Write-Host "Watch feature check: not reported. Confirm this serial is the Galaxy Watch."
+    if ($ShouldBeWatch) {
+        if (-not $hasWatchFeature) {
+            throw "$Label does not report android.hardware.type.watch. Check the WatchSerial value: $Serial"
+        }
+        Write-Host "$Label watch feature check: OK"
+        return
     }
+
+    if ($hasWatchFeature) {
+        throw "$Label reports android.hardware.type.watch. Check the PhoneSerial value: $Serial"
+    }
+    Write-Host "$Label phone feature check: OK"
+}
+
+function Assert-NotificationPermission {
+    param(
+        [string[]]$Dump,
+        [string]$Label,
+        [int]$SdkInt
+    )
+
+    if ($SdkInt -lt 33) {
+        Write-Host "$Label notification permission: not required on SDK $SdkInt"
+        return
+    }
+
+    $match = $Dump |
+        Select-String -Pattern "android\.permission\.POST_NOTIFICATIONS:.*granted=(true|false)" |
+        Select-Object -First 1
+
+    if (-not $match) {
+        throw "Could not verify $Label POST_NOTIFICATIONS permission on SDK $SdkInt."
+    }
+
+    $granted = $match.Matches[0].Groups[1].Value -eq "true"
+    if (-not $granted) {
+        throw "$Label POST_NOTIFICATIONS permission is not granted: $($match.Line.Trim())"
+    }
+
+    Write-Host "$Label notification permission: OK"
+}
+
+function Show-DeviceSummary {
+    param(
+        [string]$Serial,
+        [string]$Label,
+        [int]$SdkInt
+    )
+
+    $manufacturer = Get-DeviceProp -Serial $Serial -Name "ro.product.manufacturer"
+    $model = Get-DeviceProp -Serial $Serial -Name "ro.product.model"
+    Write-Host ""
+    Write-Host "$Label device: $manufacturer $model (SDK $SdkInt, serial $Serial)"
 }
 
 if (-not (Test-Path -LiteralPath $AdbPath)) {
@@ -90,11 +198,24 @@ Invoke-Adb devices -l
 Assert-Device -Serial $PhoneSerial -Label "Phone"
 Assert-Device -Serial $WatchSerial -Label "Watch"
 
+$phoneSdk = Get-DeviceSdkInt -Serial $PhoneSerial
+$watchSdk = Get-DeviceSdkInt -Serial $WatchSerial
+Show-DeviceSummary -Serial $PhoneSerial -Label "Phone" -SdkInt $phoneSdk
+Show-DeviceSummary -Serial $WatchSerial -Label "Watch" -SdkInt $watchSdk
+Assert-DeviceKind -Serial $PhoneSerial -Label "Phone" -ShouldBeWatch $false
+Assert-DeviceKind -Serial $WatchSerial -Label "Watch" -ShouldBeWatch $true
+
 Test-PackageInstalled -Serial $PhoneSerial -Label "Phone"
 Test-PackageInstalled -Serial $WatchSerial -Label "Watch"
-Show-PackageSummary -Serial $PhoneSerial -Label "Phone"
-Show-PackageSummary -Serial $WatchSerial -Label "Watch"
-Show-WatchFeatureCheck -Serial $WatchSerial
+
+$phoneDump = Get-PackageDump -Serial $PhoneSerial
+$watchDump = Get-PackageDump -Serial $WatchSerial
+Assert-SideBySideVersion -Dump $phoneDump -Label "Phone"
+Assert-SideBySideVersion -Dump $watchDump -Label "Watch"
+Show-PackageSummary -Dump $phoneDump -Label "Phone"
+Show-PackageSummary -Dump $watchDump -Label "Watch"
+Assert-NotificationPermission -Dump $phoneDump -Label "Phone" -SdkInt $phoneSdk
+Assert-NotificationPermission -Dump $watchDump -Label "Watch" -SdkInt $watchSdk
 
 if ($LaunchApps) {
     Write-Host ""
