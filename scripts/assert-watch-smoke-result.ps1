@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("preview", "control")]
+    [ValidateSet("preview", "control", "orphan")]
     [string]$Mode = "preview",
     [string]$PhoneLog = "",
     [string]$WatchLog = "",
@@ -89,6 +89,8 @@ function Write-DiagnosticHints {
         "snooze from watch",
         "ignore stale control",
         "ignore duplicate",
+        "sendAlarmCancelled",
+        "clearActive=false",
         "sendControlAcknowledged",
         "resend accepted watch control ack"
     )
@@ -116,6 +118,9 @@ function Write-DiagnosticHints {
         "put ack data failed",
         "control ack",
         "control ack timeout",
+        "skip control ack timeout restore inactive alarm",
+        "alarm cancel message",
+        "alarm cancelled data",
         "request stop foreground ringing",
         "stop foreground ringing",
         "cancel alarm"
@@ -203,6 +208,30 @@ if ($Mode -eq "control") {
     $checks += Add-Check "phone accepted expected watch control" $expectedActionAccepted "expected=$ExpectedAction stop=$acceptedStop snooze=$acceptedSnooze"
     $checks += Add-Check "watch received phone control ack" ($watch -match "control ack message action=/shift_alarm/alarm/(stop|snooze)|control ack data action=/shift_alarm/alarm/(stop|snooze)")
     $checks += Add-Check "watch alarm dismissed locally" ($watch -match "request stop foreground ringing|cancel alarm alarmId=|stop foreground ringing")
+}
+
+if ($Mode -eq "orphan") {
+    $expectedControlPathPattern = switch ($ExpectedAction) {
+        "stop" { "/shift_alarm/alarm/stop" }
+        "snooze" { "/shift_alarm/alarm/snooze" }
+        default { "/shift_alarm/alarm/(stop|snooze)" }
+    }
+
+    $checks += Add-Check "phone orphan preview broadcast ran" ($phone -match "broadcast watch preview")
+    $checks += Add-Check "phone sent orphan alarm to watch" ($phone -match "watch preview result connected=|sendMessage path=/shift_alarm/alarm/start|putDataItem path=/shift_alarm/alarm/active")
+    $checks += Add-Check "watch received orphan alarm start" ($watch -match "alarm start message|alarm active data")
+    $checks += Add-Check "watch displayed orphan alarm" ($watch -match "show alarm alarmId=888888|show alarm alarmId=")
+    if ($AutoWatchActionSource -eq "hardwareKey") {
+        $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern") "expected=$ExpectedAction"
+    }
+    $checks += Add-Check "watch sent orphan expected control" ($watch -match "send control path=$expectedControlPathPattern|put control data path=$expectedControlPathPattern") "expected=$ExpectedAction"
+    $checks += Add-Check "phone received orphan watch control" ($phone -match "watch control message path=/shift_alarm/alarm/(stop|snooze)|watch control data action=/shift_alarm/alarm/(stop|snooze)")
+    $checks += Add-Check "phone rejected orphan watch control as stale" ($phone -match "ignore stale control action=/shift_alarm/alarm/(stop|snooze) alarmId=888888")
+    $checks += Add-Check "phone sent timestamp cancel for orphan watch alarm" ($phone -match "sendAlarmCancelled alarmId=888888.*clearActive=false")
+    $checks += Add-Check "watch received orphan cancel" ($watch -match "alarm cancel message alarmId=888888|alarm cancelled data alarmId=888888")
+    $checks += Add-Check "watch cancelled orphan alarm" ($watch -match "cancel alarm alarmId=888888")
+    $checks += Add-Check "watch skipped orphan restore after cancel" ($watch -match "skip control ack timeout restore inactive alarm action=$expectedControlPathPattern alarmId=888888")
+    $checks += Add-Check "watch did not restore orphan alarm after cancel" ($watch -notmatch "control ack timeout action=$expectedControlPathPattern alarmId=888888")
 }
 
 Write-Host "Phone log: $PhoneLog"

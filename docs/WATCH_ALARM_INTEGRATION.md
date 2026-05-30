@@ -146,7 +146,7 @@ If exactly one phone and one watch are connected through ADB, the serials can be
 .\scripts\run-watch-full-validation.ps1
 ```
 
-This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
+This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, orphaned watch alarm stale-control recovery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
 
 Preview delivery test:
 
@@ -170,6 +170,12 @@ Automated watch snooze round trip:
 
 ```powershell
 .\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction snooze -Clear -Assert
+```
+
+Orphaned watch alarm stale-control recovery:
+
+```powershell
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode orphan -AutoWatchAction stop -Clear -Assert
 ```
 
 Automated hardware-key watch stop round trip:

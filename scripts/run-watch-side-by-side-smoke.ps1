@@ -3,7 +3,7 @@ param(
     [string]$PhoneSerial,
     [Parameter(Mandatory = $true)]
     [string]$WatchSerial,
-    [ValidateSet("preview", "control", "stop")]
+    [ValidateSet("preview", "control", "orphan", "stop")]
     [string]$Mode = "preview",
     [string]$PackageName = "com.example.shiftalarmmvp.next",
     [string]$AdbPath = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
@@ -38,6 +38,7 @@ $ResolvedOutputDir = Join-Path $RootDir $OutputDir
 $Actions = @{
     preview = "com.example.shiftalarmmvp.action.WATCH_PREVIEW_TEST"
     control = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST"
+    orphan = "com.example.shiftalarmmvp.action.WATCH_PREVIEW_TEST"
     stop = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST_STOP"
 }
 
@@ -94,8 +95,8 @@ Invoke-Adb devices -l
 Assert-Device -Serial $PhoneSerial -Label "Phone"
 Assert-Device -Serial $WatchSerial -Label "Watch"
 
-if ($AutoWatchAction -ne "none" -and $Mode -ne "control") {
-    throw "-AutoWatchAction can only be used with -Mode control."
+if ($AutoWatchAction -ne "none" -and $Mode -notin @("control", "orphan")) {
+    throw "-AutoWatchAction can only be used with -Mode control or -Mode orphan."
 }
 
 if ($Clear) {
@@ -105,7 +106,11 @@ if ($Clear) {
 
 $action = $Actions[$Mode]
 $resolvedLabel = if ([string]::IsNullOrWhiteSpace($Label)) {
-    if ($Mode -eq "preview") { "ADB watch preview" } else { "ADB watch control test" }
+    switch ($Mode) {
+        "preview" { "ADB watch preview" }
+        "orphan" { "ADB watch orphan test" }
+        default { "ADB watch control test" }
+    }
 } else {
     $Label
 }
@@ -126,10 +131,10 @@ Write-Host ""
 Write-Host "Sending $Mode smoke broadcast to $PackageName on phone $PhoneSerial"
 Invoke-Adb @broadcastArgs
 
-if ($Mode -eq "control") {
+if ($Mode -in @("control", "orphan")) {
     if ($AutoWatchAction -eq "none") {
         Write-Host ""
-        Write-Host "Control mode: tap Stop or Snooze on the watch during the wait window."
+        Write-Host "$Mode mode: tap Stop or Snooze on the watch during the wait window."
     } else {
         $delay = [Math]::Max(0, $AutoWatchActionDelaySeconds)
         if ($delay -gt 0) {
@@ -177,7 +182,7 @@ Write-Host "Smoke trigger complete."
 if ($Assert -and $Mode -ne "stop") {
     Write-Host ""
     Write-Host "Running smoke assertion."
-    $resolvedExpectedAction = if ($Mode -eq "control" -and $AutoWatchAction -ne "none" -and $ExpectedAction -eq "any") {
+    $resolvedExpectedAction = if ($Mode -in @("control", "orphan") -and $AutoWatchAction -ne "none" -and $ExpectedAction -eq "any") {
         $AutoWatchAction
     } else {
         $ExpectedAction

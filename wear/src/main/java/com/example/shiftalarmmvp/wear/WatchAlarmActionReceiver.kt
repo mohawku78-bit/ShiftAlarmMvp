@@ -66,6 +66,10 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
         if (WatchAlarmControlAckStore.hasAcknowledgementSince(context, action, payload, requestStartedAtMillis)) {
             return
         }
+        if (!WatchAlarmActiveStore.isMatching(context, payload.alarmId, payload.triggeredAtMillis)) {
+            Log.i(TAG, "skip control ack timeout restore inactive alarm action=$action alarmId=${payload.alarmId}")
+            return
+        }
 
         Log.w(TAG, "control ack timeout action=$action alarmId=${payload.alarmId}")
         val ringingRestored = WatchAlarmRingingService.start(context, payload)

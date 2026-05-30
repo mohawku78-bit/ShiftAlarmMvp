@@ -14,6 +14,7 @@ param(
     [switch]$SkipBuild,
     [switch]$SkipInstall,
     [switch]$SkipLaunch,
+    [switch]$SkipOrphanSmoke,
     [switch]$SkipHardwareKeySmoke
 )
 
@@ -157,7 +158,7 @@ function Invoke-Gradle {
 
 function Invoke-Smoke {
     param(
-        [ValidateSet("preview", "stop", "snooze")]
+        [ValidateSet("preview", "stop", "snooze", "orphan")]
         [string]$Scenario,
         [ValidateSet("broadcast", "hardwareKey")]
         [string]$AutoWatchActionSource = "broadcast"
@@ -181,12 +182,14 @@ function Invoke-Smoke {
             "-WaitSeconds", $PreviewWaitSeconds.ToString()
         )
     } else {
+        $mode = if ($Scenario -eq "orphan") { "orphan" } else { "control" }
+        $watchAction = if ($Scenario -eq "orphan") { "stop" } else { $Scenario }
         $args += @(
-            "-Mode", "control",
+            "-Mode", $mode,
             "-Label", "Full validation $Scenario",
-            "-AutoWatchAction", $Scenario,
+            "-AutoWatchAction", $watchAction,
             "-AutoWatchActionSource", $AutoWatchActionSource,
-            "-ExpectedAction", $Scenario,
+            "-ExpectedAction", $watchAction,
             "-AutoWatchStopKeyCode", $AutoWatchStopKeyCode,
             "-AutoWatchSnoozeKeyCode", $AutoWatchSnoozeKeyCode,
             "-AutoWatchActionDelaySeconds", $AutoWatchActionDelaySeconds.ToString(),
@@ -273,6 +276,12 @@ try {
 
         Invoke-ValidationStep "Preview delivery smoke" {
             Invoke-Smoke -Scenario preview
+        }
+
+        if (-not $SkipOrphanSmoke) {
+            Invoke-ValidationStep "Orphaned watch alarm stale-control smoke" {
+                Invoke-Smoke -Scenario orphan
+            }
         }
 
         Invoke-ValidationStep "Watch stop control smoke" {
