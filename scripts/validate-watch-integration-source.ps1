@@ -137,6 +137,8 @@ Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveS
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'sendActionAndAwaitAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'awaitControlAcknowledgement'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreAfterMissingControlAck'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreControlRetryAfterMissingAck'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'control ack timeout in activity'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_waiting_stop_ack'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_missing_phone_ack'

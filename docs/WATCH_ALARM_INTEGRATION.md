@@ -24,6 +24,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - The full-screen watch alarm UI waits for that control ACK before closing; if the ACK does not arrive, it re-enables the buttons so the user can retry.
 - Watch notification actions also switch to a pending confirmation notification instead of disappearing immediately; the notification is cleared when the phone control ACK arrives.
 - If the phone control ACK does not arrive, the watch restores the retryable alarm notification and re-enables the full-screen buttons when that screen is open.
+- If the full-screen watch alarm button times out waiting for the phone control ACK, the watch restores the retry notification and local vibration so the user can retry the control.
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.
 - Phone de-duplicates message/DataItem control events by alarm cycle, so only the first `끄기` or `스누즈` command wins for a single alarm occurrence.
 - Phone records the latest watch ACK, its display mode, and accepted watch control, then shows them in the test area as `최근 워치 수신 확인` and `최근 워치 제어 처리`.

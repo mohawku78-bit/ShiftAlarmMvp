@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -265,17 +266,28 @@ class AlarmActivity : Activity() {
         controlAckTimeout?.let(controlAckHandler::removeCallbacks)
         val timeout = Runnable {
             if (pendingControlAction == path && pendingControlPayload?.alarmId == payload.alarmId) {
-                pendingControlAction = null
-                pendingControlPayload = null
-                actionStatusText?.apply {
-                    text = getString(R.string.alarm_missing_phone_ack)
-                    visibility = View.VISIBLE
-                }
-                setActionButtonsEnabled(true)
+                restoreControlRetryAfterMissingAck(payload)
             }
         }
         controlAckTimeout = timeout
         controlAckHandler.postDelayed(timeout, CONTROL_ACK_TIMEOUT_MILLIS)
+    }
+
+    private fun restoreControlRetryAfterMissingAck(payload: WatchAlarmPayload) {
+        val currentPayload = this.payload ?: return
+        if (currentPayload.alarmId != payload.alarmId) return
+        if (currentPayload.triggeredAtMillis != payload.triggeredAtMillis) return
+
+        Log.w(TAG, "control ack timeout in activity alarmId=${payload.alarmId}")
+        pendingControlAction = null
+        pendingControlPayload = null
+        WatchAlarmNotifier.show(this, payload)
+        startVibration(payload)
+        actionStatusText?.apply {
+            text = getString(R.string.alarm_missing_phone_ack)
+            visibility = View.VISIBLE
+        }
+        setActionButtonsEnabled(true)
     }
 
     private fun setActionButtonsEnabled(enabled: Boolean) {
@@ -291,8 +303,7 @@ class AlarmActivity : Activity() {
 
     private fun dismissIfControlAckMatches(action: String, ackPayload: WatchAlarmPayload) {
         val currentPayload = payload ?: return
-        val pendingAction = pendingControlAction ?: return
-        if (pendingAction != action) return
+        if (action != WatchAlarmProtocol.PATH_ALARM_STOP && action != WatchAlarmProtocol.PATH_ALARM_SNOOZE) return
         if (currentPayload.alarmId != ackPayload.alarmId) return
         if (currentPayload.triggeredAtMillis != ackPayload.triggeredAtMillis) return
         dismissLocal()
@@ -367,6 +378,7 @@ class AlarmActivity : Activity() {
     companion object {
         private var activeActivity: WeakReference<AlarmActivity>? = null
 
+        private const val TAG = "ShiftWearAlarm"
         private const val EXTRA_USE_LOCAL_VIBRATION = "extra_use_local_vibration"
         private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
 
@@ -429,13 +441,7 @@ class AlarmActivity : Activity() {
                     if (activity.payload?.alarmId == payload.alarmId &&
                         activity.payload?.triggeredAtMillis == payload.triggeredAtMillis
                     ) {
-                        activity.pendingControlAction = null
-                        activity.pendingControlPayload = null
-                        activity.actionStatusText?.apply {
-                            text = activity.getString(R.string.alarm_missing_phone_ack)
-                            visibility = View.VISIBLE
-                        }
-                        activity.setActionButtonsEnabled(true)
+                        activity.restoreControlRetryAfterMissingAck(payload)
                     }
                 }
             }
