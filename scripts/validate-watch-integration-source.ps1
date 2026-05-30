@@ -60,6 +60,7 @@ $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmm
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
 $watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
+$watchEventGate = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmEventGate.kt"
 $watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmHardwareKeys.kt"
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
@@ -213,6 +214,9 @@ Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPho
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'requestStartedAtMillis'
 Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowledgementSince'
 Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'matchesAcknowledgement'
+Assert-Contains "WatchAlarmEventGate.kt" $watchEventGate 'eventKey(eventType: String, alarmId: Long, eventTimeMillis: Long)'
+Assert-Contains "WatchAlarmEventGate.kt" $watchEventGate 'prefs.contains(key)'
+Assert-Contains "WatchAlarmEventGate.kt" $watchEventGate 'pruneOldEvents'
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_PRIMARY'
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_1'
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_2'
@@ -268,6 +272,7 @@ Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Watch har
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'hardwareKeysMapToStopAndSnoozeControls'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'activeStoreMatchingRequiresSameAlarmOccurrence'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'controlAckStoreMatchesOnlySameActionOccurrenceAndRequestWindow'
+Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'eventGateKey_separatesStartCancelAndAlarmOccurrences'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

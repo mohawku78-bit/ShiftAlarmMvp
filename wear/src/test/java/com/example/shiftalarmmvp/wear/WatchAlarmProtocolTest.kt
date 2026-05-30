@@ -164,15 +164,18 @@ class WatchAlarmProtocolTest {
     }
 
     @Test
-    fun eventGateKey_separatesStartAndCancelEvents() {
-        val startKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 42L)
-        val cancelKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_CANCEL, 42L)
-        val nextStartKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 43L)
+    fun eventGateKey_separatesStartCancelAndAlarmOccurrences() {
+        val startKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 42L, 10_000L)
+        val cancelKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_CANCEL, 42L, 10_000L)
+        val nextAlarmKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 43L, 10_000L)
+        val nextOccurrenceKey = WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 42L, 9_000L)
 
         assertTrue(startKey != cancelKey)
-        assertTrue(startKey != nextStartKey)
-        assertNull(WatchAlarmEventGate.eventKey("", 42L))
-        assertNull(WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 0L))
+        assertTrue(startKey != nextAlarmKey)
+        assertTrue(startKey != nextOccurrenceKey)
+        assertNull(WatchAlarmEventGate.eventKey("", 42L, 10_000L))
+        assertNull(WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 0L, 10_000L))
+        assertNull(WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 42L, 0L))
     }
 
     @Test
