@@ -41,6 +41,7 @@ $appSideBySideManifest = Read-RepoFile "app\src\sideBySide\AndroidManifest.xml"
 $wearManifest = Read-RepoFile "wear\src\main\AndroidManifest.xml"
 $wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
+$phoneControlListener = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WearAlarmControlListenerService.kt"
 $sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shiftalarmmvp\watch\SideBySideWatchAlarmTestReceiver.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
@@ -70,6 +71,7 @@ Assert-Contains "SideBySideWatchAlarmTestReceiver.kt" $sideBySideTestReceiver 'A
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'assert-watch-smoke-result.ps1'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch preview result connected='
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'phone accepted expected watch control'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch received phone control ack'
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
 Assert-Contains "wear AndroidManifest" $wearManifest '.WatchAlarmListenerService'
@@ -92,6 +94,7 @@ $requiredProtocolConstants = @(
     'PATH_ALARM_ACTIVE = "/shift_alarm/alarm/active"',
     'PATH_ALARM_CANCELLED = "/shift_alarm/alarm/cancelled"',
     'PATH_ALARM_CONTROL = "/shift_alarm/alarm/control"',
+    'PATH_ALARM_CONTROL_ACK = "/shift_alarm/alarm/control_ack"',
     'ACK_DISPLAY_MODE_FOREGROUND_SERVICE = "foreground_service"',
     'ACK_DISPLAY_MODE_FALLBACK = "fallback"'
 )
@@ -113,6 +116,8 @@ Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FO
 Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FALLBACK'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedCancel'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedStart'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'parseControlAcknowledgement'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'goAsync()'

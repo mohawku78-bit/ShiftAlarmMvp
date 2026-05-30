@@ -138,6 +138,14 @@ class WatchAlarmBridge(context: Context) {
         deleteDataItem(PATH_ALARM_ACTIVE)
     }
 
+    fun sendControlAcknowledged(action: String, payload: WatchAlarmPayload) {
+        if (payload.alarmId <= 0 || action.isBlank()) return
+        val json = controlAcknowledgementJson(action, payload)
+        Log.i(TAG, "sendControlAcknowledged action=$action alarmId=${payload.alarmId}")
+        sendToConnectedNodes(PATH_ALARM_CONTROL_ACK, json)
+        putControlAcknowledgementDataItem(json)
+    }
+
     private fun sendAlarmStartedPayload(
         payload: WatchAlarmPayload,
         onResult: ((WatchAlarmSendResult) -> Unit)? = null
@@ -229,6 +237,18 @@ class WatchAlarmBridge(context: Context) {
             .addOnFailureListener { error -> Log.w(TAG, "putDataItem failed path=$path", error) }
     }
 
+    private fun putControlAcknowledgementDataItem(payload: JSONObject) {
+        val request = PutDataMapRequest.create(PATH_ALARM_CONTROL_ACK).apply {
+            dataMap.putString(KEY_ACTION, payload.optString(KEY_ACTION))
+            dataMap.putString(KEY_PAYLOAD_JSON, payload.optString(KEY_PAYLOAD_JSON))
+            dataMap.putLong(KEY_EVENT_TIME_MILLIS, payload.optLong(KEY_EVENT_TIME_MILLIS, System.currentTimeMillis()))
+        }.asPutDataRequest().setUrgent()
+
+        Wearable.getDataClient(appContext).putDataItem(request)
+            .addOnSuccessListener { Log.i(TAG, "putDataItem path=$PATH_ALARM_CONTROL_ACK") }
+            .addOnFailureListener { error -> Log.w(TAG, "putDataItem failed path=$PATH_ALARM_CONTROL_ACK", error) }
+    }
+
     private fun deleteDataItem(path: String) {
         val uri = Uri.Builder()
             .scheme("wear")
@@ -250,6 +270,7 @@ class WatchAlarmBridge(context: Context) {
         const val PATH_ALARM_ACTIVE = "/shift_alarm/alarm/active"
         const val PATH_ALARM_CANCELLED = "/shift_alarm/alarm/cancelled"
         const val PATH_ALARM_CONTROL = "/shift_alarm/alarm/control"
+        const val PATH_ALARM_CONTROL_ACK = "/shift_alarm/alarm/control_ack"
         const val PATH_PREFIX = "/shift_alarm/alarm"
         const val WATCH_PREVIEW_ALARM_ID = 888_888L
         const val CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"
@@ -353,6 +374,13 @@ class WatchAlarmBridge(context: Context) {
                     soundType?.let { put(KEY_SOUND_TYPE, it) }
                     customSoundUri?.let { put(KEY_CUSTOM_SOUND_URI, it) }
                 }
+        }
+
+        private fun controlAcknowledgementJson(action: String, payload: WatchAlarmPayload): JSONObject {
+            return JSONObject()
+                .put(KEY_ACTION, action)
+                .put(KEY_PAYLOAD_JSON, payload.toJson().toString())
+                .put(KEY_EVENT_TIME_MILLIS, System.currentTimeMillis())
         }
 
         private fun JSONObject.optionalString(key: String): String? {

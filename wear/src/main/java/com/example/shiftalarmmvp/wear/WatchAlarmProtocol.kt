@@ -28,6 +28,11 @@ data class WatchAlarmCancellation(
     val eventTimeMillis: Long
 )
 
+data class WatchAlarmControlAcknowledgement(
+    val action: String,
+    val payload: WatchAlarmPayload
+)
+
 object WatchAlarmProtocol {
     const val PATH_ALARM_START = "/shift_alarm/alarm/start"
     const val PATH_ALARM_CANCEL = "/shift_alarm/alarm/cancel"
@@ -37,6 +42,7 @@ object WatchAlarmProtocol {
     const val PATH_ALARM_ACTIVE = "/shift_alarm/alarm/active"
     const val PATH_ALARM_CANCELLED = "/shift_alarm/alarm/cancelled"
     const val PATH_ALARM_CONTROL = "/shift_alarm/alarm/control"
+    const val PATH_ALARM_CONTROL_ACK = "/shift_alarm/alarm/control_ack"
     const val PATH_PREFIX = "/shift_alarm/alarm"
 
     const val EXTRA_PAYLOAD_JSON = "extra_payload_json"
@@ -149,6 +155,27 @@ object WatchAlarmProtocol {
         dataMap.putString(KEY_ACTION, action)
         dataMap.putString(KEY_PAYLOAD_JSON, toJson(payload))
         dataMap.putLong(KEY_EVENT_TIME_MILLIS, System.currentTimeMillis())
+    }
+
+    fun parseControlAcknowledgement(bytes: ByteArray): WatchAlarmControlAcknowledgement? {
+        return parseControlAcknowledgement(bytes.toString(Charsets.UTF_8))
+    }
+
+    fun parseControlAcknowledgement(dataItem: DataItem): WatchAlarmControlAcknowledgement? {
+        val dataMap = runCatching { DataMapItem.fromDataItem(dataItem).dataMap }.getOrNull() ?: return null
+        val action = dataMap.getString(KEY_ACTION)?.takeIf { it.isNotBlank() } ?: return null
+        val payload = parsePayload(dataMap.getString(KEY_PAYLOAD_JSON)) ?: return null
+        return WatchAlarmControlAcknowledgement(action, payload)
+    }
+
+    private fun parseControlAcknowledgement(rawJson: String?): WatchAlarmControlAcknowledgement? {
+        if (rawJson.isNullOrBlank()) return null
+        return runCatching {
+            val json = JSONObject(rawJson)
+            val action = json.optionalString(KEY_ACTION) ?: return null
+            val payload = parsePayload(json.optionalString(KEY_PAYLOAD_JSON)) ?: return null
+            WatchAlarmControlAcknowledgement(action, payload)
+        }.getOrNull()
     }
 
     private fun JSONObject.optionalString(key: String): String? {

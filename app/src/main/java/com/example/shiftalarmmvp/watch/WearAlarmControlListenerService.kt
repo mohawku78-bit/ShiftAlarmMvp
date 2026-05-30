@@ -66,6 +66,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
                 Log.i(TAG, "stop from watch alarmId=${payload.alarmId}")
                 WatchAlarmDiagnosticsStore(applicationContext)
                     .recordControlAccepted(action, payload)
+                WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
                 AlarmRingingService.stop(applicationContext, payload.alarmId)
             }
 
@@ -81,6 +82,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
                 Log.i(TAG, "snooze from watch alarmId=${payload.alarmId} minutes=${payload.snoozeMinutes}")
                 WatchAlarmDiagnosticsStore(applicationContext)
                     .recordControlAccepted(action, payload)
+                WatchAlarmBridge(applicationContext).sendControlAcknowledged(action, payload)
                 AlarmRingingService.snooze(
                     context = applicationContext,
                     alarmId = payload.alarmId,

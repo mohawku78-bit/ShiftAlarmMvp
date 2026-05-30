@@ -109,6 +109,7 @@ if ($Mode -eq "control") {
     $checks += Add-Check "watch displayed alarm" ($watch -match "show alarm alarmId=888887|show alarm alarmId=")
     $checks += Add-Check "phone received watch control" ($phone -match "watch control message path=/shift_alarm/alarm/(stop|snooze)|watch control data action=/shift_alarm/alarm/(stop|snooze)")
     $checks += Add-Check "phone accepted expected watch control" $expectedActionAccepted "expected=$ExpectedAction stop=$acceptedStop snooze=$acceptedSnooze"
+    $checks += Add-Check "watch received phone control ack" ($watch -match "control ack message action=/shift_alarm/alarm/(stop|snooze)|control ack data action=/shift_alarm/alarm/(stop|snooze)")
     $checks += Add-Check "watch alarm dismissed locally" ($watch -match "request stop foreground ringing|cancel alarm alarmId=|stop foreground ringing")
 }
 

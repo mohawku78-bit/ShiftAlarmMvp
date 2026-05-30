@@ -97,6 +97,34 @@ class WatchAlarmProtocolTest {
     }
 
     @Test
+    fun parseControlAcknowledgement_readsActionAndPayload() {
+        val payload = WatchAlarmPayload(
+            alarmId = 99L,
+            label = "二쇨컙 洹쇰Т",
+            snoozeMinutes = 15,
+            snoozeMaxCount = 4,
+            currentSnoozeCount = 2,
+            soundType = "ALARM",
+            customSoundUri = null,
+            volumePercent = 70,
+            vibrationEnabled = true,
+            snoozeAllowed = true,
+            triggeredAtMillis = 987_654L
+        )
+
+        val ackJson = JSONObject()
+            .put("action", WatchAlarmProtocol.PATH_ALARM_SNOOZE)
+            .put("payloadJson", WatchAlarmProtocol.toJson(payload))
+            .put("eventTimeMillis", 123L)
+            .toString()
+
+        val ack = WatchAlarmProtocol.parseControlAcknowledgement(ackJson.toByteArray(Charsets.UTF_8))
+
+        assertEquals(WatchAlarmProtocol.PATH_ALARM_SNOOZE, ack?.action)
+        assertEquals(payload, ack?.payload)
+    }
+
+    @Test
     fun canSnooze_respectsLimitedAndUnlimitedSnooze() {
         val limitedPayload = WatchAlarmPayload(
             alarmId = 1L,

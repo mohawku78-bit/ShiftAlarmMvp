@@ -20,6 +20,11 @@ class WatchAlarmListenerService : WearableListenerService() {
                 Log.i(TAG, "alarm cancel message alarmId=${cancellation.alarmId}")
                 cancelAlarm(cancellation)
             }
+
+            WatchAlarmProtocol.PATH_ALARM_CONTROL_ACK -> {
+                val ack = WatchAlarmProtocol.parseControlAcknowledgement(messageEvent.data) ?: return
+                Log.i(TAG, "control ack message action=${ack.action} alarmId=${ack.payload.alarmId}")
+            }
         }
     }
 
@@ -38,6 +43,11 @@ class WatchAlarmListenerService : WearableListenerService() {
                         val cancellation = WatchAlarmProtocol.parseCancellation(event.dataItem) ?: return@forEach
                         Log.i(TAG, "alarm cancelled data alarmId=${cancellation.alarmId}")
                         cancelAlarm(cancellation)
+                    }
+
+                    WatchAlarmProtocol.PATH_ALARM_CONTROL_ACK -> {
+                        val ack = WatchAlarmProtocol.parseControlAcknowledgement(event.dataItem) ?: return@forEach
+                        Log.i(TAG, "control ack data action=${ack.action} alarmId=${ack.payload.alarmId}")
                     }
                 }
             }
