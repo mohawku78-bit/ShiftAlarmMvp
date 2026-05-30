@@ -56,8 +56,10 @@ $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmv
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
 $watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
+$installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
+$fullValidationScript = Read-RepoFile "scripts\run-watch-full-validation.ps1"
 
 Assert-Contains "settings.gradle.kts" $settings 'include(":wear")'
 Assert-Contains "app/build.gradle.kts" $appBuild 'implementation("com.google.android.gms:play-services-wearable:18.2.0")'
@@ -153,10 +155,17 @@ Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun read'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActiveStore.read'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActionReceiver::class.java'
+Assert-Contains "install-watch-side-by-side.ps1" $installScript 'JavaHome'
+Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Invoke-Gradle'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchAction'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchActionAttempts'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'WATCH_TEST_STOP'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch sent expected control'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'install-watch-side-by-side.ps1'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'validate-watch-integration-source.ps1'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Smoke -Scenario preview'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Smoke -Scenario stop'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Smoke -Scenario snooze'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

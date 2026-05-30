@@ -127,6 +127,14 @@ The logs are written under `manual-validation/watch-alarm/` and include these ta
 
 The side-by-side phone APK includes a test-only exported receiver, so a connected phone/watch pair can be smoke-tested without navigating the phone UI.
 
+Full validation path:
+
+```powershell
+.\scripts\run-watch-full-validation.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL
+```
+
+This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, automated watch stop, and automated watch snooze smoke assertions. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch.
+
 Preview delivery test:
 
 ```powershell

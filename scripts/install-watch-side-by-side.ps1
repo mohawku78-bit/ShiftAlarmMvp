@@ -2,6 +2,7 @@ param(
     [string]$PhoneSerial,
     [string]$WatchSerial,
     [string]$AdbPath = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
+    [string]$JavaHome = "C:\Program Files\Android\Android Studio1\jbr",
     [switch]$SkipBuild,
     [switch]$SkipPreflight,
     [switch]$SkipVerify,
@@ -30,6 +31,24 @@ function Assert-File {
     }
 }
 
+function Invoke-Gradle {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Args
+    )
+
+    $previousJavaHome = $env:JAVA_HOME
+    if (-not [string]::IsNullOrWhiteSpace($JavaHome) -and (Test-Path -LiteralPath $JavaHome)) {
+        $env:JAVA_HOME = $JavaHome
+    }
+
+    try {
+        & .\gradlew.bat @Args
+    } finally {
+        $env:JAVA_HOME = $previousJavaHome
+    }
+}
+
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
@@ -37,7 +56,7 @@ if (-not (Test-Path -LiteralPath $AdbPath)) {
 Push-Location $RootDir
 try {
     if (-not $SkipBuild) {
-        & .\gradlew.bat :app:assembleSideBySide :wear:assembleSideBySide
+        Invoke-Gradle :app:assembleSideBySide :wear:assembleSideBySide
     }
 
     Assert-File $PhoneApk
