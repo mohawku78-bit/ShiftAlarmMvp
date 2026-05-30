@@ -16,6 +16,10 @@ param(
     [bool]$VibrationEnabled = $true,
     [ValidateSet("none", "stop", "snooze")]
     [string]$AutoWatchAction = "none",
+    [ValidateSet("broadcast", "hardwareKey")]
+    [string]$AutoWatchActionSource = "broadcast",
+    [string]$AutoWatchStopKeyCode = "KEYCODE_STEM_PRIMARY",
+    [string]$AutoWatchSnoozeKeyCode = "KEYCODE_BACK",
     [int]$AutoWatchActionDelaySeconds = 4,
     [int]$AutoWatchActionAttempts = 3,
     [int]$AutoWatchActionRetrySeconds = 2,
@@ -40,6 +44,11 @@ $Actions = @{
 $WatchActions = @{
     stop = "com.example.shiftalarmmvp.action.WATCH_TEST_STOP"
     snooze = "com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE"
+}
+
+$HardwareKeys = @{
+    stop = $AutoWatchStopKeyCode
+    snooze = $AutoWatchSnoozeKeyCode
 }
 
 function Invoke-Adb {
@@ -129,12 +138,18 @@ if ($Mode -eq "control") {
         }
 
         $watchAction = $WatchActions[$AutoWatchAction]
+        $hardwareKey = $HardwareKeys[$AutoWatchAction]
         $attempts = [Math]::Max(1, $AutoWatchActionAttempts)
         $retrySeconds = [Math]::Max(0, $AutoWatchActionRetrySeconds)
         for ($attempt = 1; $attempt -le $attempts; $attempt++) {
             Write-Host ""
-            Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
-            Invoke-Adb -s $WatchSerial shell am broadcast -p $PackageName -a $watchAction
+            if ($AutoWatchActionSource -eq "hardwareKey") {
+                Write-Host "Sending automatic watch $AutoWatchAction hardware key $hardwareKey attempt $attempt/$attempts on watch $WatchSerial"
+                Invoke-Adb -s $WatchSerial shell input keyevent $hardwareKey
+            } else {
+                Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
+                Invoke-Adb -s $WatchSerial shell am broadcast -p $PackageName -a $watchAction
+            }
             if ($attempt -lt $attempts -and $retrySeconds -gt 0) {
                 Start-Sleep -Seconds $retrySeconds
             }
@@ -171,5 +186,6 @@ if ($Assert -and $Mode -ne "stop") {
         -Mode $Mode `
         -PhoneLog $phoneLog `
         -WatchLog $watchLog `
-        -ExpectedAction $resolvedExpectedAction
+        -ExpectedAction $resolvedExpectedAction `
+        -AutoWatchActionSource $AutoWatchActionSource
 }

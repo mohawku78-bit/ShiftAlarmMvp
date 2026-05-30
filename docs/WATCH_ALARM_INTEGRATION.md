@@ -144,7 +144,7 @@ If exactly one phone and one watch are connected through ADB, the serials can be
 .\scripts\run-watch-full-validation.ps1
 ```
 
-This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, automated watch stop, and automated watch snooze smoke assertions. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch.
+This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
 
 Preview delivery test:
 
@@ -170,7 +170,21 @@ Automated watch snooze round trip:
 .\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction snooze -Clear -Assert
 ```
 
+Automated hardware-key watch stop round trip:
+
+```powershell
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction stop -AutoWatchActionSource hardwareKey -Clear -Assert
+```
+
+Automated hardware-key watch snooze round trip:
+
+```powershell
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction snooze -AutoWatchActionSource hardwareKey -Clear -Assert
+```
+
 During manual `control` mode, tap `스누즈` or `끄기` on the watch before the wait window ends. With `-AutoWatchAction`, the side-by-side watch APK uses its current active alarm payload and sends the same internal stop/snooze action that the watch notification buttons use. The automatic action is retried briefly because phone-to-watch delivery can lag on real devices. Filtered phone and watch logs are saved under `manual-validation/watch-alarm/`.
+With `-AutoWatchActionSource hardwareKey`, the script injects `adb shell input keyevent` into the watch alarm screen and asserts that the full-screen alarm received the key before sending stop/snooze.
+
 The `-Assert` flag runs `scripts/assert-watch-smoke-result.ps1` after log capture and fails if the logs do not prove delivery, display, ACK, and the expected watch control round trip. Use `-ExpectedAction snooze` or `-ExpectedAction stop` when you want to require one specific watch button.
 
 ### Watch signal preview

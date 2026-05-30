@@ -368,6 +368,7 @@ class AlarmActivity : Activity() {
             WatchAlarmHardwareKeys.controlPathFor(keyCode, it.canSnooze)
         }
         if (hardwareAction != null) {
+            Log.i(TAG, "hardware key control keyCode=$keyCode action=$hardwareAction alarmId=${currentPayload.alarmId}")
             sendActionAndAwaitAck(hardwareAction)
             return true
         }

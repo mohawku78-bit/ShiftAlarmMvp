@@ -9,9 +9,12 @@ param(
     [int]$AutoWatchActionDelaySeconds = 4,
     [int]$AutoWatchActionAttempts = 3,
     [int]$AutoWatchActionRetrySeconds = 2,
+    [string]$AutoWatchStopKeyCode = "KEYCODE_STEM_PRIMARY",
+    [string]$AutoWatchSnoozeKeyCode = "KEYCODE_BACK",
     [switch]$SkipBuild,
     [switch]$SkipInstall,
-    [switch]$SkipLaunch
+    [switch]$SkipLaunch,
+    [switch]$SkipHardwareKeySmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -155,7 +158,9 @@ function Invoke-Gradle {
 function Invoke-Smoke {
     param(
         [ValidateSet("preview", "stop", "snooze")]
-        [string]$Scenario
+        [string]$Scenario,
+        [ValidateSet("broadcast", "hardwareKey")]
+        [string]$AutoWatchActionSource = "broadcast"
     )
 
     $args = @(
@@ -180,7 +185,10 @@ function Invoke-Smoke {
             "-Mode", "control",
             "-Label", "Full validation $Scenario",
             "-AutoWatchAction", $Scenario,
+            "-AutoWatchActionSource", $AutoWatchActionSource,
             "-ExpectedAction", $Scenario,
+            "-AutoWatchStopKeyCode", $AutoWatchStopKeyCode,
+            "-AutoWatchSnoozeKeyCode", $AutoWatchSnoozeKeyCode,
             "-AutoWatchActionDelaySeconds", $AutoWatchActionDelaySeconds.ToString(),
             "-AutoWatchActionAttempts", $AutoWatchActionAttempts.ToString(),
             "-AutoWatchActionRetrySeconds", $AutoWatchActionRetrySeconds.ToString(),
@@ -273,6 +281,16 @@ try {
 
         Invoke-ValidationStep "Watch snooze control smoke" {
             Invoke-Smoke -Scenario snooze
+        }
+
+        if (-not $SkipHardwareKeySmoke) {
+            Invoke-ValidationStep "Watch hardware-key stop control smoke" {
+                Invoke-Smoke -Scenario stop -AutoWatchActionSource hardwareKey
+            }
+
+            Invoke-ValidationStep "Watch hardware-key snooze control smoke" {
+                Invoke-Smoke -Scenario snooze -AutoWatchActionSource hardwareKey
+            }
         }
 
         Write-Host ""
