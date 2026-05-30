@@ -11,7 +11,8 @@ import android.util.Log
 
 object WatchAlarmNotifier {
     private const val TAG = "ShiftWearAlarm"
-    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v1"
+    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v2"
+    private val LEGACY_CHANNEL_IDS = arrayOf("shift_alarm_watch_alarm_v1")
     const val NOTIFICATION_ID = 3001
 
     fun show(context: Context, payload: WatchAlarmPayload) {
@@ -127,6 +128,10 @@ object WatchAlarmNotifier {
     }
 
     private fun createChannel(context: Context, manager: NotificationManager) {
+        LEGACY_CHANNEL_IDS.forEach { legacyChannelId ->
+            runCatching { manager.deleteNotificationChannel(legacyChannelId) }
+                .onSuccess { Log.i(TAG, "delete legacy notification channel id=$legacyChannelId") }
+        }
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.notification_channel_name),
