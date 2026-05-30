@@ -149,7 +149,7 @@ class AlarmActivity : Activity() {
         column.addView(
             TextView(this).apply {
                 text = if (payload.canSnooze) {
-                    "${payload.snoozeMinutes}분 뒤 다시 울림"
+                    getString(R.string.alarm_snooze_after_minutes, payload.snoozeMinutes)
                 } else {
                     getString(R.string.alarm_snooze_disabled)
                 }
@@ -253,8 +253,8 @@ class AlarmActivity : Activity() {
     private fun showWaitingForControlAck(path: String) {
         actionStatusText?.apply {
             text = when (path) {
-                WatchAlarmProtocol.PATH_ALARM_SNOOZE -> "폰에서 스누즈 처리 확인 중..."
-                else -> "폰에서 알람 끄기 확인 중..."
+                WatchAlarmProtocol.PATH_ALARM_SNOOZE -> getString(R.string.alarm_waiting_snooze_ack)
+                else -> getString(R.string.alarm_waiting_stop_ack)
             }
             visibility = View.VISIBLE
         }
@@ -268,7 +268,7 @@ class AlarmActivity : Activity() {
                 pendingControlAction = null
                 pendingControlPayload = null
                 actionStatusText?.apply {
-                    text = "폰 응답을 확인하지 못했습니다. 다시 눌러주세요."
+                    text = getString(R.string.alarm_missing_phone_ack)
                     visibility = View.VISIBLE
                 }
                 setActionButtonsEnabled(true)
@@ -432,7 +432,7 @@ class AlarmActivity : Activity() {
                         activity.pendingControlAction = null
                         activity.pendingControlPayload = null
                         activity.actionStatusText?.apply {
-                            text = "폰 응답을 확인하지 못했습니다. 다시 눌러주세요."
+                            text = activity.getString(R.string.alarm_missing_phone_ack)
                             visibility = View.VISIBLE
                         }
                         activity.setActionButtonsEnabled(true)

@@ -41,6 +41,7 @@ $appSideBySideManifest = Read-RepoFile "app\src\sideBySide\AndroidManifest.xml"
 $wearManifest = Read-RepoFile "wear\src\main\AndroidManifest.xml"
 $wearSideBySideManifest = Read-RepoFile "wear\src\sideBySide\AndroidManifest.xml"
 $wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
+$wearStrings = Read-RepoFile "wear\src\main\res\values\strings.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
 $phoneControlListener = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WearAlarmControlListenerService.kt"
 $sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shiftalarmmvp\watch\SideBySideWatchAlarmTestReceiver.kt"
@@ -137,6 +138,8 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'sendActionAndAwaitAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'awaitControlAcknowledgement'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreAfterMissingControlAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_waiting_stop_ack'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_missing_phone_ack'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
@@ -153,6 +156,9 @@ Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowl
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun record'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun read'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
+Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'alarm_waiting_phone_confirmation'
+Assert-Contains "wear strings" $wearStrings 'alarm_snooze_after_minutes'
+Assert-Contains "wear strings" $wearStrings 'alarm_waiting_phone_confirmation'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActiveStore.read'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActionReceiver::class.java'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'JavaHome'

@@ -6,6 +6,11 @@
     <string name="alarm_stop">끄기</string>
     <string name="alarm_snooze">스누즈</string>
     <string name="alarm_snooze_disabled">스누즈 종료</string>
+    <string name="alarm_snooze_after_minutes">%1$d분 뒤 다시 울림</string>
+    <string name="alarm_waiting_stop_ack">폰에서 알람 끄기 확인 중...</string>
+    <string name="alarm_waiting_snooze_ack">폰에서 스누즈 처리 확인 중...</string>
+    <string name="alarm_missing_phone_ack">폰 응답을 확인하지 못했습니다. 다시 눌러주세요.</string>
+    <string name="alarm_waiting_phone_confirmation">폰 응답 확인 중: %1$s</string>
     <string name="notification_channel_name">교대알람 워치 알람</string>
     <string name="notification_channel_description">폰 교대알람을 워치에서 확인하고 제어합니다.</string>
     <string name="setup_title">교대알람 워치</string>

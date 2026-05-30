@@ -45,7 +45,7 @@ object WatchAlarmNotifier {
         val notification = Notification.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_watch_alarm)
             .setContentTitle(appContext.getString(R.string.alarm_title))
-            .setContentText("Waiting for phone confirmation: $actionLabel")
+            .setContentText(appContext.getString(R.string.alarm_waiting_phone_confirmation, actionLabel))
             .setCategory(Notification.CATEGORY_ALARM)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
