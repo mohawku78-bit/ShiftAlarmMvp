@@ -66,6 +66,11 @@ class WearAlarmControlListenerService : WearableListenerService() {
                 payload,
                 WatchAlarmDiagnosticsStore.REJECTION_STALE_ALARM
             )
+            WatchAlarmBridge(applicationContext).sendAlarmCancelled(
+                alarmId = payload.alarmId,
+                triggeredAtMillis = payload.triggeredAtMillis,
+                clearActive = false
+            )
             return
         }
 

@@ -33,6 +33,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.
 - Phone de-duplicates message/DataItem control events by alarm cycle, so only the first `끄기` or `스누즈` command wins for a single alarm occurrence.
 - Phone records the latest watch send attempt, watch ACK, accepted watch control, and rejected watch control reason, then shows them in the test area as `최근 워치 전송 시도`, `최근 워치 수신 확인`, `최근 워치 제어 처리`, and `최근 워치 제어 거부`.
+- If the phone rejects a watch control because that exact alarm occurrence is no longer ringing, it sends a timestamp-matched cancel signal back without clearing the current active watch DataItem, so an orphaned old watch alarm can close without disturbing a newer alarm.
 
 This does not call the private Samsung Clock alarm UI. The watch alarm UI is app-owned, because third-party apps cannot reliably open Samsung's native alarm screen with stop/snooze controls.
 

@@ -126,16 +126,19 @@ class WatchAlarmBridge(context: Context) {
 
     fun sendAlarmCancelled(
         alarmId: Long,
-        triggeredAtMillis: Long = System.currentTimeMillis()
+        triggeredAtMillis: Long = System.currentTimeMillis(),
+        clearActive: Boolean = true
     ) {
         if (alarmId <= 0) return
-        Log.i(TAG, "sendAlarmCancelled alarmId=$alarmId triggeredAt=$triggeredAtMillis")
+        Log.i(TAG, "sendAlarmCancelled alarmId=$alarmId triggeredAt=$triggeredAtMillis clearActive=$clearActive")
         val payload = JSONObject()
             .put(KEY_ALARM_ID, alarmId)
             .put(KEY_TRIGGERED_AT_MILLIS, triggeredAtMillis)
         sendToConnectedNodes(PATH_ALARM_CANCEL, payload)
         putDataItem(PATH_ALARM_CANCELLED, payload)
-        deleteDataItem(PATH_ALARM_ACTIVE)
+        if (clearActive) {
+            deleteDataItem(PATH_ALARM_ACTIVE)
+        }
     }
 
     fun sendControlAcknowledged(action: String, payload: WatchAlarmPayload) {

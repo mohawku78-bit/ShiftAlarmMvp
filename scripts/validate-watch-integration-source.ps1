@@ -104,6 +104,8 @@ Assert-Contains "wear capabilities" $wearCapabilities 'shift_alarm_watch_control
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'getCapability(CAPABILITY_WATCH_ALARM_CONTROL, CapabilityClient.FILTER_REACHABLE)'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'recordSendAttempt'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'clearActive: Boolean = true'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'if (clearActive)'
 
 $requiredProtocolConstants = @(
     'PATH_ALARM_START = "/shift_alarm/alarm/start"',
@@ -169,6 +171,7 @@ Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'rese
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'acknowledgeAcceptedControl'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'recordControlRejected'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'REJECTION_STALE_ALARM'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'clearActive = false'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun record'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun matchesRecent'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data class WatchAlarmSendAttempt'
