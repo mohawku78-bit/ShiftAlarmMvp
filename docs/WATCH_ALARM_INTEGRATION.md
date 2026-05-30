@@ -9,6 +9,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Phone also writes `/shift_alarm/alarm/active` as an urgent `DataItem`, so the watch has a backup sync path if the immediate message is missed.
 - Watch receives the message in `WatchAlarmListenerService`.
 - Watch starts `WatchAlarmRingingService` as a foreground service so the high-priority alarm notification and repeating vibration can continue even if Wear OS blocks an immediate background activity launch.
+- While foreground ringing is active, the watch service holds a short partial wake lock so the alarm vibration path is less likely to stall while the watch screen is off or the device is briefly idle.
 - Watch also tries to open a full-screen custom alarm activity. If that launch is restricted, the notification remains as the fallback entry point.
 - If foreground startup fails, the service leaves the fallback alarm notification visible instead of clearing it during service teardown.
 - Watch keeps separate duplicate gates for alarm start and cancel events, so a fast stop/cancel event is not rejected as a duplicate of the just-received start event.

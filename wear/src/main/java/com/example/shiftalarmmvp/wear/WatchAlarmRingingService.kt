@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -12,6 +13,7 @@ import android.util.Log
 
 class WatchAlarmRingingService : Service() {
     private var vibrator: Vibrator? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     private var activeAlarmId: Long = -1L
     private var cancelNotificationOnDestroy: Boolean = true
 
@@ -41,6 +43,7 @@ class WatchAlarmRingingService : Service() {
             return START_NOT_STICKY
         }
         cancelNotificationOnDestroy = true
+        acquireWakeLock(payload)
         startVibration(payload)
         PhoneMessageBridge.sendAck(this, payload, WatchAlarmProtocol.ACK_DISPLAY_MODE_FOREGROUND_SERVICE)
         return START_STICKY
@@ -48,6 +51,7 @@ class WatchAlarmRingingService : Service() {
 
     override fun onDestroy() {
         stopVibration()
+        releaseWakeLock()
         if (cancelNotificationOnDestroy) {
             WatchAlarmNotifier.cancel(this)
         }
@@ -93,10 +97,41 @@ class WatchAlarmRingingService : Service() {
         vibrator = null
     }
 
+    private fun acquireWakeLock(payload: WatchAlarmPayload) {
+        releaseWakeLock()
+        val powerManager = getSystemService(PowerManager::class.java)
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "$packageName:watch-alarm-ring"
+        ).apply {
+            setReferenceCounted(false)
+            runCatching {
+                acquire(WAKE_LOCK_TIMEOUT_MILLIS)
+                Log.i(TAG, "acquired wake lock alarmId=${payload.alarmId}")
+            }.onFailure { error ->
+                Log.w(TAG, "acquire wake lock failed alarmId=${payload.alarmId}", error)
+            }
+        }
+    }
+
+    private fun releaseWakeLock() {
+        val lock = wakeLock ?: return
+        wakeLock = null
+        runCatching {
+            if (lock.isHeld) {
+                lock.release()
+                Log.i(TAG, "released wake lock alarmId=$activeAlarmId")
+            }
+        }.onFailure { error ->
+            Log.w(TAG, "release wake lock failed alarmId=$activeAlarmId", error)
+        }
+    }
+
     private fun stopRingingAndSelf() {
         Log.i(TAG, "stop foreground ringing alarmId=$activeAlarmId")
         cancelNotificationOnDestroy = true
         stopVibration()
+        releaseWakeLock()
         WatchAlarmNotifier.cancel(this)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -106,6 +141,7 @@ class WatchAlarmRingingService : Service() {
         private const val TAG = "ShiftWearAlarm"
         private const val ACTION_START = "com.example.shiftalarmmvp.wear.action.START_RINGING"
         private const val ACTION_STOP = "com.example.shiftalarmmvp.wear.action.STOP_RINGING"
+        private const val WAKE_LOCK_TIMEOUT_MILLIS = 2 * 60 * 1000L
 
         fun start(context: Context, payload: WatchAlarmPayload): Boolean {
             val appContext = context.applicationContext
