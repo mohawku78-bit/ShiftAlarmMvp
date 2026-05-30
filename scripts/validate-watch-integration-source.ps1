@@ -33,6 +33,17 @@ function Assert-Regex {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Name,
+        [string]$Text,
+        [string]$Pattern
+    )
+    if ($Text -match [regex]::Escape($Pattern)) {
+        throw "$Name contains forbidden text: $Pattern"
+    }
+}
+
 $settings = Read-RepoFile "settings.gradle.kts"
 $appBuild = Read-RepoFile "app\build.gradle.kts"
 $wearBuild = Read-RepoFile "wear\build.gradle.kts"
@@ -186,6 +197,7 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'hardware key control'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'hardware key ignored'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'onKeyUp'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'powerSaverRetry'
+Assert-NotContains "AlarmActivity.kt" $watchAlarmActivity 'FLAG_KEEP_SCREEN_ON'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'dismissIfMatching(alarmId: Long, triggeredAtMillis: Long)'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'control ack timeout in activity'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'

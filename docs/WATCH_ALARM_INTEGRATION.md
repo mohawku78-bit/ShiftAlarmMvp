@@ -11,6 +11,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Watch receives the message in `WatchAlarmListenerService`.
 - Watch starts `WatchAlarmRingingService` as a foreground service so the high-priority alarm notification and short vibration signal can be delivered even if Wear OS blocks an immediate background activity launch.
 - To protect battery life, the watch uses only a short one-shot vibration signal, caps the foreground signal service at 15 seconds, caps the partial wake lock at 20 seconds, then leaves the actionable notification/control UI instead of keeping an always-ringing service alive.
+- The watch alarm activity turns the screen on for the alert but does not hold `FLAG_KEEP_SCREEN_ON`, so the display can time out normally if the user does not interact right away.
 - The watch alarm notification uses the `shift_alarm_watch_alarm_v2` channel and retires the older `v1` channel so updated short-vibration settings apply after reinstalling the watch app.
 - While the short foreground signal is active, the watch service holds a short partial wake lock so the alarm vibration path is less likely to stall while the watch screen is off or the device is briefly idle.
 - Watch also tries to open a full-screen custom alarm activity. If that launch is restricted, the notification remains as the fallback entry point.
