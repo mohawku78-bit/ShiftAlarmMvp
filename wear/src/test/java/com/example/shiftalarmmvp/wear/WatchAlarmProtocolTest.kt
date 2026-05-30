@@ -176,6 +176,30 @@ class WatchAlarmProtocolTest {
     }
 
     @Test
+    fun activeStoreMatchingRequiresSameAlarmOccurrence() {
+        val active = WatchAlarmPayload(
+            alarmId = 42L,
+            label = "active",
+            snoozeMinutes = 5,
+            snoozeMaxCount = 3,
+            currentSnoozeCount = 0,
+            soundType = null,
+            customSoundUri = null,
+            volumePercent = 100,
+            vibrationEnabled = true,
+            snoozeAllowed = true,
+            triggeredAtMillis = 10_000L
+        )
+
+        assertTrue(WatchAlarmActiveStore.matches(active, alarmId = 42L, triggeredAtMillis = 10_000L))
+        assertFalse(WatchAlarmActiveStore.matches(active, alarmId = 42L, triggeredAtMillis = 20_000L))
+        assertFalse(WatchAlarmActiveStore.matches(active, alarmId = 43L, triggeredAtMillis = 10_000L))
+        assertFalse(WatchAlarmActiveStore.matches(null, alarmId = 42L, triggeredAtMillis = 10_000L))
+        assertFalse(WatchAlarmActiveStore.matches(active, alarmId = 0L, triggeredAtMillis = 10_000L))
+        assertFalse(WatchAlarmActiveStore.matches(active, alarmId = 42L, triggeredAtMillis = 0L))
+    }
+
+    @Test
     fun hardwareKeysMapToStopAndSnoozeControls() {
         assertEquals(
             WatchAlarmProtocol.PATH_ALARM_STOP,

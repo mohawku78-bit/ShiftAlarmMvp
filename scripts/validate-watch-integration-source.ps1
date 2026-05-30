@@ -141,6 +141,10 @@ Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FA
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedCancel'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedStart'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'parseControlAcknowledgement'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'handleControlAcknowledgement'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.isMatching'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'ignore stale control ack'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'ignore unsupported control ack'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'dismissIfControlAcknowledged'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmControlAckStore.record'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.record'
@@ -199,6 +203,8 @@ Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_VOLUME_U
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_VOLUME_DOWN'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun record'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun read'
+Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun isMatching'
+Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'internal fun matches'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'alarm_waiting_phone_confirmation'
 Assert-Contains "wear strings" $wearStrings 'alarm_snooze_after_minutes'
@@ -229,6 +235,7 @@ Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Sm
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Watch hardware-key stop control smoke'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Watch hardware-key snooze control smoke'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'hardwareKeysMapToStopAndSnoozeControls'
+Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'activeStoreMatchingRequiresSameAlarmOccurrence'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

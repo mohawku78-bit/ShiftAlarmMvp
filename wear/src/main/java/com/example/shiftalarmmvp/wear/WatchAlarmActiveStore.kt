@@ -26,9 +26,14 @@ object WatchAlarmActiveStore {
     @Synchronized
     fun clearIfMatching(context: Context, alarmId: Long, triggeredAtMillis: Long) {
         val active = read(context) ?: return
-        if (active.alarmId == alarmId && active.triggeredAtMillis == triggeredAtMillis) {
+        if (matches(active, alarmId, triggeredAtMillis)) {
             clear(context)
         }
+    }
+
+    @Synchronized
+    fun isMatching(context: Context, alarmId: Long, triggeredAtMillis: Long): Boolean {
+        return matches(read(context), alarmId, triggeredAtMillis)
     }
 
     @Synchronized
@@ -38,5 +43,13 @@ object WatchAlarmActiveStore {
             .edit()
             .remove(KEY_PAYLOAD_JSON)
             .apply()
+    }
+
+    internal fun matches(active: WatchAlarmPayload?, alarmId: Long, triggeredAtMillis: Long): Boolean {
+        return active != null &&
+            alarmId > 0L &&
+            triggeredAtMillis > 0L &&
+            active.alarmId == alarmId &&
+            active.triggeredAtMillis == triggeredAtMillis
     }
 }
