@@ -52,7 +52,7 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
     }
 
     private fun awaitPhoneAck(context: Context, action: String, payload: WatchAlarmPayload) {
-        WatchAlarmRingingService.stop(context)
+        WatchAlarmRingingService.stopKeepingNotification(context)
         WatchAlarmNotifier.showControlPending(context, payload, action)
         AlarmActivity.awaitControlAcknowledgement(action, payload)
     }

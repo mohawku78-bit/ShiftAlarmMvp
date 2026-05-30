@@ -25,6 +25,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - The full-screen watch alarm UI waits for that control ACK before closing; if the ACK does not arrive, it re-enables the buttons so the user can retry.
 - The full-screen watch alarm UI also keeps a pending confirmation alarm notification visible while waiting for the phone control ACK.
 - Watch notification actions also switch to a pending confirmation notification instead of disappearing immediately; the notification is cleared when the phone control ACK arrives.
+- While switching from ringing to pending confirmation, the watch detaches the foreground notification before stopping the ringing service so teardown does not cancel the pending confirmation notification.
 - If the phone control ACK does not arrive, the watch restores the retryable alarm notification and re-enables the full-screen buttons when that screen is open.
 - If the full-screen watch alarm button or notification action times out waiting for the phone control ACK, the watch restarts its alarm ringing path, restores retry UI, and lets the user retry the control.
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.

@@ -24,6 +24,10 @@ class WatchAlarmRingingService : Service() {
             stopRingingAndSelf()
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_STOP_KEEP_NOTIFICATION) {
+            stopRingingAndSelf(removeNotification = false)
+            return START_NOT_STICKY
+        }
 
         val payload = intent?.let { WatchAlarmProtocol.parsePayload(it) }
         if (payload == null) {
@@ -52,7 +56,8 @@ class WatchAlarmRingingService : Service() {
     override fun onDestroy() {
         stopVibration()
         releaseWakeLock()
-        if (cancelNotificationOnDestroy) {
+        val keepNotification = consumeKeepNotificationOnNextStop()
+        if (cancelNotificationOnDestroy && !keepNotification) {
             WatchAlarmNotifier.cancel(this)
         }
         super.onDestroy()
@@ -127,13 +132,17 @@ class WatchAlarmRingingService : Service() {
         }
     }
 
-    private fun stopRingingAndSelf() {
+    private fun stopRingingAndSelf(removeNotification: Boolean = true) {
         Log.i(TAG, "stop foreground ringing alarmId=$activeAlarmId")
-        cancelNotificationOnDestroy = true
+        cancelNotificationOnDestroy = removeNotification
         stopVibration()
         releaseWakeLock()
-        WatchAlarmNotifier.cancel(this)
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (removeNotification) {
+            WatchAlarmNotifier.cancel(this)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(STOP_FOREGROUND_DETACH)
+        }
         stopSelf()
     }
 
@@ -141,6 +150,7 @@ class WatchAlarmRingingService : Service() {
         private const val TAG = "ShiftWearAlarm"
         private const val ACTION_START = "com.example.shiftalarmmvp.wear.action.START_RINGING"
         private const val ACTION_STOP = "com.example.shiftalarmmvp.wear.action.STOP_RINGING"
+        private const val ACTION_STOP_KEEP_NOTIFICATION = "com.example.shiftalarmmvp.wear.action.STOP_RINGING_KEEP_NOTIFICATION"
         private const val WAKE_LOCK_TIMEOUT_MILLIS = 2 * 60 * 1000L
 
         fun start(context: Context, payload: WatchAlarmPayload): Boolean {
@@ -164,11 +174,59 @@ class WatchAlarmRingingService : Service() {
 
         fun stop(context: Context) {
             val appContext = context.applicationContext
+            clearKeepNotificationOnNextStop()
             WatchAlarmNotifier.cancel(appContext)
             val stopped = runCatching {
                 appContext.stopService(Intent(appContext, WatchAlarmRingingService::class.java))
             }.getOrDefault(false)
             Log.i(TAG, "request stop foreground ringing stopped=$stopped")
+        }
+
+        fun stopKeepingNotification(context: Context) {
+            val appContext = context.applicationContext
+            val requestedStopAction = runCatching {
+                appContext.startService(
+                    Intent(appContext, WatchAlarmRingingService::class.java)
+                        .setAction(ACTION_STOP_KEEP_NOTIFICATION)
+                ) != null
+            }.getOrElse { error ->
+                Log.w(TAG, "request stop foreground ringing keepNotification action failed", error)
+                false
+            }
+
+            if (requestedStopAction) {
+                Log.i(TAG, "request stop foreground ringing keepNotification=true action=service")
+                return
+            }
+
+            setKeepNotificationOnNextStop()
+            val stoppedByFallback = runCatching {
+                appContext.stopService(Intent(appContext, WatchAlarmRingingService::class.java))
+            }.getOrDefault(false)
+            if (!stoppedByFallback) {
+                clearKeepNotificationOnNextStop()
+            }
+            Log.i(TAG, "request stop foreground ringing keepNotification=true stopped=$stoppedByFallback")
+        }
+
+        @Volatile
+        private var keepNotificationOnNextStop: Boolean = false
+
+        @Synchronized
+        private fun setKeepNotificationOnNextStop() {
+            keepNotificationOnNextStop = true
+        }
+
+        @Synchronized
+        private fun clearKeepNotificationOnNextStop() {
+            keepNotificationOnNextStop = false
+        }
+
+        @Synchronized
+        private fun consumeKeepNotificationOnNextStop(): Boolean {
+            val keep = keepNotificationOnNextStop
+            keepNotificationOnNextStop = false
+            return keep
         }
     }
 }

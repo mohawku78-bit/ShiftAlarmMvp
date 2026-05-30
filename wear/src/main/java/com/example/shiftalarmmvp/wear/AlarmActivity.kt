@@ -245,7 +245,7 @@ class AlarmActivity : Activity() {
         pendingControlPayload = currentPayload
         PhoneMessageBridge.send(this, path, currentPayload)
         stopVibration()
-        WatchAlarmRingingService.stop(this)
+        WatchAlarmRingingService.stopKeepingNotification(this)
         WatchAlarmNotifier.showControlPending(this, currentPayload, path)
         showWaitingForControlAck(path)
         scheduleControlAckTimeout(path, currentPayload)
