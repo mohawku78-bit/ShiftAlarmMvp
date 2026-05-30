@@ -70,15 +70,20 @@ class AlarmActivity : Activity() {
             finish()
             return
         }
+        val pendingAction = intent.getStringExtra(EXTRA_PENDING_CONTROL_ACTION)
+            ?.takeIf { isSupportedPendingControlAction(it, nextPayload) }
 
         clearPendingControlState()
         payload = nextPayload
-        if (intent.getBooleanExtra(EXTRA_USE_LOCAL_VIBRATION, true)) {
+        if (pendingAction != null) {
+            stopVibration()
+        } else if (intent.getBooleanExtra(EXTRA_USE_LOCAL_VIBRATION, true)) {
             startVibration(nextPayload)
         } else {
             stopVibration()
         }
         setContentView(buildContent(nextPayload))
+        pendingAction?.let { restorePendingControlState(it, nextPayload) }
     }
 
     private fun buildContent(payload: WatchAlarmPayload): View {
@@ -266,7 +271,10 @@ class AlarmActivity : Activity() {
     private fun scheduleControlAckTimeout(path: String, payload: WatchAlarmPayload) {
         controlAckTimeout?.let(controlAckHandler::removeCallbacks)
         val timeout = Runnable {
-            if (pendingControlAction == path && pendingControlPayload?.alarmId == payload.alarmId) {
+            if (pendingControlAction == path &&
+                pendingControlPayload?.alarmId == payload.alarmId &&
+                pendingControlPayload?.triggeredAtMillis == payload.triggeredAtMillis
+            ) {
                 restoreControlRetryAfterMissingAck(payload, ringingAlreadyRestored = false)
             }
         }
@@ -322,6 +330,18 @@ class AlarmActivity : Activity() {
         controlAckTimeout = null
         pendingControlAction = null
         pendingControlPayload = null
+    }
+
+    private fun restorePendingControlState(path: String, payload: WatchAlarmPayload) {
+        pendingControlAction = path
+        pendingControlPayload = payload
+        showWaitingForControlAck(path)
+        scheduleControlAckTimeout(path, payload)
+    }
+
+    private fun isSupportedPendingControlAction(path: String, payload: WatchAlarmPayload): Boolean {
+        return path == WatchAlarmProtocol.PATH_ALARM_STOP ||
+            (path == WatchAlarmProtocol.PATH_ALARM_SNOOZE && payload.canSnooze)
     }
 
     private fun startVibration(payload: WatchAlarmPayload) {
@@ -397,6 +417,7 @@ class AlarmActivity : Activity() {
 
         private const val TAG = "ShiftWearAlarm"
         private const val EXTRA_USE_LOCAL_VIBRATION = "extra_use_local_vibration"
+        private const val EXTRA_PENDING_CONTROL_ACTION = "extra_pending_control_action"
         private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
 
         fun createIntent(
@@ -408,6 +429,15 @@ class AlarmActivity : Activity() {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(WatchAlarmProtocol.EXTRA_PAYLOAD_JSON, WatchAlarmProtocol.toJson(payload))
                 .putExtra(EXTRA_USE_LOCAL_VIBRATION, useLocalVibration)
+        }
+
+        fun createPendingControlIntent(
+            context: Context,
+            payload: WatchAlarmPayload,
+            action: String
+        ): Intent {
+            return createIntent(context, payload, useLocalVibration = false)
+                .putExtra(EXTRA_PENDING_CONTROL_ACTION, action)
         }
 
         fun show(

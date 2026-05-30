@@ -34,7 +34,7 @@ object WatchAlarmNotifier {
         val openIntent = PendingIntent.getActivity(
             appContext,
             requestCode(payload, 40_000),
-            AlarmActivity.createIntent(appContext, payload, useLocalVibration = false),
+            AlarmActivity.createPendingControlIntent(appContext, payload, action),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val actionLabel = if (action == WatchAlarmProtocol.PATH_ALARM_SNOOZE) {
