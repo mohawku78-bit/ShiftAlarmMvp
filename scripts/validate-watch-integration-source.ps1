@@ -212,6 +212,7 @@ Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlActio
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing(context, requestedControlAction'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'requestStartedAtMillis'
 Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowledgementSince'
+Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'matchesAcknowledgement'
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_PRIMARY'
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_1'
 Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_2'
@@ -266,6 +267,7 @@ Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Watch har
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Watch hardware-key snooze control smoke'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'hardwareKeysMapToStopAndSnoozeControls'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'activeStoreMatchingRequiresSameAlarmOccurrence'
+Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'controlAckStoreMatchesOnlySameActionOccurrenceAndRequestWindow'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

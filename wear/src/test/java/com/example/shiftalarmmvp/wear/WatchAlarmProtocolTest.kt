@@ -200,6 +200,68 @@ class WatchAlarmProtocolTest {
     }
 
     @Test
+    fun controlAckStoreMatchesOnlySameActionOccurrenceAndRequestWindow() {
+        val payload = WatchAlarmPayload(
+            alarmId = 42L,
+            label = "active",
+            snoozeMinutes = 5,
+            snoozeMaxCount = 3,
+            currentSnoozeCount = 0,
+            soundType = null,
+            customSoundUri = null,
+            volumePercent = 100,
+            vibrationEnabled = true,
+            snoozeAllowed = true,
+            triggeredAtMillis = 10_000L
+        )
+
+        assertTrue(
+            WatchAlarmControlAckStore.matchesAcknowledgement(
+                action = WatchAlarmProtocol.PATH_ALARM_STOP,
+                payload = payload,
+                storedAction = WatchAlarmProtocol.PATH_ALARM_STOP,
+                storedAlarmId = 42L,
+                storedTriggeredAtMillis = 10_000L,
+                ackAtMillis = 50_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmControlAckStore.matchesAcknowledgement(
+                action = WatchAlarmProtocol.PATH_ALARM_STOP,
+                payload = payload,
+                storedAction = WatchAlarmProtocol.PATH_ALARM_SNOOZE,
+                storedAlarmId = 42L,
+                storedTriggeredAtMillis = 10_000L,
+                ackAtMillis = 50_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmControlAckStore.matchesAcknowledgement(
+                action = WatchAlarmProtocol.PATH_ALARM_STOP,
+                payload = payload,
+                storedAction = WatchAlarmProtocol.PATH_ALARM_STOP,
+                storedAlarmId = 42L,
+                storedTriggeredAtMillis = 11_000L,
+                ackAtMillis = 50_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmControlAckStore.matchesAcknowledgement(
+                action = WatchAlarmProtocol.PATH_ALARM_STOP,
+                payload = payload,
+                storedAction = WatchAlarmProtocol.PATH_ALARM_STOP,
+                storedAlarmId = 42L,
+                storedTriggeredAtMillis = 10_000L,
+                ackAtMillis = 48_000L,
+                sinceMillis = 49_000L
+            )
+        )
+    }
+
+    @Test
     fun hardwareKeysMapToStopAndSnoozeControls() {
         assertEquals(
             WatchAlarmProtocol.PATH_ALARM_STOP,
