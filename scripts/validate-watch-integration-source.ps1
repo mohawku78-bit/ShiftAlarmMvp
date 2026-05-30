@@ -46,6 +46,8 @@ $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
 $watchService = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
 $watchListener = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmListenerService.kt"
+$smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
+$smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
 
 Assert-Contains "settings.gradle.kts" $settings 'include(":wear")'
 Assert-Contains "app/build.gradle.kts" $appBuild 'implementation("com.google.android.gms:play-services-wearable:18.2.0")'
@@ -63,6 +65,9 @@ Assert-Contains "app sideBySide AndroidManifest" $appSideBySideManifest 'com.exa
 Assert-Contains "app sideBySide AndroidManifest" $appSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST'
 Assert-Contains "SideBySideWatchAlarmTestReceiver.kt" $sideBySideTestReceiver 'sendPreviewAlarmWithResult'
 Assert-Contains "SideBySideWatchAlarmTestReceiver.kt" $sideBySideTestReceiver 'AlarmRingingService.ACTION_START'
+Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'assert-watch-smoke-result.ps1'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch preview result connected='
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'phone accepted expected watch control'
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
 Assert-Contains "wear AndroidManifest" $wearManifest '.WatchAlarmListenerService'

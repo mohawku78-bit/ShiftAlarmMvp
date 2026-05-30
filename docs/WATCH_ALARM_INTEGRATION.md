@@ -124,16 +124,17 @@ The side-by-side phone APK includes a test-only exported receiver, so a connecte
 Preview delivery test:
 
 ```powershell
-.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode preview -Clear
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode preview -Clear -Assert
 ```
 
 Full control round trip:
 
 ```powershell
-.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -Clear -WaitSeconds 45
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -Clear -WaitSeconds 45 -Assert
 ```
 
 During `control` mode, tap `스누즈` or `끄기` on the watch before the wait window ends. Filtered phone and watch logs are saved under `manual-validation/watch-alarm/`.
+The `-Assert` flag runs `scripts/assert-watch-smoke-result.ps1` after log capture and fails if the logs do not prove delivery, display, ACK, and the expected watch control round trip. Use `-ExpectedAction snooze` or `-ExpectedAction stop` when you want to require one specific watch button.
 
 ### Watch signal preview
 

@@ -15,6 +15,9 @@ param(
     [int]$VolumePercent = 70,
     [bool]$VibrationEnabled = $true,
     [int]$WaitSeconds = 20,
+    [switch]$Assert,
+    [ValidateSet("any", "stop", "snooze")]
+    [string]$ExpectedAction = "any",
     [switch]$Clear
 )
 
@@ -121,3 +124,13 @@ Write-Host ""
 Write-Host "Phone log: $phoneLog"
 Write-Host "Watch log: $watchLog"
 Write-Host "Smoke trigger complete."
+
+if ($Assert -and $Mode -ne "stop") {
+    Write-Host ""
+    Write-Host "Running smoke assertion."
+    & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "assert-watch-smoke-result.ps1") `
+        -Mode $Mode `
+        -PhoneLog $phoneLog `
+        -WatchLog $watchLog `
+        -ExpectedAction $ExpectedAction
+}

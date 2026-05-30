@@ -106,4 +106,4 @@ if ($LaunchApps) {
 Write-Host ""
 Write-Host "Verification checks complete."
 Write-Host "Next UI path: open the phone test area, send watch preview, then run the watch stop/snooze control test."
-Write-Host "Next ADB path: .\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial $PhoneSerial -WatchSerial $WatchSerial -Mode preview -Clear"
+Write-Host "Next ADB path: .\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial $PhoneSerial -WatchSerial $WatchSerial -Mode preview -Clear -Assert"
