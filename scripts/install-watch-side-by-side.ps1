@@ -90,7 +90,7 @@ Run:
   .\scripts\install-watch-side-by-side.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL
 
 For Galaxy Watch wireless debugging, connect it first with:
-  adb connect WATCH_IP:WATCH_PORT
+  .\scripts\connect-watch-wireless.ps1
 "@
     }
 }

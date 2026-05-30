@@ -100,8 +100,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-watch-side-by-side.ps1
 ### Manual install
 
 1. Connect the phone with USB debugging.
-2. Enable wireless debugging or ADB debugging on the Galaxy Watch.
-3. Connect to the watch with ADB if needed:
+2. On the Galaxy Watch, enable both `ADB debugging` and `Wireless debugging`.
+3. Connect to the watch with the helper:
+
+```powershell
+.\scripts\connect-watch-wireless.ps1
+```
+
+If the watch has not been paired with this PC yet, open `Wireless debugging > Pair new device with pairing code` on the watch and run:
+
+```powershell
+.\scripts\connect-watch-wireless.ps1 -PairAddress WATCH_IP:PAIR_PORT -PairCode PAIR_CODE
+```
+
+You can still connect manually if you already know the connect port:
 
 ```powershell
 adb connect WATCH_IP:WATCH_PORT

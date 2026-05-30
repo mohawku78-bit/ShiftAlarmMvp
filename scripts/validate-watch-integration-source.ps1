@@ -65,6 +65,7 @@ $watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
+$connectWatchScript = Read-RepoFile "scripts\connect-watch-wireless.ps1"
 $verifyScript = Read-RepoFile "scripts\verify-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
@@ -247,6 +248,12 @@ Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Get-ConnectedDe
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Resolve-DeviceSerials'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'android.hardware.type.watch'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Auto-selected watch serial'
+Assert-Contains "install-watch-side-by-side.ps1" $installScript 'connect-watch-wireless.ps1'
+Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript '_adb-tls-pairing._tcp'
+Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript '_adb-tls-connect._tcp'
+Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript 'PairCode'
+Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript 'android.hardware.type.watch'
+Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript 'Could not connect'
 Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'Assert-DeviceKind'
 Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'Assert-SideBySideVersion'
 Assert-Contains "verify-watch-side-by-side.ps1" $verifyScript 'Assert-NotificationPermission'
