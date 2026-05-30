@@ -57,7 +57,9 @@ $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmm
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
 $watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
+$watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmHardwareKeys.kt"
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
+$watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
@@ -146,6 +148,8 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreControlRetryAfter
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmNotifier.showControlPending'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmRingingService.stopKeepingNotification'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmRingingService.start'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmHardwareKeys.controlPathFor'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'pendingControlAction != null'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'control ack timeout in activity'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_waiting_stop_ack'
@@ -170,6 +174,12 @@ Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'WatchAlarmAc
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlAction = requestedAction'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing(context, requestedControlAction'
 Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowledgementSince'
+Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_PRIMARY'
+Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_1'
+Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_STEM_2'
+Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_BACK'
+Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_VOLUME_UP'
+Assert-Contains "WatchAlarmHardwareKeys.kt" $watchHardwareKeys 'KEYCODE_VOLUME_DOWN'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun record'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun read'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
@@ -196,6 +206,7 @@ Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'android.h
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Smoke -Scenario preview'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Smoke -Scenario stop'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-Smoke -Scenario snooze'
+Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'hardwareKeysMapToStopAndSnoozeControls'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

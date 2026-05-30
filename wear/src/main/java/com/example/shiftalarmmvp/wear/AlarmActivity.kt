@@ -240,6 +240,7 @@ class AlarmActivity : Activity() {
 
     private fun sendActionAndAwaitAck(path: String) {
         val currentPayload = payload ?: return
+        if (pendingControlAction != null) return
         if (path == WatchAlarmProtocol.PATH_ALARM_SNOOZE && !currentPayload.canSnooze) return
         pendingControlAction = path
         pendingControlPayload = currentPayload
@@ -362,7 +363,15 @@ class AlarmActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return if (keyCode == KeyEvent.KEYCODE_BACK) true else super.onKeyDown(keyCode, event)
+        val currentPayload = payload
+        val hardwareAction = currentPayload?.let {
+            WatchAlarmHardwareKeys.controlPathFor(keyCode, it.canSnooze)
+        }
+        if (hardwareAction != null) {
+            sendActionAndAwaitAck(hardwareAction)
+            return true
+        }
+        return if (WatchAlarmHardwareKeys.shouldConsume(keyCode)) true else super.onKeyDown(keyCode, event)
     }
 
     override fun onDestroy() {

@@ -1,5 +1,6 @@
 package com.example.shiftalarmmvp.wear
 
+import android.view.KeyEvent
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -172,5 +173,36 @@ class WatchAlarmProtocolTest {
         assertTrue(startKey != nextStartKey)
         assertNull(WatchAlarmEventGate.eventKey("", 42L))
         assertNull(WatchAlarmEventGate.eventKey(WatchAlarmEventGate.EVENT_START, 0L))
+    }
+
+    @Test
+    fun hardwareKeysMapToStopAndSnoozeControls() {
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_STEM_PRIMARY, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_STEM_1, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_VOLUME_UP, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_SNOOZE,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_BACK, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_SNOOZE,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_STEM_2, canSnooze = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_SNOOZE,
+            WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_VOLUME_DOWN, canSnooze = true)
+        )
+        assertNull(WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_BACK, canSnooze = false))
+        assertNull(WatchAlarmHardwareKeys.controlPathFor(KeyEvent.KEYCODE_DPAD_CENTER, canSnooze = true))
+        assertTrue(WatchAlarmHardwareKeys.shouldConsume(KeyEvent.KEYCODE_BACK))
     }
 }
