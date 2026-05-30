@@ -18,18 +18,18 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
         var controlAction: String? = null
 
         try {
-            when (safeIntent.action) {
-                WatchAlarmActions.ACTION_STOP -> {
+            when (val requestedAction = WatchAlarmActions.controlPathFor(safeIntent.action)) {
+                WatchAlarmProtocol.PATH_ALARM_STOP -> {
                     shouldHoldForRetry = true
-                    controlAction = WatchAlarmProtocol.PATH_ALARM_STOP
+                    controlAction = requestedAction
                     PhoneMessageBridge.send(context, controlAction, payload)
                     awaitPhoneAck(context, controlAction, payload)
                 }
 
-                WatchAlarmActions.ACTION_SNOOZE -> {
+                WatchAlarmProtocol.PATH_ALARM_SNOOZE -> {
                     if (!payload.canSnooze) return
                     shouldHoldForRetry = true
-                    controlAction = WatchAlarmProtocol.PATH_ALARM_SNOOZE
+                    controlAction = requestedAction
                     PhoneMessageBridge.send(context, controlAction, payload)
                     awaitPhoneAck(context, controlAction, payload)
                 }

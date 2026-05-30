@@ -50,6 +50,7 @@ $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\ser
 $watchService = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
 $watchListener = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmListenerService.kt"
 $watchPhoneBridge = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\PhoneMessageBridge.kt"
+$watchActions = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActions.kt"
 $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActionReceiver.kt"
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
@@ -137,11 +138,14 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILL
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
+Assert-Contains "WatchAlarmActions.kt" $watchActions 'fun controlPathFor'
+Assert-Contains "WatchAlarmActions.kt" $watchActions 'ACTION_STOP -> WatchAlarmProtocol.PATH_ALARM_STOP'
+Assert-Contains "WatchAlarmActions.kt" $watchActions 'ACTION_SNOOZE -> WatchAlarmProtocol.PATH_ALARM_SNOOZE'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'goAsync()'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'awaitPhoneAck'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing'
-Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlAction = WatchAlarmProtocol.PATH_ALARM_STOP'
-Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlAction = WatchAlarmProtocol.PATH_ALARM_SNOOZE'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'WatchAlarmActions.controlPathFor'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'controlAction = requestedAction'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing(context, requestedControlAction'
 Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowledgementSince'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun record'

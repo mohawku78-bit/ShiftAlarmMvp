@@ -125,6 +125,20 @@ class WatchAlarmProtocolTest {
     }
 
     @Test
+    fun notificationActionsMapToDataLayerControlPaths() {
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_STOP,
+            WatchAlarmActions.controlPathFor(WatchAlarmActions.ACTION_STOP)
+        )
+        assertEquals(
+            WatchAlarmProtocol.PATH_ALARM_SNOOZE,
+            WatchAlarmActions.controlPathFor(WatchAlarmActions.ACTION_SNOOZE)
+        )
+        assertNull(WatchAlarmActions.controlPathFor("unknown"))
+        assertNull(WatchAlarmActions.controlPathFor(null))
+    }
+
+    @Test
     fun canSnooze_respectsLimitedAndUnlimitedSnooze() {
         val limitedPayload = WatchAlarmPayload(
             alarmId = 1L,
