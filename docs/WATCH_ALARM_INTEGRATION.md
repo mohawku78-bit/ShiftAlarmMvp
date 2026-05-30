@@ -7,6 +7,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Phone alarm starts in `AlarmRingingService`.
 - Phone sends `/shift_alarm/alarm/start` to connected Wear OS nodes through `MessageClient`.
 - Phone also writes `/shift_alarm/alarm/active` as an urgent `DataItem`, so the watch has a backup sync path if the immediate message is missed.
+- Phone-to-watch start, cancel, and control-ACK messages are sent in a short three-attempt burst so a brief Bluetooth/Data Layer hiccup is less likely to lose the alarm signal.
 - Watch receives the message in `WatchAlarmListenerService`.
 - Watch starts `WatchAlarmRingingService` as a foreground service so the high-priority alarm notification and repeating vibration can continue even if Wear OS blocks an immediate background activity launch.
 - While foreground ringing is active, the watch service holds a short partial wake lock so the alarm vibration path is less likely to stall while the watch screen is off or the device is briefly idle.

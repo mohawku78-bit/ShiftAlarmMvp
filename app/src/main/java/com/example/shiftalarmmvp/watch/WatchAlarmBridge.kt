@@ -2,6 +2,8 @@ package com.example.shiftalarmmvp.watch
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.DataItem
@@ -167,23 +169,49 @@ class WatchAlarmBridge(context: Context) {
         onResult: ((WatchAlarmSendResult) -> Unit)? = null
     ) {
         val bytes = payload.toString().toByteArray(Charsets.UTF_8)
+        val handler = Handler(Looper.getMainLooper())
+        repeat(MESSAGE_SEND_ATTEMPTS) { index ->
+            val attempt = index + 1
+            val delayMillis = index * MESSAGE_RETRY_DELAY_MILLIS
+            val resultCallback = if (index == 0) onResult else null
+            if (delayMillis == 0L) {
+                sendToConnectedNodesOnce(path, bytes, attempt, resultCallback)
+            } else {
+                handler.postDelayed(
+                    { sendToConnectedNodesOnce(path, bytes, attempt, resultCallback) },
+                    delayMillis
+                )
+            }
+        }
+    }
+
+    private fun sendToConnectedNodesOnce(
+        path: String,
+        bytes: ByteArray,
+        attempt: Int,
+        onResult: ((WatchAlarmSendResult) -> Unit)? = null
+    ) {
         val nodeClient = Wearable.getNodeClient(appContext)
         val messageClient = Wearable.getMessageClient(appContext)
 
         nodeClient.connectedNodes
             .addOnSuccessListener { nodes ->
-                Log.i(TAG, "sendMessage path=$path nodes=${nodes.size}")
+                Log.i(TAG, "sendMessage path=$path attempt=$attempt nodes=${nodes.size}")
                 nodes.forEach { node ->
                     messageClient.sendMessage(node.id, path, bytes)
-                        .addOnSuccessListener { Log.i(TAG, "sendMessage ok path=$path node=${node.displayName}") }
-                        .addOnFailureListener { error -> Log.w(TAG, "sendMessage failed path=$path node=${node.displayName}", error) }
+                        .addOnSuccessListener {
+                            Log.i(TAG, "sendMessage ok path=$path attempt=$attempt node=${node.displayName}")
+                        }
+                        .addOnFailureListener { error ->
+                            Log.w(TAG, "sendMessage failed path=$path attempt=$attempt node=${node.displayName}", error)
+                        }
                 }
                 if (onResult != null) {
                     resolveReachableWatchAppNodes { watchAppNodeCount, watchAppNodeNames, watchAppError ->
                         onResult.invoke(
                             WatchAlarmSendResult(
                                 connectedNodeCount = nodes.size,
-                                messageSendAttempts = nodes.size,
+                                messageSendAttempts = nodes.size * MESSAGE_SEND_ATTEMPTS,
                                 reachableWatchAppNodeCount = watchAppNodeCount,
                                 reachableWatchAppNodeNames = watchAppNodeNames,
                                 watchAppLookupErrorMessage = watchAppError,
@@ -194,11 +222,11 @@ class WatchAlarmBridge(context: Context) {
                 }
             }
             .addOnFailureListener { error ->
-                Log.w(TAG, "connectedNodes failed path=$path", error)
+                Log.w(TAG, "connectedNodes failed path=$path attempt=$attempt", error)
                 onResult?.invoke(
                     WatchAlarmSendResult(
                         connectedNodeCount = 0,
-                        messageSendAttempts = 0,
+                        messageSendAttempts = MESSAGE_SEND_ATTEMPTS,
                         reachableWatchAppNodeCount = 0,
                         reachableWatchAppNodeNames = emptyList(),
                         watchAppLookupErrorMessage = null,
@@ -267,6 +295,8 @@ class WatchAlarmBridge(context: Context) {
 
     companion object {
         private const val TAG = "ShiftWatchBridge"
+        private const val MESSAGE_SEND_ATTEMPTS = 3
+        private const val MESSAGE_RETRY_DELAY_MILLIS = 700L
 
         const val PATH_ALARM_START = "/shift_alarm/alarm/start"
         const val PATH_ALARM_CANCEL = "/shift_alarm/alarm/cancel"
