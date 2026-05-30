@@ -34,6 +34,7 @@ class AlarmActivity : Activity() {
     private var controlAckTimeout: Runnable? = null
     private var pendingControlAction: String? = null
     private var pendingControlPayload: WatchAlarmPayload? = null
+    private var pendingControlStartedAtMillis: Long = 0L
     private var actionStatusText: TextView? = null
     private var stopActionButton: Button? = null
     private var snoozeActionButton: Button? = null
@@ -72,6 +73,10 @@ class AlarmActivity : Activity() {
         }
         val pendingAction = intent.getStringExtra(EXTRA_PENDING_CONTROL_ACTION)
             ?.takeIf { isSupportedPendingControlAction(it, nextPayload) }
+        val pendingStartedAtMillis = intent
+            .getLongExtra(EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS, 0L)
+            .takeIf { it > 0L }
+            ?: System.currentTimeMillis()
 
         clearPendingControlState()
         payload = nextPayload
@@ -83,7 +88,7 @@ class AlarmActivity : Activity() {
             stopVibration()
         }
         setContentView(buildContent(nextPayload))
-        pendingAction?.let { restorePendingControlState(it, nextPayload) }
+        pendingAction?.let { restorePendingControlState(it, nextPayload, pendingStartedAtMillis) }
     }
 
     private fun buildContent(payload: WatchAlarmPayload): View {
@@ -247,14 +252,16 @@ class AlarmActivity : Activity() {
         val currentPayload = payload ?: return
         if (pendingControlAction != null) return
         if (path == WatchAlarmProtocol.PATH_ALARM_SNOOZE && !currentPayload.canSnooze) return
+        val requestStartedAtMillis = System.currentTimeMillis()
         pendingControlAction = path
         pendingControlPayload = currentPayload
+        pendingControlStartedAtMillis = requestStartedAtMillis
         PhoneMessageBridge.send(this, path, currentPayload)
         stopVibration()
         WatchAlarmRingingService.stopKeepingNotification(this)
-        WatchAlarmNotifier.showControlPending(this, currentPayload, path)
+        WatchAlarmNotifier.showControlPending(this, currentPayload, path, requestStartedAtMillis)
         showWaitingForControlAck(path)
-        scheduleControlAckTimeout(path, currentPayload)
+        scheduleControlAckTimeout(path, currentPayload, requestStartedAtMillis)
     }
 
     private fun showWaitingForControlAck(path: String) {
@@ -268,13 +275,20 @@ class AlarmActivity : Activity() {
         setActionButtonsEnabled(false)
     }
 
-    private fun scheduleControlAckTimeout(path: String, payload: WatchAlarmPayload) {
+    private fun scheduleControlAckTimeout(
+        path: String,
+        payload: WatchAlarmPayload,
+        requestStartedAtMillis: Long
+    ) {
         controlAckTimeout?.let(controlAckHandler::removeCallbacks)
         val timeout = Runnable {
             if (pendingControlAction == path &&
                 pendingControlPayload?.alarmId == payload.alarmId &&
                 pendingControlPayload?.triggeredAtMillis == payload.triggeredAtMillis
             ) {
+                if (dismissIfStoredControlAck(path, payload, requestStartedAtMillis)) {
+                    return@Runnable
+                }
                 restoreControlRetryAfterMissingAck(payload, ringingAlreadyRestored = false)
             }
         }
@@ -330,13 +344,35 @@ class AlarmActivity : Activity() {
         controlAckTimeout = null
         pendingControlAction = null
         pendingControlPayload = null
+        pendingControlStartedAtMillis = 0L
     }
 
-    private fun restorePendingControlState(path: String, payload: WatchAlarmPayload) {
+    private fun restorePendingControlState(
+        path: String,
+        payload: WatchAlarmPayload,
+        requestStartedAtMillis: Long
+    ) {
+        if (dismissIfStoredControlAck(path, payload, requestStartedAtMillis)) {
+            return
+        }
         pendingControlAction = path
         pendingControlPayload = payload
+        pendingControlStartedAtMillis = requestStartedAtMillis
         showWaitingForControlAck(path)
-        scheduleControlAckTimeout(path, payload)
+        scheduleControlAckTimeout(path, payload, requestStartedAtMillis)
+    }
+
+    private fun dismissIfStoredControlAck(
+        path: String,
+        payload: WatchAlarmPayload,
+        requestStartedAtMillis: Long
+    ): Boolean {
+        if (!WatchAlarmControlAckStore.hasAcknowledgementSince(this, path, payload, requestStartedAtMillis)) {
+            return false
+        }
+        Log.i(TAG, "dismiss after stored control ack action=$path alarmId=${payload.alarmId}")
+        dismissLocal()
+        return true
     }
 
     private fun isSupportedPendingControlAction(path: String, payload: WatchAlarmPayload): Boolean {
@@ -418,6 +454,7 @@ class AlarmActivity : Activity() {
         private const val TAG = "ShiftWearAlarm"
         private const val EXTRA_USE_LOCAL_VIBRATION = "extra_use_local_vibration"
         private const val EXTRA_PENDING_CONTROL_ACTION = "extra_pending_control_action"
+        private const val EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS = "extra_pending_control_started_at_millis"
         private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
 
         fun createIntent(
@@ -434,10 +471,12 @@ class AlarmActivity : Activity() {
         fun createPendingControlIntent(
             context: Context,
             payload: WatchAlarmPayload,
-            action: String
+            action: String,
+            requestStartedAtMillis: Long
         ): Intent {
             return createIntent(context, payload, useLocalVibration = false)
                 .putExtra(EXTRA_PENDING_CONTROL_ACTION, action)
+                .putExtra(EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS, requestStartedAtMillis)
         }
 
         fun show(
@@ -468,17 +507,29 @@ class AlarmActivity : Activity() {
             }
         }
 
-        fun awaitControlAcknowledgement(action: String, payload: WatchAlarmPayload) {
+        fun awaitControlAcknowledgement(
+            action: String,
+            payload: WatchAlarmPayload,
+            requestStartedAtMillis: Long = System.currentTimeMillis()
+        ) {
             activeActivity?.get()?.let { activity ->
                 activity.runOnUiThread {
                     if (activity.payload?.alarmId == payload.alarmId &&
                         activity.payload?.triggeredAtMillis == payload.triggeredAtMillis
                     ) {
+                        if (activity.dismissIfStoredControlAck(action, payload, requestStartedAtMillis)) {
+                            return@runOnUiThread
+                        }
                         activity.pendingControlAction = action
                         activity.pendingControlPayload = payload
+                        activity.pendingControlStartedAtMillis = requestStartedAtMillis
                         activity.stopVibration()
                         activity.showWaitingForControlAck(action)
-                        activity.scheduleControlAckTimeout(action, payload)
+                        activity.scheduleControlAckTimeout(
+                            action,
+                            payload,
+                            requestStartedAtMillis
+                        )
                     }
                 }
             }

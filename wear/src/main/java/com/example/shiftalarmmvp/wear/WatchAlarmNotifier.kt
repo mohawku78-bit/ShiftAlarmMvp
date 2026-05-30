@@ -26,7 +26,12 @@ object WatchAlarmNotifier {
         }
     }
 
-    fun showControlPending(context: Context, payload: WatchAlarmPayload, action: String) {
+    fun showControlPending(
+        context: Context,
+        payload: WatchAlarmPayload,
+        action: String,
+        requestStartedAtMillis: Long
+    ) {
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(NotificationManager::class.java)
         createChannel(appContext, manager)
@@ -34,7 +39,7 @@ object WatchAlarmNotifier {
         val openIntent = PendingIntent.getActivity(
             appContext,
             requestCode(payload, 40_000),
-            AlarmActivity.createPendingControlIntent(appContext, payload, action),
+            AlarmActivity.createPendingControlIntent(appContext, payload, action, requestStartedAtMillis),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val actionLabel = if (action == WatchAlarmProtocol.PATH_ALARM_SNOOZE) {

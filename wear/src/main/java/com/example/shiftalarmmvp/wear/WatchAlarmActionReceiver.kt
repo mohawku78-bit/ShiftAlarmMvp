@@ -23,7 +23,7 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
                     shouldHoldForRetry = true
                     controlAction = requestedAction
                     PhoneMessageBridge.send(context, controlAction, payload)
-                    awaitPhoneAck(context, controlAction, payload)
+                    awaitPhoneAck(context, controlAction, payload, requestStartedAtMillis)
                 }
 
                 WatchAlarmProtocol.PATH_ALARM_SNOOZE -> {
@@ -31,7 +31,7 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
                     shouldHoldForRetry = true
                     controlAction = requestedAction
                     PhoneMessageBridge.send(context, controlAction, payload)
-                    awaitPhoneAck(context, controlAction, payload)
+                    awaitPhoneAck(context, controlAction, payload, requestStartedAtMillis)
                 }
             }
         } finally {
@@ -51,10 +51,15 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun awaitPhoneAck(context: Context, action: String, payload: WatchAlarmPayload) {
+    private fun awaitPhoneAck(
+        context: Context,
+        action: String,
+        payload: WatchAlarmPayload,
+        requestStartedAtMillis: Long
+    ) {
         WatchAlarmRingingService.stopKeepingNotification(context)
-        WatchAlarmNotifier.showControlPending(context, payload, action)
-        AlarmActivity.awaitControlAcknowledgement(action, payload)
+        WatchAlarmNotifier.showControlPending(context, payload, action, requestStartedAtMillis)
+        AlarmActivity.awaitControlAcknowledgement(action, payload, requestStartedAtMillis)
     }
 
     private fun restoreIfPhoneAckMissing(
