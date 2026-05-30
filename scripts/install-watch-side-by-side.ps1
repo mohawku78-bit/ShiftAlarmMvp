@@ -24,6 +24,77 @@ function Invoke-Adb {
     & $AdbPath @Args
 }
 
+function Get-ConnectedDevices {
+    $lines = Invoke-Adb devices -l
+    $serials = @()
+    foreach ($line in $lines) {
+        if ($line -match "^(\S+)\s+device\b") {
+            $serials += $Matches[1]
+        }
+    }
+    return $serials
+}
+
+function Test-WatchDevice {
+    param([string]$Serial)
+
+    $features = Invoke-Adb -s $Serial shell pm list features
+    return ($features | Select-String -Pattern "android.hardware.type.watch" -Quiet) -eq $true
+}
+
+function Resolve-DeviceSerials {
+    if (-not [string]::IsNullOrWhiteSpace($PhoneSerial) -and -not [string]::IsNullOrWhiteSpace($WatchSerial)) {
+        return
+    }
+
+    $devices = Get-ConnectedDevices
+    if ($devices.Count -eq 0) {
+        throw "No adb devices are connected. Connect the phone with USB debugging and the Galaxy Watch with wireless debugging, then run adb devices -l."
+    }
+
+    $classified = foreach ($serial in $devices) {
+        [pscustomobject]@{
+            Serial = $serial
+            IsWatch = Test-WatchDevice -Serial $serial
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($WatchSerial)) {
+        $watchCandidates = @($classified | Where-Object { $_.IsWatch })
+        if ($watchCandidates.Count -eq 1) {
+            $script:WatchSerial = $watchCandidates[0].Serial
+            Write-Host "Auto-selected watch serial: $WatchSerial"
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($PhoneSerial)) {
+        $phoneCandidates = @($classified | Where-Object { -not $_.IsWatch })
+        if ($phoneCandidates.Count -eq 1) {
+            $script:PhoneSerial = $phoneCandidates[0].Serial
+            Write-Host "Auto-selected phone serial: $PhoneSerial"
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($PhoneSerial) -or [string]::IsNullOrWhiteSpace($WatchSerial)) {
+        $table = ($classified | ForEach-Object {
+            $kind = if ($_.IsWatch) { "watch" } else { "phone_or_other" }
+            "  $($_.Serial)  $kind"
+        }) -join [Environment]::NewLine
+
+        throw @"
+Could not uniquely resolve phone/watch serials.
+Detected:
+$table
+
+Run:
+  .\scripts\install-watch-side-by-side.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL
+
+For Galaxy Watch wireless debugging, connect it first with:
+  adb connect WATCH_IP:WATCH_PORT
+"@
+    }
+}
+
 function Assert-File {
     param([string]$Path)
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -71,15 +142,7 @@ try {
     Write-Host ""
     Write-Host "Connected devices:"
     Invoke-Adb devices -l
-
-    if ([string]::IsNullOrWhiteSpace($PhoneSerial) -or [string]::IsNullOrWhiteSpace($WatchSerial)) {
-        Write-Host ""
-        Write-Host "Usage:"
-        Write-Host "  .\scripts\install-watch-side-by-side.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL"
-        Write-Host ""
-        Write-Host "Use the serials shown above. For a Galaxy Watch over wireless debugging, run adb connect first."
-        exit 2
-    }
+    Resolve-DeviceSerials
 
     Write-Host ""
     Write-Host "Installing phone APK to $PhoneSerial"
@@ -116,7 +179,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "Install complete. Open the phone test area and tap '워치 알람 미리보기 보내기'."
+    Write-Host "Install complete. Run run-watch-full-validation.ps1, or open the phone test area and send a watch preview."
 } finally {
     Pop-Location
 }

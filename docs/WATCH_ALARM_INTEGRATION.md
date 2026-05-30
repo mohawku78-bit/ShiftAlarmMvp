@@ -67,16 +67,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\validate-watch-integration-so
 The fastest path is the install helper script:
 
 ```powershell
+.\scripts\install-watch-side-by-side.ps1
+```
+
+If more than one phone or watch is connected, pass serials explicitly:
+
+```powershell
 .\scripts\install-watch-side-by-side.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL
 ```
 
 If APKs are already built:
 
 ```powershell
-.\scripts\install-watch-side-by-side.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -SkipBuild
+.\scripts\install-watch-side-by-side.ps1 -SkipBuild
 ```
 
-The script builds both side-by-side APKs, installs them to the selected phone and watch, grants notification permission when possible, and launches both apps. If you do not know the serials, run the script without serials or run `adb devices -l`.
+The script builds both side-by-side APKs, auto-selects one connected phone and one connected watch when possible, installs them to the selected devices, grants notification permission when possible, verifies both installs, and launches both apps. If auto-selection cannot safely decide, run `adb devices -l` and pass `-PhoneSerial` and `-WatchSerial`.
 
 By default, the install helper also runs the source preflight before install and runs device verification after install. If you need to skip those steps during debugging:
 
