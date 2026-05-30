@@ -87,9 +87,22 @@ class WatchAlarmListenerService : WearableListenerService() {
             return
         }
         Log.i(TAG, "cancel alarm alarmId=${cancellation.alarmId}")
-        WatchAlarmActiveStore.clearIfMatching(this, cancellation.alarmId, cancellation.eventTimeMillis)
+        val clearedActiveAlarm = WatchAlarmActiveStore.clearIfMatching(
+            this,
+            cancellation.alarmId,
+            cancellation.eventTimeMillis
+        )
+        if (!clearedActiveAlarm) {
+            Log.i(
+                TAG,
+                "ignore stale cancel for inactive alarmId=${cancellation.alarmId} " +
+                    "triggeredAt=${cancellation.eventTimeMillis}"
+            )
+            AlarmActivity.dismissIfMatching(cancellation.alarmId, cancellation.eventTimeMillis)
+            return
+        }
         WatchAlarmRingingService.stop(this)
-        AlarmActivity.dismissIfMatching(cancellation.alarmId)
+        AlarmActivity.dismissIfMatching(cancellation.alarmId, cancellation.eventTimeMillis)
     }
 
     private fun handleControlAcknowledgement(ack: WatchAlarmControlAcknowledgement) {

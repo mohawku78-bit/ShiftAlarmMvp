@@ -418,10 +418,12 @@ class AlarmActivity : Activity() {
             runCatching { context.startActivity(createIntent(context, payload, useLocalVibration)) }
         }
 
-        fun dismissIfMatching(alarmId: Long) {
+        fun dismissIfMatching(alarmId: Long, triggeredAtMillis: Long) {
             activeActivity?.get()?.let { activity ->
                 activity.runOnUiThread {
-                    if (activity.payload?.alarmId == alarmId) {
+                    if (activity.payload?.alarmId == alarmId &&
+                        activity.payload?.triggeredAtMillis == triggeredAtMillis
+                    ) {
                         activity.dismissLocal()
                     }
                 }

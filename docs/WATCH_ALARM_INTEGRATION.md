@@ -14,6 +14,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - If foreground startup fails, the service leaves the fallback alarm notification visible instead of clearing it during service teardown.
 - Watch keeps separate duplicate gates for alarm start and cancel events, so a fast stop/cancel event is not rejected as a duplicate of the just-received start event.
 - Phone cancellation payloads keep the original alarm occurrence timestamp, and the watch ignores cancellation events that do not match the accepted start occurrence. If cancel arrives before start for the same occurrence, the watch records it and ignores a late start for that occurrence.
+- Watch cancel teardown also requires the cancel timestamp to match the currently active watch alarm occurrence, so a late cancel cannot stop a newer alarm screen or ringing service for the same alarm id.
 - Watch advertises the `shift_alarm_watch_control` Wear capability. The phone preview test checks this capability, so it can distinguish "a watch is connected" from "the matching Shift Alarm watch app is installed and reachable".
 - Watch sends `/shift_alarm/alarm/ack` back to the phone with the display path it used: foreground vibration service or notification fallback.
 - Watch `끄기` sends `/shift_alarm/alarm/stop` back to the phone through both message and control `DataItem`.

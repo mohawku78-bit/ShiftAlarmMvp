@@ -24,11 +24,13 @@ object WatchAlarmActiveStore {
     }
 
     @Synchronized
-    fun clearIfMatching(context: Context, alarmId: Long, triggeredAtMillis: Long) {
-        val active = read(context) ?: return
+    fun clearIfMatching(context: Context, alarmId: Long, triggeredAtMillis: Long): Boolean {
+        val active = read(context) ?: return false
         if (matches(active, alarmId, triggeredAtMillis)) {
             clear(context)
+            return true
         }
+        return false
     }
 
     @Synchronized
