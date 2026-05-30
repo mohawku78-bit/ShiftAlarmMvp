@@ -57,6 +57,76 @@ function Add-Check {
     }
 }
 
+function Select-InterestingLines {
+    param(
+        [string]$Text,
+        [string[]]$Patterns,
+        [int]$MaxLines = 40
+    )
+
+    $pattern = ($Patterns | ForEach-Object { "(?:$_)" }) -join "|"
+    $matches = $Text -split "`r?`n" | Where-Object { $_ -match $pattern }
+    return @($matches | Select-Object -Last $MaxLines)
+}
+
+function Write-DiagnosticHints {
+    param(
+        [string]$PhoneText,
+        [string]$WatchText
+    )
+
+    $phoneHints = Select-InterestingLines -Text $PhoneText -Patterns @(
+        "broadcast watch",
+        "watch preview result",
+        "capability shift_alarm_watch_control",
+        "sendMessage path=/shift_alarm/alarm",
+        "putDataItem path=/shift_alarm/alarm",
+        "watch ack",
+        "watch control",
+        "stop from watch",
+        "snooze from watch",
+        "ignore stale control",
+        "ignore duplicate",
+        "sendControlAcknowledged",
+        "resend accepted watch control ack"
+    )
+
+    $watchHints = Select-InterestingLines -Text $WatchText -Patterns @(
+        "alarm start message",
+        "alarm active data",
+        "show alarm",
+        "show fallback notification",
+        "show control pending notification",
+        "side-by-side watch action",
+        "without active alarm",
+        "send control",
+        "put control data",
+        "control ack",
+        "control ack timeout",
+        "request stop foreground ringing",
+        "stop foreground ringing",
+        "cancel alarm"
+    )
+
+    Write-Host ""
+    Write-Host "Diagnostic log hints:"
+    Write-Host ""
+    Write-Host "Phone:"
+    if ($phoneHints.Count -gt 0) {
+        $phoneHints | ForEach-Object { Write-Host "  $_" }
+    } else {
+        Write-Host "  No matching phone diagnostic lines found."
+    }
+
+    Write-Host ""
+    Write-Host "Watch:"
+    if ($watchHints.Count -gt 0) {
+        $watchHints | ForEach-Object { Write-Host "  $_" }
+    } else {
+        Write-Host "  No matching watch diagnostic lines found."
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($PhoneLog)) {
     $PhoneLog = Resolve-LatestLog -Pattern "phone-watch-smoke-$Mode-*.log" -Label "phone"
 }
@@ -135,6 +205,7 @@ foreach ($check in $checks) {
 }
 
 if ($failed.Count -gt 0) {
+    Write-DiagnosticHints -PhoneText $phone -WatchText $watch
     throw "Watch smoke assertion failed: $($failed.Count) check(s) failed."
 }
 

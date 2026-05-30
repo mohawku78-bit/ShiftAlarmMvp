@@ -176,6 +176,8 @@ Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchAction
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'AutoWatchActionAttempts'
 Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'WATCH_TEST_STOP'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch sent expected control'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Write-DiagnosticHints'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Diagnostic log hints'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'install-watch-side-by-side.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'validate-watch-integration-source.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Resolve-DeviceSerials'
