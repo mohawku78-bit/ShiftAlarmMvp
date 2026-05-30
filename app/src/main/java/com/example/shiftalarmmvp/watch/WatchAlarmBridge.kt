@@ -320,7 +320,7 @@ class WatchAlarmBridge(context: Context) {
                     snoozeAllowed = json.optBoolean(KEY_SNOOZE_ALLOWED, true),
                     triggeredAtMillis = json.optLong(KEY_TRIGGERED_AT_MILLIS, 0L)
                 )
-            }.getOrNull()?.takeIf { it.alarmId > 0 }
+            }.getOrNull()?.takeIf { it.alarmId > 0 && it.triggeredAtMillis > 0L }
         }
 
         fun parsePayload(dataItem: DataItem): WatchAlarmPayload? {

@@ -66,6 +66,7 @@ class WatchAlarmBridgeTest {
         val clamped = WatchAlarmBridge.parsePayload(
             JSONObject()
                 .put("alarmId", 7L)
+                .put("triggeredAtMillis", 20_000L)
                 .put("snoozeMinutes", 999)
                 .put("snoozeMaxCount", 999)
                 .put("currentSnoozeCount", -2)
@@ -79,8 +80,10 @@ class WatchAlarmBridgeTest {
         assertEquals(100, clamped?.volumePercent)
 
         val invalid = WatchAlarmBridge.parsePayload(JSONObject().put("alarmId", -1L).toString())
+        val missingOccurrence = WatchAlarmBridge.parsePayload(JSONObject().put("alarmId", 7L).toString())
 
         assertNull(invalid)
+        assertNull(missingOccurrence)
     }
 
     @Test

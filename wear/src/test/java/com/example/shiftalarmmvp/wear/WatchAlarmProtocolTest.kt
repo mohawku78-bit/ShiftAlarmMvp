@@ -66,6 +66,7 @@ class WatchAlarmProtocolTest {
         val parsed = WatchAlarmProtocol.parsePayload(
             JSONObject()
                 .put("alarmId", 11L)
+                .put("triggeredAtMillis", 20_000L)
                 .put("snoozeMinutes", 0)
                 .put("snoozeMaxCount", 999)
                 .put("currentSnoozeCount", -3)
@@ -79,8 +80,10 @@ class WatchAlarmProtocolTest {
         assertEquals(0, parsed?.volumePercent)
 
         val invalid = WatchAlarmProtocol.parsePayload(JSONObject().put("alarmId", 0L).toString())
+        val missingOccurrence = WatchAlarmProtocol.parsePayload(JSONObject().put("alarmId", 11L).toString())
 
         assertNull(invalid)
+        assertNull(missingOccurrence)
     }
 
     @Test

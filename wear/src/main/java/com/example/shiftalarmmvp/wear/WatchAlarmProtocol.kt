@@ -87,7 +87,7 @@ object WatchAlarmProtocol {
                 snoozeAllowed = json.optBoolean(KEY_SNOOZE_ALLOWED, true),
                 triggeredAtMillis = json.optLong(KEY_TRIGGERED_AT_MILLIS, 0L)
             )
-        }.getOrNull()?.takeIf { it.alarmId > 0L }
+        }.getOrNull()?.takeIf { it.alarmId > 0L && it.triggeredAtMillis > 0L }
     }
 
     fun parsePayload(intent: Intent): WatchAlarmPayload? {

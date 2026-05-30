@@ -108,6 +108,7 @@ Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'getCapability(CAPABILITY_WAT
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'recordSendAttempt'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'clearActive: Boolean = true'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'if (clearActive)'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'it.triggeredAtMillis > 0L'
 
 $requiredProtocolConstants = @(
     'PATH_ALARM_START = "/shift_alarm/alarm/start"',
@@ -127,6 +128,7 @@ foreach ($constant in $requiredProtocolConstants) {
     Assert-Contains "WatchAlarmBridge.kt" $phoneBridge $constant
     Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol $constant
 }
+Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol 'it.triggeredAtMillis > 0L'
 
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmBridge(this).sendAlarmStarted'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmBridge(this).sendAlarmCancelled'
