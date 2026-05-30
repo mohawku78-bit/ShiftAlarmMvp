@@ -33,11 +33,13 @@ import com.example.shiftalarmmvp.recovery.SelfTestStatus
 import com.example.shiftalarmmvp.ui.AlarmAlertActivity
 import com.example.shiftalarmmvp.ui.AlarmLogStore
 import com.example.shiftalarmmvp.ui.AlarmLogType
+import com.example.shiftalarmmvp.watch.WatchAlarmBridge
 
 class AlarmRingingService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var isForegroundStarted = false
+    private var activeAlarmId: Long = -1L
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
@@ -165,6 +167,11 @@ class AlarmRingingService : Service() {
         currentSnoozeCount: Int,
         directBootSnapshot: DirectBootAlarmSnapshot?
     ) {
+        val watchTriggeredAtMillis = System.currentTimeMillis()
+        activeAlarmId = alarmId
+        activeRingingAlarmId = alarmId
+        activeRingingTriggeredAtMillis = watchTriggeredAtMillis
+
         if (!isForegroundStarted) {
             val started = runCatching {
                 startForeground(
@@ -204,6 +211,20 @@ class AlarmRingingService : Service() {
             volumePercent = volumePercent,
             vibrationEnabled = vibrationEnabled,
             directBootSnapshot = directBootSnapshot
+        )
+
+        WatchAlarmBridge(this).sendAlarmStarted(
+            alarmId = alarmId,
+            label = label,
+            snoozeMinutes = snoozeMinutes,
+            snoozeMaxCount = snoozeMaxCount,
+            currentSnoozeCount = currentSnoozeCount,
+            soundType = soundType.name,
+            customSoundUri = customSoundUri,
+            volumePercent = volumePercent,
+            vibrationEnabled = vibrationEnabled,
+            snoozeAllowed = alarmId != SELF_TEST_ALARM_ID,
+            triggeredAtMillis = watchTriggeredAtMillis
         )
 
         if (mediaPlayer?.isPlaying == true) return
@@ -292,6 +313,15 @@ class AlarmRingingService : Service() {
 
     private fun stopRingingAndSelf() {
         isRingingActive = false
+        activeAlarmId.takeIf { it > 0L }?.let { alarmId ->
+            WatchAlarmBridge(this).sendAlarmCancelled(
+                alarmId = alarmId,
+                triggeredAtMillis = activeRingingTriggeredAtMillis
+            )
+        }
+        activeAlarmId = -1L
+        activeRingingAlarmId = -1L
+        activeRingingTriggeredAtMillis = 0L
         runCatching { mediaPlayer?.stop() }
         runCatching { mediaPlayer?.release() }
         mediaPlayer = null
@@ -861,6 +891,15 @@ class AlarmRingingService : Service() {
 
     override fun onDestroy() {
         isRingingActive = false
+        activeAlarmId.takeIf { it > 0L }?.let { alarmId ->
+            WatchAlarmBridge(this).sendAlarmCancelled(
+                alarmId = alarmId,
+                triggeredAtMillis = activeRingingTriggeredAtMillis
+            )
+        }
+        activeAlarmId = -1L
+        activeRingingAlarmId = -1L
+        activeRingingTriggeredAtMillis = 0L
         runCatching { mediaPlayer?.stop() }
         runCatching { mediaPlayer?.release() }
         mediaPlayer = null
@@ -893,6 +932,20 @@ class AlarmRingingService : Service() {
 
         @Volatile
         private var isRingingActive: Boolean = false
+        @Volatile
+        private var activeRingingAlarmId: Long = -1L
+        @Volatile
+        private var activeRingingTriggeredAtMillis: Long = 0L
+
+        fun isRinging(alarmId: Long): Boolean {
+            return isRingingActive && activeRingingAlarmId == alarmId
+        }
+
+        fun isRinging(alarmId: Long, triggeredAtMillis: Long): Boolean {
+            return isRinging(alarmId) &&
+                triggeredAtMillis > 0L &&
+                activeRingingTriggeredAtMillis == triggeredAtMillis
+        }
 
         fun stop(context: Context, alarmId: Long) {
             val appContext = context.applicationContext
@@ -913,6 +966,11 @@ class AlarmRingingService : Service() {
             runCatching {
                 appContext.getSystemService(NotificationManager::class.java)?.cancel(WATCH_BRIDGE_NOTIFICATION_ID)
             }
+
+            WatchAlarmBridge(appContext).sendAlarmCancelled(
+                alarmId = alarmId,
+                triggeredAtMillis = activeRingingTriggeredAtMillis
+            )
 
             runCatching {
                 appContext.stopService(

@@ -111,9 +111,12 @@ internal fun EditorPage(
     onStopTestSound: () -> Unit,
     onRunImmediateSelfTest: () -> Unit,
     onRunReservationCheck: () -> Unit,
+    onSendWatchPreview: () -> Unit,
+    onRunWatchControlTest: () -> Unit,
     onScheduleSelfTest: () -> Unit,
     onCancelSelfTest: () -> Unit,
     selfTestMessage: String,
+    watchAlarmStatusMessage: String?,
     reliabilityCenterUi: com.example.shiftalarmmvp.recovery.ReliabilityCenterUiModel,
     onOpenReliabilityCenter: () -> Unit,
     onRefreshReliabilityStatus: () -> Unit,
@@ -552,6 +555,12 @@ internal fun EditorPage(
                                 Text(stringResource(R.string.editor_self_test_check_now))
                             }
                         }
+                        SecondaryActionButton(onClick = onSendWatchPreview, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.editor_watch_preview_send))
+                        }
+                        PrimaryActionButton(onClick = onRunWatchControlTest, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.editor_watch_control_test_run))
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             SecondaryActionButton(onClick = onScheduleSelfTest, modifier = Modifier.weight(1f)) {
                                 Text(stringResource(R.string.editor_self_test_run))
@@ -562,6 +571,9 @@ internal fun EditorPage(
                         }
                         if (selfTestMessage.isNotBlank()) {
                             Text(selfTestMessage, style = MaterialTheme.typography.bodySmall)
+                        }
+                        watchAlarmStatusMessage?.takeIf { it.isNotBlank() }?.let { message ->
+                            Text(message, style = MaterialTheme.typography.bodySmall, color = ShiftDesign.Lagoon)
                         }
                     }
                 }

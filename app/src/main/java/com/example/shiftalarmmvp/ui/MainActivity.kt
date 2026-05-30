@@ -128,11 +128,15 @@ import com.example.shiftalarmmvp.recovery.RestorePostCheckStatus
 import com.example.shiftalarmmvp.recovery.RestorePostCheckStore
 import com.example.shiftalarmmvp.recovery.SELF_TEST_ALARM_ID
 import com.example.shiftalarmmvp.recovery.SelfTestStatus
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmIntent
+import com.example.shiftalarmmvp.recovery.DirectBootAlarmSnapshot
 import com.example.shiftalarmmvp.recovery.recoveryStrings
 import com.example.shiftalarmmvp.scheduler.AlarmScheduler
 import com.example.shiftalarmmvp.scheduler.AlarmTimeCalculator
 import com.example.shiftalarmmvp.scheduler.NightlyReliabilityCheckScheduler
 import com.example.shiftalarmmvp.service.AlarmRingingService
+import com.example.shiftalarmmvp.watch.WatchAlarmBridge
+import com.example.shiftalarmmvp.watch.WatchAlarmDiagnosticsStore
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -146,6 +150,7 @@ import kotlinx.coroutines.launch
 
 private const val HOME_BANNER_VERSION = "088"
 private const val SETTINGS_NAVIGATION_LOG_TAG = "ShiftAlarmSettings"
+private const val WATCH_CONTROL_TEST_ALARM_ID = 888_887L
 
 private fun reliabilityOverviewToneColor(tone: ReliabilityOverviewTone): Color {
     return when (tone) {
@@ -185,11 +190,13 @@ class MainActivity : ComponentActivity() {
     private var selfTestStatus by mutableStateOf<SelfTestStatus?>(null)
     private var nightlyCheckStatus by mutableStateOf<NightlyReliabilityCheckStatus?>(null)
     private var watchdogStatus by mutableStateOf<AlarmWatchdogStatus?>(null)
+    private var watchAlarmStatusMessage by mutableStateOf<String?>(null)
     private var wallClockRefreshToken by mutableIntStateOf(0)
     private var openReliabilityCenterRequestToken by mutableIntStateOf(0)
     private var pendingReliabilityFollowUpTarget by mutableStateOf<ReliabilityFollowUpTarget?>(null)
     private var reliabilityReceiverRegistered = false
     private var wallClockReceiverRegistered = false
+    private var watchAlarmDiagnosticsReceiverRegistered = false
     private val reliabilityStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != AlarmRingingService.ACTION_RELIABILITY_STATE_CHANGED) return
@@ -205,6 +212,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private val watchAlarmDiagnosticsReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != WatchAlarmDiagnosticsStore.ACTION_WATCH_ALARM_DIAGNOSTICS_CHANGED) return
+            refreshWatchAlarmDiagnosticsState()
+        }
+    }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -216,6 +229,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         refreshReliabilitySignals()
+        refreshWatchAlarmDiagnosticsState()
         ensureRuntimePermissions()
         vm.refreshDirectBootAlarmSnapshots()
         NightlyReliabilityCheckScheduler.schedule(this)
@@ -238,6 +252,7 @@ class MainActivity : ComponentActivity() {
                     selfTestStatus = selfTestStatus,
                     nightlyCheckStatus = nightlyCheckStatus,
                     watchdogStatus = watchdogStatus,
+                    watchAlarmStatusMessage = watchAlarmStatusMessage,
                     wallClockRefreshToken = wallClockRefreshToken,
                     openReliabilityCenterRequestToken = openReliabilityCenterRequestToken
                 )
@@ -255,9 +270,11 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         registerReliabilityStateReceiverIfNeeded()
         registerWallClockStateReceiverIfNeeded()
+        registerWatchAlarmDiagnosticsReceiverIfNeeded()
     }
 
     override fun onStop() {
+        unregisterWatchAlarmDiagnosticsReceiverIfNeeded()
         unregisterWallClockStateReceiverIfNeeded()
         unregisterReliabilityStateReceiverIfNeeded()
         super.onStop()
@@ -342,6 +359,69 @@ class MainActivity : ComponentActivity() {
         runCatching { unregisterReceiver(wallClockStateReceiver) }
         wallClockReceiverRegistered = false
     }
+
+    private fun registerWatchAlarmDiagnosticsReceiverIfNeeded() {
+        if (watchAlarmDiagnosticsReceiverRegistered) return
+        val filter = IntentFilter(WatchAlarmDiagnosticsStore.ACTION_WATCH_ALARM_DIAGNOSTICS_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(watchAlarmDiagnosticsReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(watchAlarmDiagnosticsReceiver, filter)
+        }
+        watchAlarmDiagnosticsReceiverRegistered = true
+    }
+
+    private fun unregisterWatchAlarmDiagnosticsReceiverIfNeeded() {
+        if (!watchAlarmDiagnosticsReceiverRegistered) return
+        runCatching { unregisterReceiver(watchAlarmDiagnosticsReceiver) }
+        watchAlarmDiagnosticsReceiverRegistered = false
+    }
+
+    private fun refreshWatchAlarmDiagnosticsState() {
+        val store = WatchAlarmDiagnosticsStore(this)
+        val statusLines = mutableListOf<String>()
+        store.latestAck()?.let {
+            statusLines += getString(
+                R.string.editor_watch_ack_status_format,
+                if (it.label.isBlank()) getString(R.string.editor_watch_ack_default_label) else it.label,
+                watchAckDisplayModeLabel(it.displayMode),
+                formatWatchAlarmDiagnosticsTime(it.acknowledgedAtMillis)
+            )
+        }
+        store.latestAcceptedControl()?.let {
+            statusLines += getString(
+                R.string.editor_watch_control_status_format,
+                watchControlActionLabel(it.action),
+                if (it.label.isBlank()) getString(R.string.editor_watch_ack_default_label) else it.label,
+                formatWatchAlarmDiagnosticsTime(it.receivedAtMillis)
+            )
+        }
+        watchAlarmStatusMessage = statusLines.takeIf { it.isNotEmpty() }?.joinToString("\n")
+    }
+
+    private fun formatWatchAlarmDiagnosticsTime(timeMillis: Long): String {
+        return Instant.ofEpochMilli(timeMillis)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    }
+
+    private fun watchControlActionLabel(action: String): String {
+        return when (action) {
+            WatchAlarmBridge.PATH_ALARM_STOP -> getString(R.string.editor_watch_control_stop_action)
+            WatchAlarmBridge.PATH_ALARM_SNOOZE -> getString(R.string.editor_watch_control_snooze_action)
+            else -> getString(R.string.editor_watch_control_unknown_action)
+        }
+    }
+
+    private fun watchAckDisplayModeLabel(displayMode: String): String {
+        return when (displayMode) {
+            WatchAlarmBridge.ACK_DISPLAY_MODE_FOREGROUND_SERVICE -> getString(R.string.editor_watch_ack_mode_foreground)
+            WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK -> getString(R.string.editor_watch_ack_mode_fallback)
+            else -> getString(R.string.editor_watch_ack_mode_unknown)
+        }
+    }
+
     private fun refreshExactAlarmPermissionState() {
         canScheduleExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             scheduler.canScheduleExactAlarms()
@@ -713,6 +793,7 @@ private fun AlarmScreen(
     selfTestStatus: SelfTestStatus?,
     nightlyCheckStatus: NightlyReliabilityCheckStatus?,
     watchdogStatus: AlarmWatchdogStatus?,
+    watchAlarmStatusMessage: String?,
     wallClockRefreshToken: Int,
     openReliabilityCenterRequestToken: Int
 ) {
@@ -1457,6 +1538,90 @@ private fun AlarmScreen(
         snoozeMinutes = selectedSnoozeMinutes
     )
 
+    fun sendWatchPreview(showToast: Boolean = false) {
+        fun publishMessage(message: String, toastLength: Int = Toast.LENGTH_SHORT) {
+            selfTestMessage = message
+            if (showToast) {
+                Toast.makeText(context, selfTestMessage, toastLength).show()
+            }
+        }
+
+        publishMessage(context.getString(R.string.editor_watch_preview_sending))
+        WatchAlarmBridge(context).sendPreviewAlarmWithResult(
+            label = selectedLabel,
+            snoozeMinutes = selectedSnoozeMinutes,
+            soundType = selectedSoundType.name,
+            customSoundUri = selectedCustomSoundUri,
+            volumePercent = selectedVolume.toInt(),
+            vibrationEnabled = vibrationEnabled
+        ) { result ->
+            val message = when {
+                result.errorMessage != null -> context.getString(
+                    R.string.editor_watch_preview_failed_format,
+                    result.errorMessage
+                )
+
+                result.connectedNodeCount == 0 -> context.getString(R.string.editor_watch_preview_no_device)
+                else -> context.getString(
+                    R.string.editor_watch_preview_sent_format,
+                    result.connectedNodeCount,
+                    result.messageSendAttempts
+                )
+            }
+            (context as? Activity)?.runOnUiThread {
+                publishMessage(message, Toast.LENGTH_LONG)
+            } ?: publishMessage(message, Toast.LENGTH_LONG)
+        }
+    }
+
+    fun runWatchControlTest(showToast: Boolean = false) {
+        val label = context.getString(R.string.editor_watch_control_test_label)
+        val now = LocalDateTime.now()
+        val snapshot = DirectBootAlarmSnapshot(
+            id = WATCH_CONTROL_TEST_ALARM_ID,
+            label = label,
+            hour = now.hour,
+            minute = now.minute,
+            weeklyPatternCsv = "",
+            intervalWeeks = 1,
+            anchorEpochDay = now.toLocalDate().toEpochDay(),
+            snoozeMinutes = selectedSnoozeMinutes,
+            snoozeMaxCount = 3,
+            soundType = selectedSoundType.name,
+            customSoundUri = selectedCustomSoundUri,
+            volumePercent = selectedVolume.toInt(),
+            vibrationEnabled = vibrationEnabled,
+            skipDateEpochDays = "",
+            addDateEpochDays = now.toLocalDate().toEpochDay().toString()
+        )
+        val intent = Intent(context, AlarmRingingService::class.java)
+            .setAction(AlarmRingingService.ACTION_START)
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, WATCH_CONTROL_TEST_ALARM_ID)
+            .putExtra(AlarmReceiver.EXTRA_LABEL, label)
+            .putExtra(AlarmReceiver.EXTRA_SOUND_TYPE, selectedSoundType.name)
+            .putExtra(AlarmReceiver.EXTRA_CUSTOM_SOUND_URI, selectedCustomSoundUri)
+            .putExtra(AlarmReceiver.EXTRA_VOLUME_PERCENT, selectedVolume.toInt())
+            .putExtra(AlarmReceiver.EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, selectedSnoozeMinutes)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_MAX_COUNT, 3)
+            .putExtra(AlarmReceiver.EXTRA_SNOOZE_CURRENT_COUNT, 0)
+        DirectBootAlarmIntent.putSnapshot(
+            intent = intent,
+            snapshot = snapshot,
+            expectedTriggerMillis = System.currentTimeMillis(),
+            directBootFallback = true
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+        selfTestMessage = context.getString(R.string.editor_watch_control_test_started)
+        if (showToast) {
+            Toast.makeText(context, selfTestMessage, Toast.LENGTH_LONG).show()
+        }
+    }
+
     fun runImmediateSelfTest(showToast: Boolean = false) {
         val result = selfTestActionHandler.ringNow(
             config = currentSelfTestConfig()
@@ -2088,9 +2253,12 @@ private fun AlarmScreen(
                 onStopTestSound = { AlarmRingingService.stop(context, SELF_TEST_ALARM_ID) },
                 onRunImmediateSelfTest = { runImmediateSelfTest(showToast = true) },
                 onRunReservationCheck = { runReservationCheck(showToast = true) },
+                onSendWatchPreview = { sendWatchPreview(showToast = true) },
+                onRunWatchControlTest = { runWatchControlTest(showToast = true) },
                 onScheduleSelfTest = { scheduleSelfTest(showToast = true) },
                 onCancelSelfTest = { cancelSelfTest() },
                 selfTestMessage = selfTestMessage,
+                watchAlarmStatusMessage = watchAlarmStatusMessage,
                 reliabilityCenterUi = reliabilityCenterUi,
                 onOpenReliabilityCenter = { openReliabilityCenter() },
                 onRefreshReliabilityStatus = { onRefreshReliabilityStatus() },
