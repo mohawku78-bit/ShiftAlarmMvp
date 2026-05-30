@@ -46,6 +46,8 @@ $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
 $watchService = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
 $watchListener = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmListenerService.kt"
+$watchPhoneBridge = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\PhoneMessageBridge.kt"
+$watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActionReceiver.kt"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
 
@@ -111,6 +113,10 @@ Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FO
 Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FALLBACK'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedCancel'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedStart'
+Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
+Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'goAsync()'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'CONTROL_RETRY_WINDOW_MILLIS'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

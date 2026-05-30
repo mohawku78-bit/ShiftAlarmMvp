@@ -18,6 +18,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Watch sends `/shift_alarm/alarm/ack` back to the phone with the display path it used: foreground vibration service or notification fallback.
 - Watch `끄기` sends `/shift_alarm/alarm/stop` back to the phone through both message and control `DataItem`.
 - Watch `스누즈` sends `/shift_alarm/alarm/snooze` back to the phone with the original snooze payload through both message and control `DataItem`.
+- Watch stop/snooze controls are sent in a short three-attempt burst, and notification actions keep their receiver alive briefly with `goAsync()` so a single transient Data Layer miss is less likely to lose the control.
 - Phone receives watch controls in `WearAlarmControlListenerService` and routes them to the existing phone alarm service.
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.
 - Phone de-duplicates message/DataItem control events by alarm cycle, so only the first `끄기` or `스누즈` command wins for a single alarm occurrence.
