@@ -422,5 +422,23 @@ class AlarmActivity : Activity() {
                 }
             }
         }
+
+        fun restoreAfterMissingControlAck(payload: WatchAlarmPayload) {
+            activeActivity?.get()?.let { activity ->
+                activity.runOnUiThread {
+                    if (activity.payload?.alarmId == payload.alarmId &&
+                        activity.payload?.triggeredAtMillis == payload.triggeredAtMillis
+                    ) {
+                        activity.pendingControlAction = null
+                        activity.pendingControlPayload = null
+                        activity.actionStatusText?.apply {
+                            text = "폰 응답을 확인하지 못했습니다. 다시 눌러주세요."
+                            visibility = View.VISIBLE
+                        }
+                        activity.setActionButtonsEnabled(true)
+                    }
+                }
+            }
+        }
     }
 }

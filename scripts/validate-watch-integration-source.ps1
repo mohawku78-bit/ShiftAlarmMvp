@@ -51,6 +51,7 @@ $watchPhoneBridge = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\
 $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActionReceiver.kt"
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
+$watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
 
@@ -120,15 +121,18 @@ Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedCa
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedStart'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'parseControlAcknowledgement'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'dismissIfControlAcknowledged'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmControlAckStore.record'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'sendActionAndAwaitAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'awaitControlAcknowledgement'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreAfterMissingControlAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'CONTROL_SEND_ATTEMPTS = 3'
 Assert-Contains "PhoneMessageBridge.kt" $watchPhoneBridge 'sendControlOnce'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'goAsync()'
-Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'CONTROL_RETRY_WINDOW_MILLIS'
 Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'awaitPhoneAck'
+Assert-Contains "WatchAlarmActionReceiver.kt" $watchActionReceiver 'restoreIfPhoneAckMissing'
+Assert-Contains "WatchAlarmControlAckStore.kt" $watchControlAckStore 'hasAcknowledgementSince'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
