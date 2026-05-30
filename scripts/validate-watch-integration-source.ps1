@@ -37,9 +37,11 @@ $settings = Read-RepoFile "settings.gradle.kts"
 $appBuild = Read-RepoFile "app\build.gradle.kts"
 $wearBuild = Read-RepoFile "wear\build.gradle.kts"
 $appManifest = Read-RepoFile "app\src\main\AndroidManifest.xml"
+$appSideBySideManifest = Read-RepoFile "app\src\sideBySide\AndroidManifest.xml"
 $wearManifest = Read-RepoFile "wear\src\main\AndroidManifest.xml"
 $wearCapabilities = Read-RepoFile "wear\src\main\res\values\wear.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
+$sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shiftalarmmvp\watch\SideBySideWatchAlarmTestReceiver.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
 $watchService = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
@@ -56,6 +58,11 @@ Assert-Contains "app AndroidManifest" $appManifest '.watch.WearAlarmControlListe
 Assert-Contains "app AndroidManifest" $appManifest 'com.google.android.gms.wearable.MESSAGE_RECEIVED'
 Assert-Contains "app AndroidManifest" $appManifest 'com.google.android.gms.wearable.DATA_CHANGED'
 Assert-Contains "app AndroidManifest" $appManifest 'android:pathPrefix="/shift_alarm/alarm"'
+Assert-Contains "app sideBySide AndroidManifest" $appSideBySideManifest '.watch.SideBySideWatchAlarmTestReceiver'
+Assert-Contains "app sideBySide AndroidManifest" $appSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_PREVIEW_TEST'
+Assert-Contains "app sideBySide AndroidManifest" $appSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST'
+Assert-Contains "SideBySideWatchAlarmTestReceiver.kt" $sideBySideTestReceiver 'sendPreviewAlarmWithResult'
+Assert-Contains "SideBySideWatchAlarmTestReceiver.kt" $sideBySideTestReceiver 'AlarmRingingService.ACTION_START'
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
 Assert-Contains "wear AndroidManifest" $wearManifest '.WatchAlarmListenerService'

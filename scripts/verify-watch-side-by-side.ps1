@@ -105,4 +105,5 @@ if ($LaunchApps) {
 
 Write-Host ""
 Write-Host "Verification checks complete."
-Write-Host "Next: open the phone test area, tap '워치 알람 미리보기 보내기', then run '워치 끄기/스누즈 테스트 울리기'."
+Write-Host "Next UI path: open the phone test area, send watch preview, then run the watch stop/snooze control test."
+Write-Host "Next ADB path: .\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial $PhoneSerial -WatchSerial $WatchSerial -Mode preview -Clear"

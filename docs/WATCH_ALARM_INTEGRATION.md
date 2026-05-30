@@ -113,8 +113,27 @@ For the first physical test, collect phone and watch logs in parallel:
 
 The logs are written under `manual-validation/watch-alarm/` and include these tags:
 
+- `ShiftWatchTest`: side-by-side ADB smoke test trigger and send result.
 - `ShiftWatchBridge`: phone-side send, ACK, stop, and snooze routing.
 - `ShiftWearAlarm`: watch-side receive, display, ACK, and button actions.
+
+### ADB smoke path
+
+The side-by-side phone APK includes a test-only exported receiver, so a connected phone/watch pair can be smoke-tested without navigating the phone UI.
+
+Preview delivery test:
+
+```powershell
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode preview -Clear
+```
+
+Full control round trip:
+
+```powershell
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -Clear -WaitSeconds 45
+```
+
+During `control` mode, tap `스누즈` or `끄기` on the watch before the wait window ends. Filtered phone and watch logs are saved under `manual-validation/watch-alarm/`.
 
 ### Watch signal preview
 
@@ -144,7 +163,7 @@ Use this after the preview succeeds because it proves watch-to-phone control:
 5. Expected phone result: phone alarm stops and schedules snooze with the configured snooze minutes/count.
 6. After the snooze alarm rings again, tap `끄기` on the watch.
 7. Expected phone result: `최근 워치 제어 처리` updates first to `스누즈`, then to `끄기`.
-7. Expected phone result: phone alarm stops and the phone alarm screen dismisses.
+8. Expected phone result: phone alarm stops and the phone alarm screen dismisses.
 
 This test alarm is not saved to the user's alarm list. It exists only to verify the phone alarm service, watch alarm screen, and watch control round trip.
 

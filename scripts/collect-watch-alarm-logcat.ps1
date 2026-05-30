@@ -54,6 +54,7 @@ $phoneArgs = @(
     "-s", $PhoneSerial,
     "logcat",
     "-v", "time",
+    "ShiftWatchTest:I",
     "ShiftWatchBridge:I",
     "ShiftWearAlarm:I",
     "*:S"
