@@ -266,14 +266,14 @@ class AlarmActivity : Activity() {
         controlAckTimeout?.let(controlAckHandler::removeCallbacks)
         val timeout = Runnable {
             if (pendingControlAction == path && pendingControlPayload?.alarmId == payload.alarmId) {
-                restoreControlRetryAfterMissingAck(payload)
+                restoreControlRetryAfterMissingAck(payload, ringingAlreadyRestored = false)
             }
         }
         controlAckTimeout = timeout
         controlAckHandler.postDelayed(timeout, CONTROL_ACK_TIMEOUT_MILLIS)
     }
 
-    private fun restoreControlRetryAfterMissingAck(payload: WatchAlarmPayload) {
+    private fun restoreControlRetryAfterMissingAck(payload: WatchAlarmPayload, ringingAlreadyRestored: Boolean) {
         val currentPayload = this.payload ?: return
         if (currentPayload.alarmId != payload.alarmId) return
         if (currentPayload.triggeredAtMillis != payload.triggeredAtMillis) return
@@ -281,8 +281,15 @@ class AlarmActivity : Activity() {
         Log.w(TAG, "control ack timeout in activity alarmId=${payload.alarmId}")
         pendingControlAction = null
         pendingControlPayload = null
-        WatchAlarmNotifier.show(this, payload)
-        startVibration(payload)
+        if (!ringingAlreadyRestored) {
+            val serviceStarted = WatchAlarmRingingService.start(this, payload)
+            if (!serviceStarted) {
+                WatchAlarmNotifier.show(this, payload)
+                startVibration(payload)
+            } else {
+                stopVibration()
+            }
+        }
         actionStatusText?.apply {
             text = getString(R.string.alarm_missing_phone_ack)
             visibility = View.VISIBLE
@@ -435,13 +442,13 @@ class AlarmActivity : Activity() {
             }
         }
 
-        fun restoreAfterMissingControlAck(payload: WatchAlarmPayload) {
+        fun restoreAfterMissingControlAck(payload: WatchAlarmPayload, ringingAlreadyRestored: Boolean = false) {
             activeActivity?.get()?.let { activity ->
                 activity.runOnUiThread {
                     if (activity.payload?.alarmId == payload.alarmId &&
                         activity.payload?.triggeredAtMillis == payload.triggeredAtMillis
                     ) {
-                        activity.restoreControlRetryAfterMissingAck(payload)
+                        activity.restoreControlRetryAfterMissingAck(payload, ringingAlreadyRestored)
                     }
                 }
             }
