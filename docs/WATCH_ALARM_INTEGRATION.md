@@ -30,8 +30,8 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - The full-screen watch alarm UI also keeps a pending confirmation alarm notification visible while waiting for the phone control ACK.
 - Watch notification actions also switch to a pending confirmation notification instead of disappearing immediately; the notification is cleared when the phone control ACK arrives.
 - While switching from ringing to pending confirmation, the watch detaches the foreground notification before stopping the ringing service so teardown does not cancel the pending confirmation notification.
-- If the phone control ACK does not arrive, the watch restores the retryable alarm notification and re-enables the full-screen buttons when that screen is open.
-- If the full-screen watch alarm button or notification action times out waiting for the phone control ACK, the watch restarts its alarm ringing path, restores retry UI, and lets the user retry the control.
+- If the phone control ACK does not arrive, the watch restores only the retryable notification/UI controls without restarting the vibration service, so a disconnected phone does not make the watch keep re-ringing.
+- If the full-screen watch alarm button or notification action times out waiting for the phone control ACK, the watch keeps the alarm actionable and lets the user retry the control without starting another long-running signal.
 - The full-screen watch alarm also maps delivered hardware Home/Assist/stem/back/volume-style key events to stop or snooze, while consuming those keys so the alarm screen is not accidentally dismissed. If Wear OS reserves the physical Home key and does not deliver it to the app, the alarm stays active through the foreground service and notification fallback instead of treating Home as a stop command.
 - Phone ignores stale watch controls unless the requested alarm id and alarm occurrence timestamp both match the alarm currently ringing on the phone.
 - Phone de-duplicates message/DataItem control events by alarm cycle, so only the first `끄기` or `스누즈` command wins for a single alarm occurrence.

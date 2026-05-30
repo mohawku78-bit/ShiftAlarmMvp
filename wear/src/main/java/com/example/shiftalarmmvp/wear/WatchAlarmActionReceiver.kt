@@ -76,12 +76,9 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
             return
         }
 
-        Log.w(TAG, "control ack timeout action=$action alarmId=${payload.alarmId}")
-        val ringingRestored = WatchAlarmRingingService.start(context, payload)
-        if (!ringingRestored) {
-            WatchAlarmNotifier.show(context, payload)
-        }
-        AlarmActivity.restoreAfterMissingControlAck(payload, ringingAlreadyRestored = ringingRestored)
+        Log.w(TAG, "control ack timeout powerSaverRetry action=$action alarmId=${payload.alarmId}")
+        WatchAlarmNotifier.show(context, payload)
+        AlarmActivity.restoreAfterMissingControlAck(payload)
     }
 
     companion object {
