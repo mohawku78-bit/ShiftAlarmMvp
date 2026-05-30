@@ -18,14 +18,14 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
                 WatchAlarmActions.ACTION_STOP -> {
                     shouldHoldForRetry = true
                     PhoneMessageBridge.send(context, WatchAlarmProtocol.PATH_ALARM_STOP, payload)
-                    dismissLocal(context, payload.alarmId)
+                    awaitPhoneAck(context, WatchAlarmProtocol.PATH_ALARM_STOP, payload)
                 }
 
                 WatchAlarmActions.ACTION_SNOOZE -> {
                     if (!payload.canSnooze) return
                     shouldHoldForRetry = true
                     PhoneMessageBridge.send(context, WatchAlarmProtocol.PATH_ALARM_SNOOZE, payload)
-                    dismissLocal(context, payload.alarmId)
+                    awaitPhoneAck(context, WatchAlarmProtocol.PATH_ALARM_SNOOZE, payload)
                 }
             }
         } finally {
@@ -40,9 +40,9 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun dismissLocal(context: Context, alarmId: Long) {
+    private fun awaitPhoneAck(context: Context, action: String, payload: WatchAlarmPayload) {
         WatchAlarmRingingService.stop(context)
-        WatchAlarmNotifier.cancel(context)
-        AlarmActivity.dismissIfMatching(alarmId)
+        WatchAlarmNotifier.showControlPending(context, payload, action)
+        AlarmActivity.awaitControlAcknowledgement(action, payload)
     }
 }

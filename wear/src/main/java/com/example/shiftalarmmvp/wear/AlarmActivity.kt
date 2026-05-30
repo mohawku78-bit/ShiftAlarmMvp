@@ -406,5 +406,21 @@ class AlarmActivity : Activity() {
                 }
             }
         }
+
+        fun awaitControlAcknowledgement(action: String, payload: WatchAlarmPayload) {
+            activeActivity?.get()?.let { activity ->
+                activity.runOnUiThread {
+                    if (activity.payload?.alarmId == payload.alarmId &&
+                        activity.payload?.triggeredAtMillis == payload.triggeredAtMillis
+                    ) {
+                        activity.pendingControlAction = action
+                        activity.pendingControlPayload = payload
+                        activity.stopVibration()
+                        activity.showWaitingForControlAck(action)
+                        activity.scheduleControlAckTimeout(action, payload)
+                    }
+                }
+            }
+        }
     }
 }

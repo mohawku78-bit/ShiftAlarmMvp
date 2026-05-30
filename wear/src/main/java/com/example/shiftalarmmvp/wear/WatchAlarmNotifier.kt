@@ -26,6 +26,42 @@ object WatchAlarmNotifier {
         }
     }
 
+    fun showControlPending(context: Context, payload: WatchAlarmPayload, action: String) {
+        val appContext = context.applicationContext
+        val manager = appContext.getSystemService(NotificationManager::class.java)
+        createChannel(appContext, manager)
+
+        val openIntent = PendingIntent.getActivity(
+            appContext,
+            requestCode(payload, 40_000),
+            AlarmActivity.createIntent(appContext, payload, useLocalVibration = false),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val actionLabel = if (action == WatchAlarmProtocol.PATH_ALARM_SNOOZE) {
+            appContext.getString(R.string.alarm_snooze)
+        } else {
+            appContext.getString(R.string.alarm_stop)
+        }
+        val notification = Notification.Builder(appContext, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_watch_alarm)
+            .setContentTitle(appContext.getString(R.string.alarm_title))
+            .setContentText("Waiting for phone confirmation: $actionLabel")
+            .setCategory(Notification.CATEGORY_ALARM)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setContentIntent(openIntent)
+            .build()
+
+        runCatching {
+            manager.notify(NOTIFICATION_ID, notification)
+        }.onSuccess {
+            Log.i(TAG, "show control pending notification action=$action alarmId=${payload.alarmId}")
+        }.onFailure { error ->
+            Log.w(TAG, "show control pending notification failed alarmId=${payload.alarmId}", error)
+        }
+    }
+
     fun buildNotification(
         context: Context,
         payload: WatchAlarmPayload,
