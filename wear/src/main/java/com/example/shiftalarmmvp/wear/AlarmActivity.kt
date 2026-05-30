@@ -8,6 +8,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -27,6 +29,13 @@ import java.time.format.DateTimeFormatter
 class AlarmActivity : Activity() {
     private var payload: WatchAlarmPayload? = null
     private var vibrator: Vibrator? = null
+    private val controlAckHandler = Handler(Looper.getMainLooper())
+    private var controlAckTimeout: Runnable? = null
+    private var pendingControlAction: String? = null
+    private var pendingControlPayload: WatchAlarmPayload? = null
+    private var actionStatusText: TextView? = null
+    private var stopActionButton: Button? = null
+    private var snoozeActionButton: Button? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +70,7 @@ class AlarmActivity : Activity() {
             return
         }
 
+        clearPendingControlState()
         payload = nextPayload
         if (intent.getBooleanExtra(EXTRA_USE_LOCAL_VIBRATION, true)) {
             startVibration(nextPayload)
@@ -154,30 +164,48 @@ class AlarmActivity : Activity() {
             ).withTopMargin(8.dp)
         )
 
+        actionStatusText = TextView(this).apply {
+            text = ""
+            visibility = View.GONE
+            setTextColor(Color.rgb(255, 238, 226))
+            textSize = 12f
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+        }
         column.addView(
-            createActionButton(
-                label = getString(R.string.alarm_stop),
-                backgroundColor = Color.rgb(255, 238, 226),
-                textColor = Color.rgb(100, 42, 32),
-                enabled = true
-            ) {
-                sendActionAndClose(WatchAlarmProtocol.PATH_ALARM_STOP)
-            },
+            actionStatusText,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).withTopMargin(8.dp)
+        )
+
+        stopActionButton = createActionButton(
+            label = getString(R.string.alarm_stop),
+            backgroundColor = Color.rgb(255, 238, 226),
+            textColor = Color.rgb(100, 42, 32),
+            enabled = true
+        ) {
+            sendActionAndAwaitAck(WatchAlarmProtocol.PATH_ALARM_STOP)
+        }
+        column.addView(
+            stopActionButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 46.dp
             ).withTopMargin(18.dp)
         )
 
+        snoozeActionButton = createActionButton(
+            label = if (payload.canSnooze) getString(R.string.alarm_snooze) else getString(R.string.alarm_snooze_disabled),
+            backgroundColor = if (payload.canSnooze) Color.rgb(178, 235, 219) else Color.rgb(88, 107, 101),
+            textColor = if (payload.canSnooze) Color.rgb(12, 64, 55) else Color.rgb(195, 208, 203),
+            enabled = payload.canSnooze
+        ) {
+            sendActionAndAwaitAck(WatchAlarmProtocol.PATH_ALARM_SNOOZE)
+        }
         column.addView(
-            createActionButton(
-                label = if (payload.canSnooze) getString(R.string.alarm_snooze) else getString(R.string.alarm_snooze_disabled),
-                backgroundColor = if (payload.canSnooze) Color.rgb(178, 235, 219) else Color.rgb(88, 107, 101),
-                textColor = if (payload.canSnooze) Color.rgb(12, 64, 55) else Color.rgb(195, 208, 203),
-                enabled = payload.canSnooze
-            ) {
-                sendActionAndClose(WatchAlarmProtocol.PATH_ALARM_SNOOZE)
-            },
+            snoozeActionButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 46.dp
@@ -209,11 +237,72 @@ class AlarmActivity : Activity() {
         }
     }
 
-    private fun sendActionAndClose(path: String) {
+    private fun sendActionAndAwaitAck(path: String) {
         val currentPayload = payload ?: return
         if (path == WatchAlarmProtocol.PATH_ALARM_SNOOZE && !currentPayload.canSnooze) return
+        pendingControlAction = path
+        pendingControlPayload = currentPayload
         PhoneMessageBridge.send(this, path, currentPayload)
+        stopVibration()
+        WatchAlarmRingingService.stop(this)
+        WatchAlarmNotifier.cancel(this)
+        showWaitingForControlAck(path)
+        scheduleControlAckTimeout(path, currentPayload)
+    }
+
+    private fun showWaitingForControlAck(path: String) {
+        actionStatusText?.apply {
+            text = when (path) {
+                WatchAlarmProtocol.PATH_ALARM_SNOOZE -> "폰에서 스누즈 처리 확인 중..."
+                else -> "폰에서 알람 끄기 확인 중..."
+            }
+            visibility = View.VISIBLE
+        }
+        setActionButtonsEnabled(false)
+    }
+
+    private fun scheduleControlAckTimeout(path: String, payload: WatchAlarmPayload) {
+        controlAckTimeout?.let(controlAckHandler::removeCallbacks)
+        val timeout = Runnable {
+            if (pendingControlAction == path && pendingControlPayload?.alarmId == payload.alarmId) {
+                pendingControlAction = null
+                pendingControlPayload = null
+                actionStatusText?.apply {
+                    text = "폰 응답을 확인하지 못했습니다. 다시 눌러주세요."
+                    visibility = View.VISIBLE
+                }
+                setActionButtonsEnabled(true)
+            }
+        }
+        controlAckTimeout = timeout
+        controlAckHandler.postDelayed(timeout, CONTROL_ACK_TIMEOUT_MILLIS)
+    }
+
+    private fun setActionButtonsEnabled(enabled: Boolean) {
+        stopActionButton?.apply {
+            isEnabled = enabled
+            alpha = if (enabled) 1f else 0.55f
+        }
+        snoozeActionButton?.apply {
+            isEnabled = enabled && payload?.canSnooze == true
+            alpha = if (isEnabled) 1f else 0.55f
+        }
+    }
+
+    private fun dismissIfControlAckMatches(action: String, ackPayload: WatchAlarmPayload) {
+        val currentPayload = payload ?: return
+        val pendingAction = pendingControlAction ?: return
+        if (pendingAction != action) return
+        if (currentPayload.alarmId != ackPayload.alarmId) return
+        if (currentPayload.triggeredAtMillis != ackPayload.triggeredAtMillis) return
         dismissLocal()
+    }
+
+    private fun clearPendingControlState() {
+        controlAckTimeout?.let(controlAckHandler::removeCallbacks)
+        controlAckTimeout = null
+        pendingControlAction = null
+        pendingControlPayload = null
     }
 
     private fun startVibration(payload: WatchAlarmPayload) {
@@ -243,6 +332,7 @@ class AlarmActivity : Activity() {
     }
 
     private fun dismissLocal() {
+        clearPendingControlState()
         stopVibration()
         WatchAlarmRingingService.stop(this)
         WatchAlarmNotifier.cancel(this)
@@ -261,6 +351,7 @@ class AlarmActivity : Activity() {
         if (activeActivity?.get() === this) {
             activeActivity = null
         }
+        clearPendingControlState()
         stopVibration()
         super.onDestroy()
     }
@@ -277,6 +368,7 @@ class AlarmActivity : Activity() {
         private var activeActivity: WeakReference<AlarmActivity>? = null
 
         private const val EXTRA_USE_LOCAL_VIBRATION = "extra_use_local_vibration"
+        private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
 
         fun createIntent(
             context: Context,
@@ -303,6 +395,14 @@ class AlarmActivity : Activity() {
                     if (activity.payload?.alarmId == alarmId) {
                         activity.dismissLocal()
                     }
+                }
+            }
+        }
+
+        fun dismissIfControlAcknowledged(action: String, payload: WatchAlarmPayload) {
+            activeActivity?.get()?.let { activity ->
+                activity.runOnUiThread {
+                    activity.dismissIfControlAckMatches(action, payload)
                 }
             }
         }
