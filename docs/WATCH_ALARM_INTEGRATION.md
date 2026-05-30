@@ -133,6 +133,12 @@ Full validation path:
 .\scripts\run-watch-full-validation.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL
 ```
 
+If exactly one phone and one watch are connected through ADB, the serials can be omitted:
+
+```powershell
+.\scripts\run-watch-full-validation.ps1
+```
+
 This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, automated watch stop, and automated watch snooze smoke assertions. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch.
 
 Preview delivery test:
