@@ -154,6 +154,8 @@ $phone = Read-Log -Path $PhoneLog -Label "Phone"
 $watch = Read-Log -Path $WatchLog -Label "Watch"
 $checks = @()
 $watchAlarmSignalPattern = "show alarm( signal)? alarmId="
+$watchAlarmNotificationPattern = "show alarm notification alarmId="
+$phoneNotificationAckPattern = "watch ack (message|data).*displayMode=notification"
 
 if ($Mode -eq "preview") {
     $previewMatch = [regex]::Match(
@@ -175,7 +177,9 @@ if ($Mode -eq "preview") {
     $checks += Add-Check "phone send result has no errors" (($watchAppError -eq "null") -and ($sendError -eq "null")) "watchAppError=$watchAppError error=$sendError"
     $checks += Add-Check "watch received alarm start" ($watch -match "alarm start message|alarm active data")
     $checks += Add-Check "watch exposed alarm controls" ($watch -match $watchAlarmSignalPattern)
+    $checks += Add-Check "watch showed notification controls" ($watch -match $watchAlarmNotificationPattern)
     $checks += Add-Check "watch acknowledged display path" ($phone -match "watch ack message|watch ack data")
+    $checks += Add-Check "phone confirmed notification display mode" ($phone -match $phoneNotificationAckPattern)
 }
 
 if ($Mode -eq "control") {
@@ -198,6 +202,8 @@ if ($Mode -eq "control") {
     $checks += Add-Check "phone sent active alarm to watch" ($phone -match "sendAlarmStarted alarmId=888887|sendMessage path=/shift_alarm/alarm/start")
     $checks += Add-Check "watch received alarm start" ($watch -match "alarm start message|alarm active data")
     $checks += Add-Check "watch exposed alarm controls" ($watch -match "show alarm( signal)? alarmId=888887|$watchAlarmSignalPattern")
+    $checks += Add-Check "watch showed notification controls" ($watch -match "show alarm notification alarmId=888887|$watchAlarmNotificationPattern")
+    $checks += Add-Check "phone confirmed notification display mode" ($phone -match $phoneNotificationAckPattern)
     if ($AutoWatchActionSource -eq "hardwareKey") {
         $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern") "expected=$ExpectedAction"
     }
@@ -219,6 +225,8 @@ if ($Mode -eq "orphan") {
     $checks += Add-Check "phone sent orphan alarm to watch" ($phone -match "watch preview result connected=|sendMessage path=/shift_alarm/alarm/start|putDataItem path=/shift_alarm/alarm/active")
     $checks += Add-Check "watch received orphan alarm start" ($watch -match "alarm start message|alarm active data")
     $checks += Add-Check "watch exposed orphan alarm controls" ($watch -match "show alarm( signal)? alarmId=888888|$watchAlarmSignalPattern")
+    $checks += Add-Check "watch showed orphan notification controls" ($watch -match "show alarm notification alarmId=888888|$watchAlarmNotificationPattern")
+    $checks += Add-Check "phone confirmed orphan notification display mode" ($phone -match $phoneNotificationAckPattern)
     if ($AutoWatchActionSource -eq "hardwareKey") {
         $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern") "expected=$ExpectedAction"
     }
