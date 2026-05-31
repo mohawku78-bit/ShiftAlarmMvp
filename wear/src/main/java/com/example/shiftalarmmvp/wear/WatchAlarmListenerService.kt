@@ -67,6 +67,9 @@ class WatchAlarmListenerService : WearableListenerService() {
         Log.i(TAG, "show alarm signal alarmId=${payload.alarmId} canSnooze=${payload.canSnooze}")
         WatchAlarmActiveStore.record(this, payload)
         val notificationShown = WatchAlarmNotifier.show(this, payload)
+        if (!notificationShown) {
+            AlarmActivity.show(this, payload, useLocalVibration = payload.vibrationEnabled)
+        }
         val displayMode = if (notificationShown) {
             WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION
         } else {

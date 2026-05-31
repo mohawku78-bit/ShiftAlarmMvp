@@ -482,9 +482,9 @@ class AlarmActivity : Activity() {
         private const val EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS = "extra_pending_control_started_at_millis"
         private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
         private val RAMP_VIBRATION_TIMINGS =
-            longArrayOf(0, 90, 360, 140, 320, 210, 280, 300, 240, 420)
+            longArrayOf(0, 45, 600, 60, 540, 85, 480, 115, 420, 155, 360, 210)
         private val RAMP_VIBRATION_AMPLITUDES =
-            intArrayOf(0, 45, 0, 80, 0, 120, 0, 170, 0, 220)
+            intArrayOf(0, 12, 0, 22, 0, 36, 0, 55, 0, 78, 0, 110)
         private const val RAMP_VIBRATION_REPEAT_INDEX = 1
 
         fun createIntent(
@@ -513,8 +513,14 @@ class AlarmActivity : Activity() {
             context: Context,
             payload: WatchAlarmPayload,
             useLocalVibration: Boolean = true
-        ) {
-            runCatching { context.startActivity(createIntent(context, payload, useLocalVibration)) }
+        ): Boolean {
+            return runCatching {
+                context.startActivity(createIntent(context, payload, useLocalVibration))
+            }.onSuccess {
+                Log.i(TAG, "show alarm activity alarmId=${payload.alarmId} useLocalVibration=$useLocalVibration")
+            }.onFailure { error ->
+                Log.w(TAG, "show alarm activity failed alarmId=${payload.alarmId}", error)
+            }.isSuccess
         }
 
         fun dismissIfMatching(alarmId: Long, triggeredAtMillis: Long) {
