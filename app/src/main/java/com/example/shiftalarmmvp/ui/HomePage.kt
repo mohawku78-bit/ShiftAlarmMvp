@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -215,10 +218,15 @@ fun HomePage(
                     Text(stringResource(R.string.home_select_date_hint))
                 } else {
                     val tomorrow = today.plusDays(1)
+                    val tomorrowBadge = inferShiftBadgeForDate(tomorrow, alarms)
                     val selectedDateHeadline = chosenDate.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))
                     SelectedDateOverviewCard(
                         dateText = selectedDateHeadline,
                         badge = selectedBadge,
+                        todayDate = today,
+                        todayBadge = todayBadge,
+                        tomorrowDate = tomorrow,
+                        tomorrowBadge = tomorrowBadge,
                         isToday = chosenDate == today,
                         isTomorrow = chosenDate == tomorrow,
                         onSelectToday = {
@@ -401,6 +409,7 @@ fun HomePage(
                                         rowTypes.forEach { type ->
                                             HomeSelectionChip(
                                                 label = type,
+                                                badge = shiftTypeToBadge(type),
                                                 selected = selectedShiftTypeResolved == type,
                                                 modifier = Modifier.weight(1f),
                                                 onClick = { selectedShiftType = type }
@@ -438,6 +447,10 @@ fun HomePage(
 private fun SelectedDateOverviewCard(
     dateText: String,
     badge: String,
+    todayDate: LocalDate,
+    todayBadge: String,
+    tomorrowDate: LocalDate,
+    tomorrowBadge: String,
     isToday: Boolean,
     isTomorrow: Boolean,
     onSelectToday: () -> Unit,
@@ -502,14 +515,18 @@ private fun SelectedDateOverviewCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                HomeSelectionChip(
+                HomeDateShortcutButton(
                     label = stringResource(R.string.home_today),
+                    date = todayDate,
+                    badge = todayBadge,
                     selected = isToday,
                     modifier = Modifier.weight(1f),
                     onClick = onSelectToday
                 )
-                HomeSelectionChip(
+                HomeDateShortcutButton(
                     label = stringResource(R.string.home_tomorrow),
+                    date = tomorrowDate,
+                    badge = tomorrowBadge,
                     selected = isTomorrow,
                     modifier = Modifier.weight(1f),
                     onClick = onSelectTomorrow
@@ -522,34 +539,99 @@ private fun SelectedDateOverviewCard(
 @Composable
 private fun HomeSelectionChip(
     label: String,
+    badge: String? = null,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(18.dp)
+    val borderColor = when {
+        selected -> ShiftDesign.Navy
+        badge != null -> shiftBadgeColor(badge).copy(alpha = 0.34f)
+        else -> Color(0xFFD5DDE9)
+    }
     Box(
         modifier = modifier
-            .border(
-                width = 1.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFD5DDE9),
+            .background(
+                brush = pastelButtonBrush(badge, selected),
                 shape = shape
             )
-            .background(
-                color = if (selected) ShiftDesign.Navy else ShiftDesign.Paper,
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = borderColor,
                 shape = shape
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
+        if (badge != null) {
+            ShiftTypeWatermark(
+                badge = badge,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(3.dp),
+                alpha = if (selected) 0.24f else 0.16f
+            )
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) Color.White else ShiftDesign.InkSoft,
+            color = if (selected) ShiftDesign.Navy else ShiftDesign.InkSoft,
+            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun HomeDateShortcutButton(
+    label: String,
+    date: LocalDate,
+    badge: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = modifier
+            .height(62.dp)
+            .background(
+                brush = pastelButtonBrush(badge, selected),
+                shape = shape
+            )
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) ShiftDesign.Navy else shiftBadgeColor(badge).copy(alpha = 0.24f),
+                shape = shape
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        ShiftTypeWatermark(
+            badge = badge,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(2.dp),
+            alpha = if (selected) 0.30f else 0.20f
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = ShiftDesign.InkSoft
+            )
+            Text(
+                text = date.format(DateTimeFormatter.ofPattern("M/d")),
+                style = MaterialTheme.typography.titleSmall,
+                color = ShiftDesign.Ink,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
     }
 }
 
@@ -561,20 +643,38 @@ private fun SelectedDatePickerButton(
     onDatePicked: (LocalDate) -> Unit
 ) {
     val context = LocalContext.current
-    Button(
-        onClick = {
-            DatePickerDialog(
-                context,
-                { _, y, m, d -> onDatePicked(LocalDate.of(y, m + 1, d)) },
-                date.year,
-                date.monthValue - 1,
-                date.dayOfMonth
-            ).show()
-        },
-        modifier = modifier,
-        colors = neutralActionButtonColors()
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier = modifier
+            .height(58.dp)
+            .semantics { contentDescription = "$label $date" }
+            .background(pastelButtonBrush(null, selected = false), shape)
+            .border(1.dp, ShiftDesign.Line, shape)
+            .clickable {
+                DatePickerDialog(
+                    context,
+                    { _, y, m, d -> onDatePicked(LocalDate.of(y, m + 1, d)) },
+                    date.year,
+                    date.monthValue - 1,
+                    date.dayOfMonth
+                ).show()
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
-        Text(stringResource(R.string.page_components_date_picker_button_format, label, date))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = ShiftDesign.InkSoft
+            )
+            Text(
+                text = date.format(DateTimeFormatter.ofPattern("M/d")),
+                style = MaterialTheme.typography.titleSmall,
+                color = ShiftDesign.Ink,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
     }
 }
 
@@ -866,6 +966,18 @@ private fun inferShiftBadgeForDate(date: LocalDate, alarms: List<AlarmRule>): St
 
 private fun inferShiftTagFromLabel(label: String): String {
     return shiftTypeToBadge(extractWorkTypeFromLabel(label))
+}
+
+private fun pastelButtonBrush(badge: String?, selected: Boolean): Brush {
+    val base = badge?.let(::shiftBadgeBackgroundColor) ?: ShiftDesign.Mist
+    val accent = badge?.let(::shiftBadgeColor) ?: ShiftDesign.Harbor
+    return Brush.linearGradient(
+        colors = listOf(
+            base.copy(alpha = if (selected) 0.98f else 0.84f),
+            Color.White.copy(alpha = if (selected) 0.94f else 0.88f),
+            accent.copy(alpha = if (selected) 0.18f else 0.08f)
+        )
+    )
 }
 
 

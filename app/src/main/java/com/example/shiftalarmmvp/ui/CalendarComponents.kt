@@ -120,7 +120,7 @@ fun ShiftCalendarMonthGrid(
     val gridSpacing = if (compact) 4.dp else 6.dp
     val rowSpacing = if (compact) 6.dp else 8.dp
     val dayLabelStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
-    val cellHeight = if (compact) 48.dp else 58.dp
+    val cellHeight = if (compact) 54.dp else 66.dp
     val cellShape = RoundedCornerShape(if (compact) 16.dp else 18.dp)
 
     Column(verticalArrangement = Arrangement.spacedBy(rowSpacing), modifier = Modifier.fillMaxWidth()) {
@@ -146,8 +146,8 @@ fun ShiftCalendarMonthGrid(
                     val backgroundColor = when {
                         date == null -> Color.Transparent
                         isSelected -> baseBackground.copy(alpha = 1.0f)
-                        isToday -> baseBackground.copy(alpha = 0.78f)
-                        else -> baseBackground.copy(alpha = 0.56f)
+                        isToday -> baseBackground.copy(alpha = 0.86f)
+                        else -> baseBackground.copy(alpha = 0.70f)
                     }
                     val borderWidth = when {
                         isSelected -> 2.dp
@@ -172,8 +172,8 @@ fun ShiftCalendarMonthGrid(
                                 badge = badge,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(if (compact) 3.dp else 4.dp),
-                                alpha = if (isSelected || isToday) 0.30f else 0.22f
+                                    .padding(if (compact) 1.dp else 2.dp),
+                                alpha = if (isSelected || isToday) 0.36f else 0.28f
                             )
                         }
                         if (date != null) {
