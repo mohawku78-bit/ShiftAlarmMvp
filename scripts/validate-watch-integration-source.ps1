@@ -116,6 +116,9 @@ Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Resolve-Diag
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Read-Diagnostics'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'permission/channel diagnostics'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'POST_NOTIFICATION'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript '$expectedAlarmId'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'alarmId=$expectedAlarmId'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch ack (message|data) alarmId=$expectedAlarmId'
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.POST_NOTIFICATIONS'
