@@ -81,6 +81,7 @@ $connectWatchScript = Read-RepoFile "scripts\connect-watch-wireless.ps1"
 $verifyScript = Read-RepoFile "scripts\verify-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
+$smokeAssertSelfTestScript = Read-RepoFile "scripts\test-watch-smoke-assertions.ps1"
 $fullValidationScript = Read-RepoFile "scripts\run-watch-full-validation.ps1"
 $watchRingingServicePath = Join-Path $RootDir "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
 if (Test-Path -LiteralPath $watchRingingServicePath) {
@@ -400,8 +401,12 @@ Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch did no
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Diagnostic log hints'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'cancel alarm notification'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'show control pending notification failed'
+Assert-Contains "test-watch-smoke-assertions.ps1" $smokeAssertSelfTestScript 'Invoke-SmokeAssertion -Mode stop'
+Assert-Contains "test-watch-smoke-assertions.ps1" $smokeAssertSelfTestScript 'Invoke-SmokeAssertion -Mode snooze'
+Assert-Contains "test-watch-smoke-assertions.ps1" $smokeAssertSelfTestScript 'Watch smoke assertion self-test: OK'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'install-watch-side-by-side.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'validate-watch-integration-source.ps1'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'test-watch-smoke-assertions.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Resolve-DeviceSerials'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Auto-selected watch serial'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'android.hardware.type.watch'

@@ -261,6 +261,8 @@ try {
         Invoke-ValidationStep "Source preflight" {
             & powershell -ExecutionPolicy Bypass -File .\scripts\validate-watch-integration-source.ps1
             Assert-LastExitCode "validate-watch-integration-source.ps1"
+            & powershell -ExecutionPolicy Bypass -File .\scripts\test-watch-smoke-assertions.ps1
+            Assert-LastExitCode "test-watch-smoke-assertions.ps1"
         }
 
         if (-not $SkipInstall) {

@@ -168,7 +168,7 @@ If exactly one phone and one watch are connected through ADB, the serials can be
 .\scripts\run-watch-full-validation.ps1
 ```
 
-This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, notification-blocked fallback, orphaned watch alarm stale-control recovery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Hardware-key smoke opens the optional watch alarm screen through the side-by-side test receiver before injecting the key, because the battery-saving default is notification-only. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
+This first self-tests the smoke assertion parser with synthetic stop/snooze logs, builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, notification-blocked fallback, orphaned watch alarm stale-control recovery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Hardware-key smoke opens the optional watch alarm screen through the side-by-side test receiver before injecting the key, because the battery-saving default is notification-only. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
 
 Preview delivery test:
 
