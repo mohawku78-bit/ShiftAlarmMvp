@@ -259,7 +259,6 @@ class AlarmActivity : Activity() {
         pendingControlStartedAtMillis = requestStartedAtMillis
         PhoneMessageBridge.send(this, path, currentPayload)
         stopVibration()
-        WatchAlarmRingingService.stopKeepingNotification(this)
         WatchAlarmNotifier.showControlPending(this, currentPayload, path, requestStartedAtMillis)
         showWaitingForControlAck(path)
         scheduleControlAckTimeout(path, currentPayload, requestStartedAtMillis)
@@ -386,7 +385,7 @@ class AlarmActivity : Activity() {
         }
         vibrator = vibe
 
-        val pattern = longArrayOf(0, 450, 160, 450, 220, 450, 160, 450)
+        val pattern = longArrayOf(0, 250, 120, 250)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibe.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {

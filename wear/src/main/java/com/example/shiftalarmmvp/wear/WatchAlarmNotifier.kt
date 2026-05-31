@@ -11,20 +11,20 @@ import android.util.Log
 
 object WatchAlarmNotifier {
     private const val TAG = "ShiftWearAlarm"
-    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v2"
-    private val LEGACY_CHANNEL_IDS = arrayOf("shift_alarm_watch_alarm_v1")
+    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v3"
+    private val LEGACY_CHANNEL_IDS = arrayOf("shift_alarm_watch_alarm_v1", "shift_alarm_watch_alarm_v2")
     const val NOTIFICATION_ID = 3001
 
-    fun show(context: Context, payload: WatchAlarmPayload) {
+    fun show(context: Context, payload: WatchAlarmPayload): Boolean {
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(NotificationManager::class.java)
-        runCatching {
+        return runCatching {
             manager.notify(NOTIFICATION_ID, buildNotification(appContext, payload))
         }.onSuccess {
-            Log.i(TAG, "show fallback notification alarmId=${payload.alarmId}")
+            Log.i(TAG, "show alarm notification alarmId=${payload.alarmId}")
         }.onFailure { error ->
-            Log.w(TAG, "show fallback notification failed alarmId=${payload.alarmId}", error)
-        }
+            Log.w(TAG, "show alarm notification failed alarmId=${payload.alarmId}", error)
+        }.isSuccess
     }
 
     fun showControlPending(
@@ -71,7 +71,7 @@ object WatchAlarmNotifier {
     fun buildNotification(
         context: Context,
         payload: WatchAlarmPayload,
-        useLocalVibration: Boolean = true
+        useLocalVibration: Boolean = false
     ): Notification {
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(NotificationManager::class.java)
@@ -92,7 +92,6 @@ object WatchAlarmNotifier {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(openIntent, true)
             .setContentIntent(openIntent)
             .addAction(
                 createAction(
@@ -139,7 +138,7 @@ object WatchAlarmNotifier {
         ).apply {
             description = context.getString(R.string.notification_channel_description)
             enableVibration(true)
-            vibrationPattern = longArrayOf(0, 450, 160, 450)
+            vibrationPattern = longArrayOf(0, 250, 120, 250)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)

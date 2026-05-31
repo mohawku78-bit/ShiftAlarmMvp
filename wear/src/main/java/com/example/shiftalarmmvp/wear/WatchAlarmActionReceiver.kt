@@ -57,7 +57,6 @@ class WatchAlarmActionReceiver : BroadcastReceiver() {
         payload: WatchAlarmPayload,
         requestStartedAtMillis: Long
     ) {
-        WatchAlarmRingingService.stopKeepingNotification(context)
         WatchAlarmNotifier.showControlPending(context, payload, action, requestStartedAtMillis)
         AlarmActivity.awaitControlAcknowledgement(action, payload, requestStartedAtMillis)
     }

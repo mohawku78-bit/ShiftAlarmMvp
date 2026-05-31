@@ -42,9 +42,8 @@ class WatchAlarmRingingService : Service() {
         activeAlarmId = payload.alarmId
         Log.i(TAG, "start foreground ringing alarmId=${payload.alarmId}")
         if (!startForegroundSafely(payload)) {
-            Log.w(TAG, "foreground ringing unavailable, using notification/activity fallback alarmId=${payload.alarmId}")
+            Log.w(TAG, "foreground ringing unavailable, using notification fallback alarmId=${payload.alarmId}")
             WatchAlarmNotifier.show(this, payload)
-            AlarmActivity.show(this, payload, useLocalVibration = true)
             PhoneMessageBridge.sendAck(this, payload, WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK)
             cancelNotificationOnDestroy = false
             stopSelf()
@@ -81,7 +80,7 @@ class WatchAlarmRingingService : Service() {
         }
         vibrator = vibe
 
-        val pattern = longArrayOf(0, 450, 160, 450, 220, 450, 160, 450)
+        val pattern = longArrayOf(0, 250, 120, 250)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibe.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {

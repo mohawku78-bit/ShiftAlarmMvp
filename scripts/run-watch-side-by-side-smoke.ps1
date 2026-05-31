@@ -47,6 +47,8 @@ $WatchActions = @{
     snooze = "com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE"
 }
 
+$WatchOpenAlarmAction = "com.example.shiftalarmmvp.action.WATCH_TEST_OPEN_ALARM"
+
 $HardwareKeys = @{
     stop = $AutoWatchStopKeyCode
     snooze = $AutoWatchSnoozeKeyCode
@@ -145,6 +147,11 @@ if ($Mode -in @("control", "orphan")) {
         $hardwareKey = $HardwareKeys[$AutoWatchAction]
         $attempts = [Math]::Max(1, $AutoWatchActionAttempts)
         $retrySeconds = [Math]::Max(0, $AutoWatchActionRetrySeconds)
+        if ($AutoWatchActionSource -eq "hardwareKey") {
+            Write-Host "Opening watch alarm activity before hardware-key injection on watch $WatchSerial"
+            Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $WatchOpenAlarmAction)
+            Start-Sleep -Seconds 1
+        }
         for ($attempt = 1; $attempt -le $attempts; $attempt++) {
             Write-Host ""
             if ($AutoWatchActionSource -eq "hardwareKey") {

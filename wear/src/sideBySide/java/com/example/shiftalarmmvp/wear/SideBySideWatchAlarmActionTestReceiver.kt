@@ -13,6 +13,16 @@ class SideBySideWatchAlarmActionTestReceiver : BroadcastReceiver() {
             return
         }
 
+        if (intent?.action == ACTION_WATCH_TEST_OPEN_ALARM) {
+            Log.i(
+                TAG,
+                "side-by-side watch open alarm activity alarmId=${payload.alarmId} " +
+                    "triggeredAt=${payload.triggeredAtMillis}"
+            )
+            AlarmActivity.show(context, payload, useLocalVibration = false)
+            return
+        }
+
         val receiverAction = when (intent?.action) {
             ACTION_WATCH_TEST_STOP -> WatchAlarmActions.ACTION_STOP
             ACTION_WATCH_TEST_SNOOZE -> {
@@ -41,6 +51,7 @@ class SideBySideWatchAlarmActionTestReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_WATCH_TEST_STOP = "com.example.shiftalarmmvp.action.WATCH_TEST_STOP"
         const val ACTION_WATCH_TEST_SNOOZE = "com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE"
+        const val ACTION_WATCH_TEST_OPEN_ALARM = "com.example.shiftalarmmvp.action.WATCH_TEST_OPEN_ALARM"
 
         private const val TAG = "ShiftWearAlarm"
     }

@@ -7,6 +7,7 @@
             <intent-filter>
                 <action android:name="com.example.shiftalarmmvp.action.WATCH_TEST_STOP" />
                 <action android:name="com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE" />
+                <action android:name="com.example.shiftalarmmvp.action.WATCH_TEST_OPEN_ALARM" />
             </intent-filter>
         </receiver>
     </application>

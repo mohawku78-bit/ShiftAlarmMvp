@@ -64,14 +64,15 @@ class WatchAlarmListenerService : WearableListenerService() {
             Log.i(TAG, "ignore duplicate alarm alarmId=${payload.alarmId}")
             return
         }
-        Log.i(TAG, "show alarm alarmId=${payload.alarmId} canSnooze=${payload.canSnooze}")
+        Log.i(TAG, "show alarm signal alarmId=${payload.alarmId} canSnooze=${payload.canSnooze}")
         WatchAlarmActiveStore.record(this, payload)
-        val serviceStarted = WatchAlarmRingingService.start(this, payload)
-        if (!serviceStarted) {
-            WatchAlarmNotifier.show(this, payload)
-            PhoneMessageBridge.sendAck(this, payload, WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK)
+        val notificationShown = WatchAlarmNotifier.show(this, payload)
+        val displayMode = if (notificationShown) {
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION
+        } else {
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK
         }
-        AlarmActivity.show(this, payload, useLocalVibration = !serviceStarted)
+        PhoneMessageBridge.sendAck(this, payload, displayMode)
     }
 
     private fun cancelAlarm(cancellation: WatchAlarmCancellation) {
