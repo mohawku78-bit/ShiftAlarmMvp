@@ -78,6 +78,8 @@ $watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
 $watchVibrationPatternsTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchVibrationPatternsTest.kt"
+$watchScreenLayout = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmScreenLayout.kt"
+$watchScreenLayoutTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmScreenLayoutTest.kt"
 $phoneBridgeTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmBridgeTest.kt"
 $phoneControlPolicyTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmControlPolicyTest.kt"
 $alarmVibrationPatterns = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmVibrationPatterns.kt"
@@ -264,8 +266,21 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'control ack timeout in a
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_waiting_stop_ack'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_missing_phone_ack'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmScreenLayout.forScreen'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'resources.configuration.isScreenRound'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'ScrollView(this)'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'isVerticalScrollBarEnabled = false'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'layout.contentWidthPx'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'layout.buttonHeightPx'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'ellipsize = TextUtils.TruncateAt.END'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchVibrationPatterns.ACTIVITY_RAMP_AMPLITUDES'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchVibrationPatterns.ACTIVITY_RAMP_REPEAT_INDEX'
+Assert-Contains "WatchAlarmScreenLayout.kt" $watchScreenLayout 'ROUND_SAFE_WIDTH_RATIO = 0.70f'
+Assert-Contains "WatchAlarmScreenLayout.kt" $watchScreenLayout 'ROUND_COMPACT_SAFE_WIDTH_RATIO = 0.66f'
+Assert-Contains "WatchAlarmScreenLayout.kt" $watchScreenLayout 'ROUND_BOTTOM_BREATHING_ROOM_DP = 16'
+Assert-Contains "WatchAlarmScreenLayoutTest.kt" $watchScreenLayoutTest 'roundScreensUseNarrowCenteredSafeWidthForActionButtons'
+Assert-Contains "WatchAlarmScreenLayoutTest.kt" $watchScreenLayoutTest 'compactRoundScreensShrinkTextAndButtonsToKeepSnoozeVisible'
+Assert-Contains "WatchAlarmScreenLayoutTest.kt" $watchScreenLayoutTest 'squareScreensCanUseMoreWidthThanRoundScreens'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmAcceptedControlStore.matchesRecent'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmControlPolicy.decide'

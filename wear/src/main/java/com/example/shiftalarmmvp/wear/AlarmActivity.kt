@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.text.TextUtils
 import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
@@ -22,6 +23,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import java.lang.ref.WeakReference
 import java.time.LocalTime
@@ -93,23 +95,50 @@ class AlarmActivity : Activity() {
     }
 
     private fun buildContent(payload: WatchAlarmPayload): View {
+        val layout = WatchAlarmScreenLayout.forScreen(
+            isRound = resources.configuration.isScreenRound,
+            screenWidthPx = resources.displayMetrics.widthPixels,
+            screenHeightPx = resources.displayMetrics.heightPixels,
+            density = resources.displayMetrics.density
+        )
         val root = FrameLayout(this).apply {
-            setPadding(18.dp, 16.dp, 18.dp, 16.dp)
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 intArrayOf(Color.rgb(12, 34, 32), Color.rgb(20, 70, 62), Color.rgb(243, 138, 106))
             )
         }
 
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            clipToPadding = false
+            setPadding(
+                layout.outerHorizontalPaddingPx,
+                layout.outerVerticalPaddingPx,
+                layout.outerHorizontalPaddingPx,
+                layout.outerVerticalPaddingPx
+            )
         }
         root.addView(
-            column,
+            scroll,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, layout.bottomBreathingRoomPx)
+        }
+        scroll.addView(
+            column,
+            FrameLayout.LayoutParams(
+                layout.contentWidthPx,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
             )
         )
 
@@ -117,7 +146,7 @@ class AlarmActivity : Activity() {
             TextView(this).apply {
                 text = getString(R.string.alarm_title)
                 setTextColor(Color.rgb(183, 239, 225))
-                textSize = 14f
+                textSize = layout.titleTextSp
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
                 includeFontPadding = false
@@ -132,7 +161,7 @@ class AlarmActivity : Activity() {
             TextView(this).apply {
                 text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
                 setTextColor(Color.WHITE)
-                textSize = 42f
+                textSize = layout.timeTextSp
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
                 includeFontPadding = false
@@ -140,22 +169,23 @@ class AlarmActivity : Activity() {
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).withTopMargin(12.dp)
+            ).withTopMargin(layout.timeTopMarginPx)
         )
 
         column.addView(
             TextView(this).apply {
                 text = payload.label.ifBlank { getString(R.string.alarm_default_label) }
                 setTextColor(Color.rgb(241, 248, 245))
-                textSize = 16f
+                textSize = layout.labelTextSp
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                maxLines = 2
+                maxLines = layout.maxLabelLines
+                ellipsize = TextUtils.TruncateAt.END
             },
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).withTopMargin(10.dp)
+            ).withTopMargin(layout.labelTopMarginPx)
         )
 
         column.addView(
@@ -166,21 +196,21 @@ class AlarmActivity : Activity() {
                     getString(R.string.alarm_snooze_disabled)
                 }
                 setTextColor(Color.rgb(209, 230, 224))
-                textSize = 12f
+                textSize = layout.hintTextSp
                 gravity = Gravity.CENTER
                 includeFontPadding = false
             },
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).withTopMargin(8.dp)
+            ).withTopMargin(layout.hintTopMarginPx)
         )
 
         actionStatusText = TextView(this).apply {
             text = ""
             visibility = View.GONE
             setTextColor(Color.rgb(255, 238, 226))
-            textSize = 12f
+            textSize = layout.statusTextSp
             gravity = Gravity.CENTER
             includeFontPadding = false
         }
@@ -189,14 +219,15 @@ class AlarmActivity : Activity() {
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).withTopMargin(8.dp)
+            ).withTopMargin(layout.statusTopMarginPx)
         )
 
         stopActionButton = createActionButton(
             label = getString(R.string.alarm_stop),
             backgroundColor = Color.rgb(255, 238, 226),
             textColor = Color.rgb(100, 42, 32),
-            enabled = true
+            enabled = true,
+            textSp = layout.buttonTextSp
         ) {
             sendActionAndAwaitAck(WatchAlarmProtocol.PATH_ALARM_STOP)
         }
@@ -204,15 +235,16 @@ class AlarmActivity : Activity() {
             stopActionButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                46.dp
-            ).withTopMargin(18.dp)
+                layout.buttonHeightPx
+            ).withTopMargin(layout.stopTopMarginPx)
         )
 
         snoozeActionButton = createActionButton(
             label = if (payload.canSnooze) getString(R.string.alarm_snooze) else getString(R.string.alarm_snooze_disabled),
             backgroundColor = if (payload.canSnooze) Color.rgb(178, 235, 219) else Color.rgb(88, 107, 101),
             textColor = if (payload.canSnooze) Color.rgb(12, 64, 55) else Color.rgb(195, 208, 203),
-            enabled = payload.canSnooze
+            enabled = payload.canSnooze,
+            textSp = layout.buttonTextSp
         ) {
             sendActionAndAwaitAck(WatchAlarmProtocol.PATH_ALARM_SNOOZE)
         }
@@ -220,8 +252,8 @@ class AlarmActivity : Activity() {
             snoozeActionButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                46.dp
-            ).withTopMargin(8.dp)
+                layout.buttonHeightPx
+            ).withTopMargin(layout.buttonGapPx)
         )
 
         return root
@@ -232,12 +264,13 @@ class AlarmActivity : Activity() {
         backgroundColor: Int,
         textColor: Int,
         enabled: Boolean,
+        textSp: Float,
         onClick: () -> Unit
     ): Button {
         return Button(this).apply {
             text = label
             isAllCaps = false
-            textSize = 16f
+            textSize = textSp
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(textColor)
             isEnabled = enabled

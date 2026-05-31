@@ -12,6 +12,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Watch shows a high-priority actionable notification directly. By default it does not auto-launch the watch alarm activity, start a foreground ringing service, or hold a wake lock.
 - To protect battery life, the watch uses only the notification channel's soft one-shot ramp vibration pattern and leaves Stop/Snooze as notification actions.
 - The watch alarm activity is available when the user taps the notification, when the side-by-side hardware-key smoke test opens it explicitly, or as a fallback if Wear OS blocks the alarm notification.
+- The optional watch alarm activity uses a centered, scrollable round-screen safe column so the `스누즈` button stays inside the visible circular display area.
 - The optional watch alarm activity turns the screen on when opened but does not hold `FLAG_KEEP_SCREEN_ON`, so the display can time out normally if the user does not interact right away.
 - The watch alarm notification uses the `shift_alarm_watch_alarm_v6` channel and retires older `v1`/`v2`/`v3`/`v4`/`v5` channels so updated soft ramp vibration settings apply after reinstalling the watch app.
 - Watch keeps separate duplicate gates for alarm start and cancel events, so a fast stop/cancel event is not rejected as a duplicate of the just-received start event.
