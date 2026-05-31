@@ -750,6 +750,9 @@ class AlarmRingingService : Service() {
         directBootSnapshot: DirectBootAlarmSnapshot?
     ): Notification {
         val manager = getSystemService(NotificationManager::class.java)
+        WATCH_BRIDGE_LEGACY_CHANNEL_IDS.forEach { legacyChannelId ->
+            runCatching { manager.deleteNotificationChannel(legacyChannelId) }
+        }
         val channel = NotificationChannel(
             WATCH_BRIDGE_CHANNEL_ID,
             getString(com.example.shiftalarmmvp.R.string.notification_watch_bridge_channel_name),
@@ -975,7 +978,8 @@ class AlarmRingingService : Service() {
         const val ACTION_RELIABILITY_STATE_CHANGED = "com.example.shiftalarmmvp.action.RELIABILITY_STATE_CHANGED"
 
         private const val CHANNEL_ID = "ringing_alarm_channel_silent_v4"
-        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v2"
+        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v3"
+        private val WATCH_BRIDGE_LEGACY_CHANNEL_IDS = arrayOf("watch_alarm_bridge_channel_v2")
         private const val NOTIFICATION_ID = 1001
         private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002
         private const val WATCH_BRIDGE_FALLBACK_DELAY_MILLIS = 6_000L
