@@ -123,6 +123,8 @@ object WatchAlarmNotifier {
             context.applicationContext
                 .getSystemService(NotificationManager::class.java)
                 .cancel(NOTIFICATION_ID)
+        }.onSuccess {
+            Log.i(TAG, "cancel alarm notification")
         }
     }
 

@@ -105,10 +105,6 @@ function Write-DiagnosticHints {
         "show fallback notification failed",
         "show control pending notification",
         "show control pending notification failed",
-        "foreground ringing unavailable",
-        "startForeground failed",
-        "start foreground ringing failed",
-        "acquire wake lock failed",
         "hardware key control",
         "side-by-side watch action",
         "without active alarm",
@@ -123,9 +119,8 @@ function Write-DiagnosticHints {
         "skip control ack timeout restore inactive alarm",
         "alarm cancel message",
         "alarm cancelled data",
-        "request stop foreground ringing",
-        "stop foreground ringing",
-        "cancel alarm"
+        "cancel alarm",
+        "cancel alarm notification"
     )
 
     Write-Host ""
@@ -210,7 +205,7 @@ if ($Mode -eq "control") {
     $checks += Add-Check "phone received watch control" ($phone -match "watch control message path=/shift_alarm/alarm/(stop|snooze)|watch control data action=/shift_alarm/alarm/(stop|snooze)")
     $checks += Add-Check "phone accepted expected watch control" $expectedActionAccepted "expected=$ExpectedAction stop=$acceptedStop snooze=$acceptedSnooze"
     $checks += Add-Check "watch received phone control ack" ($watch -match "control ack message action=/shift_alarm/alarm/(stop|snooze)|control ack data action=/shift_alarm/alarm/(stop|snooze)")
-    $checks += Add-Check "watch alarm dismissed locally" ($watch -match "request stop foreground ringing|cancel alarm alarmId=|stop foreground ringing")
+    $checks += Add-Check "watch cleared local notification" ($watch -match "cancel alarm notification")
 }
 
 if ($Mode -eq "orphan") {

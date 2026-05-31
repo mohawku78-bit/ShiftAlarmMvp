@@ -51,7 +51,6 @@ object WatchAlarmProtocol {
     const val KEY_PAYLOAD_JSON = "payloadJson"
     const val KEY_EVENT_TIME_MILLIS = "eventTimeMillis"
     const val KEY_ACK_DISPLAY_MODE = "ackDisplayMode"
-    const val ACK_DISPLAY_MODE_FOREGROUND_SERVICE = "foreground_service"
     const val ACK_DISPLAY_MODE_NOTIFICATION = "notification"
     const val ACK_DISPLAY_MODE_FALLBACK = "fallback"
 

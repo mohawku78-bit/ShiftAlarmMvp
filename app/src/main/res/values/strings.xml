@@ -49,7 +49,6 @@
     <string name="editor_watch_send_issue_app_lookup_failed_format">워치 앱 확인 실패: %1$s</string>
     <string name="editor_watch_ack_status_format">최근 워치 수신 확인: %1$s · %2$s · %3$s</string>
     <string name="editor_watch_ack_default_label">워치 알람</string>
-    <string name="editor_watch_ack_mode_foreground">진동 서비스</string>
     <string name="editor_watch_ack_mode_notification">알림 제어</string>
     <string name="editor_watch_ack_mode_fallback">알림 fallback</string>
     <string name="editor_watch_ack_mode_unknown">수신됨</string>

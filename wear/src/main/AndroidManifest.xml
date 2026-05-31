@@ -6,11 +6,7 @@
         android:required="true" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:allowBackup="false"
@@ -52,15 +48,6 @@
                     android:pathPrefix="/shift_alarm/alarm"
                     android:scheme="wear" />
             </intent-filter>
-        </service>
-
-        <service
-            android:name=".WatchAlarmRingingService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="shift_alarm_watch_ringing" />
         </service>
 
         <receiver

@@ -310,7 +310,6 @@ class WatchAlarmBridge(context: Context) {
         const val PATH_PREFIX = "/shift_alarm/alarm"
         const val WATCH_PREVIEW_ALARM_ID = 888_888L
         const val CAPABILITY_WATCH_ALARM_CONTROL = "shift_alarm_watch_control"
-        const val ACK_DISPLAY_MODE_FOREGROUND_SERVICE = "foreground_service"
         const val ACK_DISPLAY_MODE_NOTIFICATION = "notification"
         const val ACK_DISPLAY_MODE_FALLBACK = "fallback"
 

@@ -476,7 +476,6 @@ class MainActivity : ComponentActivity() {
 
     private fun watchAckDisplayModeLabel(displayMode: String): String {
         return when (displayMode) {
-            WatchAlarmBridge.ACK_DISPLAY_MODE_FOREGROUND_SERVICE -> getString(R.string.editor_watch_ack_mode_foreground)
             WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION -> getString(R.string.editor_watch_ack_mode_notification)
             WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK -> getString(R.string.editor_watch_ack_mode_fallback)
             else -> getString(R.string.editor_watch_ack_mode_unknown)

@@ -102,7 +102,7 @@ class WatchAlarmListenerService : WearableListenerService() {
             AlarmActivity.dismissIfMatching(cancellation.alarmId, cancellation.eventTimeMillis)
             return
         }
-        WatchAlarmRingingService.stop(this)
+        WatchAlarmNotifier.cancel(this)
         AlarmActivity.dismissIfMatching(cancellation.alarmId, cancellation.eventTimeMillis)
     }
 
@@ -131,7 +131,6 @@ class WatchAlarmListenerService : WearableListenerService() {
         }
 
         WatchAlarmActiveStore.clearIfMatching(this, ack.payload.alarmId, ack.payload.triggeredAtMillis)
-        WatchAlarmRingingService.stop(this)
         WatchAlarmNotifier.cancel(this)
         AlarmActivity.dismissIfControlAcknowledged(ack.action, ack.payload)
     }

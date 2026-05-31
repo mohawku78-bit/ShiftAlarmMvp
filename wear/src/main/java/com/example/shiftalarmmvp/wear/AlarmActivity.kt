@@ -402,7 +402,6 @@ class AlarmActivity : Activity() {
     private fun dismissLocal() {
         clearPendingControlState()
         stopVibration()
-        WatchAlarmRingingService.stop(this)
         WatchAlarmNotifier.cancel(this)
         finishAndRemoveTask()
     }

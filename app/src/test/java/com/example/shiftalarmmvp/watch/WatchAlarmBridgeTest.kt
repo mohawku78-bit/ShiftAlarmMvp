@@ -51,14 +51,14 @@ class WatchAlarmBridgeTest {
             .put("vibrationEnabled", true)
             .put("snoozeAllowed", true)
             .put("triggeredAtMillis", 123_456L)
-            .put("ackDisplayMode", WatchAlarmBridge.ACK_DISPLAY_MODE_FOREGROUND_SERVICE)
+            .put("ackDisplayMode", WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION)
             .toString()
 
         val ack = WatchAlarmBridge.parseAck(rawJson.toByteArray(Charsets.UTF_8))
 
         assertEquals(42L, ack?.payload?.alarmId)
         assertEquals("야간 근무", ack?.payload?.label)
-        assertEquals(WatchAlarmBridge.ACK_DISPLAY_MODE_FOREGROUND_SERVICE, ack?.displayMode)
+        assertEquals(WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION, ack?.displayMode)
     }
 
     @Test

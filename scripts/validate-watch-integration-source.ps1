@@ -63,7 +63,6 @@ $sideBySideTestReceiver = Read-RepoFile "app\src\sideBySide\java\com\example\shi
 $sideBySideWatchActionReceiver = Read-RepoFile "wear\src\sideBySide\java\com\example\shiftalarmmvp\wear\SideBySideWatchAlarmActionTestReceiver.kt"
 $wearProtocol = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocol.kt"
 $ringingService = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmRingingService.kt"
-$watchService = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
 $watchListener = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmListenerService.kt"
 $watchPhoneBridge = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\PhoneMessageBridge.kt"
 $watchActions = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActions.kt"
@@ -81,6 +80,10 @@ $verifyScript = Read-RepoFile "scripts\verify-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
 $smokeAssertScript = Read-RepoFile "scripts\assert-watch-smoke-result.ps1"
 $fullValidationScript = Read-RepoFile "scripts\run-watch-full-validation.ps1"
+$watchRingingServicePath = Join-Path $RootDir "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmRingingService.kt"
+if (Test-Path -LiteralPath $watchRingingServicePath) {
+    throw "Watch foreground ringing service should not exist in notification-control mode: $watchRingingServicePath"
+}
 
 Assert-Contains "settings.gradle.kts" $settings 'include(":wear")'
 Assert-Contains "app/build.gradle.kts" $appBuild 'implementation("com.google.android.gms:play-services-wearable:18.2.0")'
@@ -105,11 +108,13 @@ Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch receiv
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
 Assert-Contains "wear AndroidManifest" $wearManifest '.WatchAlarmListenerService'
-Assert-Contains "wear AndroidManifest" $wearManifest '.WatchAlarmRingingService'
-Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.FOREGROUND_SERVICE'
-Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'
-Assert-Contains "wear AndroidManifest" $wearManifest 'android:foregroundServiceType="specialUse"'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android:pathPrefix="/shift_alarm/alarm"'
+Assert-NotContains "wear AndroidManifest" $wearManifest '.WatchAlarmRingingService'
+Assert-NotContains "wear AndroidManifest" $wearManifest 'android.permission.FOREGROUND_SERVICE'
+Assert-NotContains "wear AndroidManifest" $wearManifest 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'
+Assert-NotContains "wear AndroidManifest" $wearManifest 'android.permission.WAKE_LOCK'
+Assert-NotContains "wear AndroidManifest" $wearManifest 'android.permission.USE_FULL_SCREEN_INTENT'
+Assert-NotContains "wear AndroidManifest" $wearManifest 'android:foregroundServiceType="specialUse"'
 Assert-Contains "wear sideBySide AndroidManifest" $wearSideBySideManifest '.SideBySideWatchAlarmActionTestReceiver'
 Assert-Contains "wear sideBySide AndroidManifest" $wearSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_TEST_STOP'
 Assert-Contains "wear sideBySide AndroidManifest" $wearSideBySideManifest 'com.example.shiftalarmmvp.action.WATCH_TEST_SNOOZE'
@@ -136,7 +141,6 @@ $requiredProtocolConstants = @(
     'PATH_ALARM_CANCELLED = "/shift_alarm/alarm/cancelled"',
     'PATH_ALARM_CONTROL = "/shift_alarm/alarm/control"',
     'PATH_ALARM_CONTROL_ACK = "/shift_alarm/alarm/control_ack"',
-    'ACK_DISPLAY_MODE_FOREGROUND_SERVICE = "foreground_service"',
     'ACK_DISPLAY_MODE_NOTIFICATION = "notification"',
     'ACK_DISPLAY_MODE_FALLBACK = "fallback"'
 )
@@ -151,21 +155,6 @@ Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmBridge(this)
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmBridge(this).sendAlarmCancelled'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'triggeredAtMillis = activeRingingTriggeredAtMillis'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'fun isRinging(alarmId: Long, triggeredAtMillis: Long)'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'startForegroundSafely'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'acquireWakeLock(payload)'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'releaseWakeLock()'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'PowerManager.PARTIAL_WAKE_LOCK'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'SIGNAL_SERVICE_TIMEOUT_MILLIS = 15_000L'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'WAKE_LOCK_TIMEOUT_MILLIS = 20_000L'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'START_NOT_STICKY'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'createWaveform(pattern, -1)'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'power saver stop watch signal'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'stopKeepingNotification'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'consumeKeepNotificationOnNextStop'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACTION_STOP_KEEP_NOTIFICATION'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'STOP_FOREGROUND_DETACH'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FOREGROUND_SERVICE'
-Assert-Contains "WatchAlarmRingingService.kt" $watchService 'ACK_DISPLAY_MODE_FALLBACK'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedCancel'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'matchesAcceptedStart'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'parseControlAcknowledgement'
@@ -181,6 +170,7 @@ Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveS
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.clearIfMatching'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'ACK_DISPLAY_MODE_NOTIFICATION'
 Assert-NotContains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmRingingService.start(this, payload)'
+Assert-NotContains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmRingingService.stop(this)'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'sendActionAndAwaitAck'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'awaitControlAcknowledgement'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'restoreAfterMissingControlAck'
@@ -202,6 +192,7 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'onKeyUp'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'powerSaverRetry'
 Assert-NotContains "AlarmActivity.kt" $watchAlarmActivity 'FLAG_KEEP_SCREEN_ON'
 Assert-NotContains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmRingingService.stopKeepingNotification'
+Assert-NotContains "AlarmActivity.kt" $watchAlarmActivity 'WatchAlarmRingingService.stop(this)'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'dismissIfMatching(alarmId: Long, triggeredAtMillis: Long)'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'control ack timeout in activity'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
@@ -312,7 +303,7 @@ Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'phone reject
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch skipped orphan restore after cancel'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch did not restore orphan alarm after cancel'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Diagnostic log hints'
-Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'foreground ringing unavailable'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'cancel alarm notification'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'show control pending notification failed'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'install-watch-side-by-side.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'validate-watch-integration-source.ps1'

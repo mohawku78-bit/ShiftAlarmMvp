@@ -50,13 +50,13 @@ class WatchAlarmProtocolTest {
 
         val ackJson = WatchAlarmProtocol.toAckJson(
             payload,
-            WatchAlarmProtocol.ACK_DISPLAY_MODE_FOREGROUND_SERVICE
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION
         )
         val parsed = WatchAlarmProtocol.parsePayload(ackJson)
 
         assertEquals(payload, parsed)
         assertEquals(
-            WatchAlarmProtocol.ACK_DISPLAY_MODE_FOREGROUND_SERVICE,
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION,
             JSONObject(ackJson).getString(WatchAlarmProtocol.KEY_ACK_DISPLAY_MODE)
         )
     }
