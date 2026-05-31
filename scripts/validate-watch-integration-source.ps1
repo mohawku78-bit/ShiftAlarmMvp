@@ -407,6 +407,7 @@ Assert-Contains "test-watch-smoke-assertions.ps1" $smokeAssertSelfTestScript 'Wa
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'install-watch-side-by-side.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'validate-watch-integration-source.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'test-watch-smoke-assertions.ps1'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-ValidationStep "Resolve connected devices"'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Resolve-DeviceSerials'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Auto-selected watch serial'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'android.hardware.type.watch'

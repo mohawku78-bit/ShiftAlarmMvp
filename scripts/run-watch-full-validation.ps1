@@ -253,8 +253,6 @@ if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
 
-Resolve-DeviceSerials
-
 Push-Location $RootDir
 try {
     try {
@@ -263,6 +261,10 @@ try {
             Assert-LastExitCode "validate-watch-integration-source.ps1"
             & powershell -ExecutionPolicy Bypass -File .\scripts\test-watch-smoke-assertions.ps1
             Assert-LastExitCode "test-watch-smoke-assertions.ps1"
+        }
+
+        Invoke-ValidationStep "Resolve connected devices" {
+            Resolve-DeviceSerials
         }
 
         if (-not $SkipInstall) {
