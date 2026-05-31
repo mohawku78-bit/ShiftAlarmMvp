@@ -12,6 +12,7 @@ param(
     [string]$AutoWatchStopKeyCode = "KEYCODE_STEM_PRIMARY",
     [string]$AutoWatchSnoozeKeyCode = "KEYCODE_BACK",
     [switch]$SkipBuild,
+    [switch]$SkipUnitTests,
     [switch]$SkipInstall,
     [switch]$SkipLaunch,
     [switch]$SkipOrphanSmoke,
@@ -273,6 +274,15 @@ try {
             Assert-LastExitCode "test-watch-smoke-assertions.ps1"
         }
 
+        if (-not $SkipUnitTests) {
+            Invoke-ValidationStep "Watch unit tests" {
+                Invoke-Gradle :app:testDebugUnitTest --tests "com.example.shiftalarmmvp.watch.*"
+                Assert-LastExitCode "app watch unit tests"
+                Invoke-Gradle :wear:testDebugUnitTest --tests "com.example.shiftalarmmvp.wear.*"
+                Assert-LastExitCode "wear watch unit tests"
+            }
+        }
+
         Invoke-ValidationStep "Resolve connected devices" {
             Resolve-DeviceSerials
         }
@@ -300,6 +310,7 @@ try {
             if (-not $SkipBuild) {
                 Invoke-ValidationStep "Build side-by-side APKs" {
                     Invoke-Gradle :app:assembleSideBySide :wear:assembleSideBySide
+                    Assert-LastExitCode "side-by-side APK build"
                 }
             }
             Invoke-ValidationStep "Verify installed packages" {
