@@ -482,10 +482,10 @@ class AlarmActivity : Activity() {
         private const val EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS = "extra_pending_control_started_at_millis"
         private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
         private val RAMP_VIBRATION_TIMINGS =
-            longArrayOf(0, 45, 600, 60, 540, 85, 480, 115, 420, 155, 360, 210)
+            longArrayOf(0, 25, 1_200, 35, 1_100, 45, 1_000, 60, 900, 80, 800, 110, 700, 150, 600)
         private val RAMP_VIBRATION_AMPLITUDES =
-            intArrayOf(0, 12, 0, 22, 0, 36, 0, 55, 0, 78, 0, 110)
-        private const val RAMP_VIBRATION_REPEAT_INDEX = 1
+            intArrayOf(0, 6, 0, 9, 0, 14, 0, 22, 0, 32, 0, 46, 0, 64, 0)
+        private const val RAMP_VIBRATION_REPEAT_INDEX = 9
 
         fun createIntent(
             context: Context,

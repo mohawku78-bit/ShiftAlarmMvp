@@ -14,15 +14,16 @@ import android.util.Log
 
 object WatchAlarmNotifier {
     private const val TAG = "ShiftWearAlarm"
-    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v5"
+    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v6"
     private val LEGACY_CHANNEL_IDS = arrayOf(
         "shift_alarm_watch_alarm_v1",
         "shift_alarm_watch_alarm_v2",
         "shift_alarm_watch_alarm_v3",
-        "shift_alarm_watch_alarm_v4"
+        "shift_alarm_watch_alarm_v4",
+        "shift_alarm_watch_alarm_v5"
     )
     private val GENTLE_RAMP_VIBRATION_PATTERN =
-        longArrayOf(0, 40, 620, 55, 560, 70, 500, 90, 440, 115, 380, 140)
+        longArrayOf(0, 25, 1_400, 35, 1_250, 45, 1_100, 60, 950, 80, 800, 105, 700)
     const val NOTIFICATION_ID = 3001
 
     fun show(context: Context, payload: WatchAlarmPayload): Boolean {

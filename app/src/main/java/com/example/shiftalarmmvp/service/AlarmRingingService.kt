@@ -978,22 +978,23 @@ class AlarmRingingService : Service() {
         const val ACTION_RELIABILITY_STATE_CHANGED = "com.example.shiftalarmmvp.action.RELIABILITY_STATE_CHANGED"
 
         private const val CHANNEL_ID = "ringing_alarm_channel_silent_v4"
-        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v4"
+        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v5"
         private val WATCH_BRIDGE_LEGACY_CHANNEL_IDS = arrayOf(
             "watch_alarm_bridge_channel_v2",
-            "watch_alarm_bridge_channel_v3"
+            "watch_alarm_bridge_channel_v3",
+            "watch_alarm_bridge_channel_v4"
         )
         private const val NOTIFICATION_ID = 1001
         private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002
         private const val WATCH_BRIDGE_FALLBACK_DELAY_MILLIS = 6_000L
         private const val WATCH_BRIDGE_TIMEOUT_MILLIS = 2 * 60 * 1000L
         private val ALARM_RAMP_VIBRATION_TIMINGS =
-            longArrayOf(0, 55, 620, 70, 560, 90, 500, 120, 440, 165, 380, 220, 320, 280)
+            longArrayOf(0, 35, 1_800, 45, 1_600, 60, 1_400, 80, 1_200, 105, 1_000, 140, 850, 180, 700, 230, 560, 280, 460)
         private val ALARM_RAMP_VIBRATION_AMPLITUDES =
-            intArrayOf(0, 18, 0, 30, 0, 46, 0, 68, 0, 96, 0, 135, 0, 185)
-        private const val ALARM_RAMP_VIBRATION_REPEAT_INDEX = 1
+            intArrayOf(0, 8, 0, 12, 0, 18, 0, 28, 0, 42, 0, 60, 0, 85, 0, 115, 0, 150, 0)
+        private const val ALARM_RAMP_VIBRATION_REPEAT_INDEX = 9
         private val WATCH_BRIDGE_VIBRATION_PATTERN =
-            longArrayOf(0, 40, 620, 55, 560, 70, 500, 90, 440, 115, 380, 140)
+            longArrayOf(0, 25, 1_400, 35, 1_250, 45, 1_100, 60, 950, 80, 800, 105, 700)
 
         @Volatile
         private var isRingingActive: Boolean = false
