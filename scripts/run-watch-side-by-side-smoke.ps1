@@ -73,6 +73,45 @@ function Assert-Device {
     }
 }
 
+function Get-DeviceSdkInt {
+    param([string]$Serial)
+
+    $raw = (Invoke-Adb -AdbArgs @("-s", $Serial, "shell", "getprop", "ro.build.version.sdk")) -join ""
+    $value = $raw.Trim()
+    $sdk = 0
+    if (-not [int]::TryParse($value, [ref]$sdk)) {
+        throw "Could not read Android SDK level from ${Serial}: $value"
+    }
+    return $sdk
+}
+
+function Assert-NotificationPermission {
+    param(
+        [string]$Serial,
+        [string]$Label
+    )
+
+    $sdk = Get-DeviceSdkInt -Serial $Serial
+    if ($sdk -lt 33) {
+        Write-Host "$Label notification permission: not required on SDK $sdk"
+        return
+    }
+
+    Invoke-Adb -AdbArgs @("-s", $Serial, "shell", "pm", "grant", $PackageName, "android.permission.POST_NOTIFICATIONS") | Out-Null
+    $dump = Invoke-Adb -AdbArgs @("-s", $Serial, "shell", "dumpsys", "package", $PackageName)
+    $match = $dump |
+        Select-String -Pattern "android\.permission\.POST_NOTIFICATIONS:.*granted=(true|false)" |
+        Select-Object -First 1
+
+    if (-not $match) {
+        throw "Could not verify $Label POST_NOTIFICATIONS permission on SDK $sdk."
+    }
+    if ($match.Matches[0].Groups[1].Value -ne "true") {
+        throw "$Label POST_NOTIFICATIONS permission is not granted: $($match.Line.Trim())"
+    }
+    Write-Host "$Label notification permission: OK"
+}
+
 function Save-FilteredLog {
     param(
         [string]$Serial,
@@ -95,6 +134,8 @@ Invoke-Adb -AdbArgs @("devices", "-l")
 
 Assert-Device -Serial $PhoneSerial -Label "Phone"
 Assert-Device -Serial $WatchSerial -Label "Watch"
+Assert-NotificationPermission -Serial $PhoneSerial -Label "Phone"
+Assert-NotificationPermission -Serial $WatchSerial -Label "Watch"
 
 if ($AutoWatchAction -ne "none" -and $Mode -notin @("control", "orphan")) {
     throw "-AutoWatchAction can only be used with -Mode control or -Mode orphan."
