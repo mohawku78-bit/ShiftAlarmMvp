@@ -77,6 +77,7 @@ $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
 $phoneBridgeTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmBridgeTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
+$diagnoseAdbScript = Read-RepoFile "scripts\diagnose-watch-adb.ps1"
 $connectWatchScript = Read-RepoFile "scripts\connect-watch-wireless.ps1"
 $verifyScript = Read-RepoFile "scripts\verify-watch-side-by-side.ps1"
 $smokeScript = Read-RepoFile "scripts\run-watch-side-by-side-smoke.ps1"
@@ -363,6 +364,11 @@ Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Resolve-DeviceS
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'android.hardware.type.watch'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'Auto-selected watch serial'
 Assert-Contains "install-watch-side-by-side.ps1" $installScript 'connect-watch-wireless.ps1'
+Assert-Contains "install-watch-side-by-side.ps1" $installScript 'diagnose-watch-adb.ps1'
+Assert-Contains "diagnose-watch-adb.ps1" $diagnoseAdbScript 'Get-MdnsEndpoints'
+Assert-Contains "diagnose-watch-adb.ps1" $diagnoseAdbScript '_adb-tls-pairing._tcp'
+Assert-Contains "diagnose-watch-adb.ps1" $diagnoseAdbScript '_adb-tls-connect._tcp'
+Assert-Contains "diagnose-watch-adb.ps1" $diagnoseAdbScript 'run-watch-full-validation.ps1'
 Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript '_adb-tls-pairing._tcp'
 Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript '_adb-tls-connect._tcp'
 Assert-Contains "connect-watch-wireless.ps1" $connectWatchScript 'PairCode'
@@ -408,6 +414,7 @@ Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'install-w
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'validate-watch-integration-source.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'test-watch-smoke-assertions.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Invoke-ValidationStep "Resolve connected devices"'
+Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'diagnose-watch-adb.ps1'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Resolve-DeviceSerials'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'Auto-selected watch serial'
 Assert-Contains "run-watch-full-validation.ps1" $fullValidationScript 'android.hardware.type.watch'

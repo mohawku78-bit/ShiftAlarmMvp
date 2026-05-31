@@ -62,7 +62,14 @@ function Resolve-DeviceSerials {
 
     $devices = Get-ConnectedDevices
     if ($devices.Count -eq 0) {
-        throw "No adb devices are connected. Connect the phone with USB debugging and the Galaxy Watch with wireless debugging, then run adb devices -l."
+        throw @"
+No adb devices are connected.
+
+Run:
+  .\scripts\diagnose-watch-adb.ps1
+
+Then connect the phone with USB debugging and the Galaxy Watch with wireless debugging.
+"@
     }
 
     $classified = foreach ($serial in $devices) {
@@ -104,6 +111,9 @@ Run:
 
 For Galaxy Watch wireless debugging, connect it first with:
   adb connect WATCH_IP:WATCH_PORT
+
+To diagnose missing devices first, run:
+  .\scripts\diagnose-watch-adb.ps1
 "@
     }
 }

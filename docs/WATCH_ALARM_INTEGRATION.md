@@ -103,7 +103,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-watch-side-by-side.ps1
 
 1. Connect the phone with USB debugging.
 2. On the Galaxy Watch, enable both `ADB debugging` and `Wireless debugging`.
-3. Connect to the watch with the helper:
+3. If either device does not appear in `adb devices -l`, run the ADB readiness helper:
+
+```powershell
+.\scripts\diagnose-watch-adb.ps1
+```
+
+It lists ready ADB devices, identifies which connected device is the watch, shows discovered `_adb-tls` wireless debugging endpoints, and prints the next pairing/connect/full-validation command.
+
+4. Connect to the watch with the helper:
 
 ```powershell
 .\scripts\connect-watch-wireless.ps1
@@ -122,19 +130,19 @@ adb connect WATCH_IP:WATCH_PORT
 adb devices -l
 ```
 
-4. Install the phone APK:
+5. Install the phone APK:
 
 ```powershell
 adb -s PHONE_SERIAL install -r app\build\outputs\apk\sideBySide\app-sideBySide.apk
 ```
 
-5. Install the watch APK:
+6. Install the watch APK:
 
 ```powershell
 adb -s WATCH_SERIAL install -r wear\build\outputs\apk\sideBySide\wear-sideBySide.apk
 ```
 
-6. Open `교대알람 워치` once on the watch and allow notification permission if prompted.
+7. Open `교대알람 워치` once on the watch and allow notification permission if prompted.
 
 ## Manual verification
 
