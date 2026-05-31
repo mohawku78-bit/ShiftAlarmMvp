@@ -13,7 +13,9 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -34,12 +36,15 @@ import com.example.shiftalarmmvp.ui.AlarmAlertActivity
 import com.example.shiftalarmmvp.ui.AlarmLogStore
 import com.example.shiftalarmmvp.ui.AlarmLogType
 import com.example.shiftalarmmvp.watch.WatchAlarmBridge
+import com.example.shiftalarmmvp.watch.WatchAlarmDiagnosticsStore
 
 class AlarmRingingService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var isForegroundStarted = false
     private var activeAlarmId: Long = -1L
+    private val watchBridgeFallbackHandler = Handler(Looper.getMainLooper())
+    private var watchBridgeFallbackRunnable: Runnable? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
@@ -200,7 +205,7 @@ class AlarmRingingService : Service() {
             isForegroundStarted = true
         }
 
-        postWatchBridgeNotification(
+        scheduleWatchBridgeFallbackNotification(
             alarmId = alarmId,
             label = label,
             snoozeMinutes = snoozeMinutes,
@@ -210,7 +215,8 @@ class AlarmRingingService : Service() {
             customSoundUri = customSoundUri,
             volumePercent = volumePercent,
             vibrationEnabled = vibrationEnabled,
-            directBootSnapshot = directBootSnapshot
+            directBootSnapshot = directBootSnapshot,
+            triggeredAtMillis = watchTriggeredAtMillis
         )
 
         WatchAlarmBridge(this).sendAlarmStarted(
@@ -245,12 +251,17 @@ class AlarmRingingService : Service() {
             runCatching {
                 val vibe = getVibrator()
                 vibrator = vibe
-                val pattern = longArrayOf(0, 500, 250, 500)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibe.vibrate(VibrationEffect.createWaveform(pattern, 0))
+                    vibe.vibrate(
+                        VibrationEffect.createWaveform(
+                            ALARM_RAMP_VIBRATION_TIMINGS,
+                            ALARM_RAMP_VIBRATION_AMPLITUDES,
+                            ALARM_RAMP_VIBRATION_REPEAT_INDEX
+                        )
+                    )
                 } else {
                     @Suppress("DEPRECATION")
-                    vibe.vibrate(pattern, 0)
+                    vibe.vibrate(ALARM_RAMP_VIBRATION_TIMINGS, ALARM_RAMP_VIBRATION_REPEAT_INDEX)
                 }
             }
         }
@@ -652,6 +663,46 @@ class AlarmRingingService : Service() {
         return builder.build()
     }
 
+    private fun scheduleWatchBridgeFallbackNotification(
+        alarmId: Long,
+        label: String,
+        snoozeMinutes: Int,
+        snoozeMaxCount: Int,
+        currentSnoozeCount: Int,
+        soundType: AlarmSoundType,
+        customSoundUri: String?,
+        volumePercent: Int,
+        vibrationEnabled: Boolean,
+        directBootSnapshot: DirectBootAlarmSnapshot?,
+        triggeredAtMillis: Long
+    ) {
+        watchBridgeFallbackRunnable?.let(watchBridgeFallbackHandler::removeCallbacks)
+        val runnable = Runnable {
+            if (!isRinging(alarmId, triggeredAtMillis)) return@Runnable
+            val nativeWatchHandledAlarm = WatchAlarmDiagnosticsStore(this).hasNotificationAckFor(
+                alarmId = alarmId,
+                triggeredAtMillis = triggeredAtMillis,
+                sinceMillis = triggeredAtMillis
+            )
+            if (nativeWatchHandledAlarm) return@Runnable
+
+            postWatchBridgeNotification(
+                alarmId = alarmId,
+                label = label,
+                snoozeMinutes = snoozeMinutes,
+                snoozeMaxCount = snoozeMaxCount,
+                currentSnoozeCount = currentSnoozeCount,
+                soundType = soundType,
+                customSoundUri = customSoundUri,
+                volumePercent = volumePercent,
+                vibrationEnabled = vibrationEnabled,
+                directBootSnapshot = directBootSnapshot
+            )
+        }
+        watchBridgeFallbackRunnable = runnable
+        watchBridgeFallbackHandler.postDelayed(runnable, WATCH_BRIDGE_FALLBACK_DELAY_MILLIS)
+    }
+
     private fun postWatchBridgeNotification(
         alarmId: Long,
         label: String,
@@ -843,9 +894,9 @@ class AlarmRingingService : Service() {
     }
 
     private fun cancelWatchBridgeNotification() {
-        runCatching {
-            getSystemService(NotificationManager::class.java)?.cancel(WATCH_BRIDGE_NOTIFICATION_ID)
-        }
+        watchBridgeFallbackRunnable?.let(watchBridgeFallbackHandler::removeCallbacks)
+        watchBridgeFallbackRunnable = null
+        cancelWatchBridgeNotification(this)
     }
 
     private fun ensureForegroundForControl(
@@ -927,8 +978,15 @@ class AlarmRingingService : Service() {
         private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v2"
         private const val NOTIFICATION_ID = 1001
         private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002
+        private const val WATCH_BRIDGE_FALLBACK_DELAY_MILLIS = 6_000L
         private const val WATCH_BRIDGE_TIMEOUT_MILLIS = 2 * 60 * 1000L
-        private val WATCH_BRIDGE_VIBRATION_PATTERN = longArrayOf(0, 500, 180, 500, 180, 500)
+        private val ALARM_RAMP_VIBRATION_TIMINGS =
+            longArrayOf(0, 90, 420, 140, 360, 220, 320, 320, 280, 440, 260, 560)
+        private val ALARM_RAMP_VIBRATION_AMPLITUDES =
+            intArrayOf(0, 45, 0, 75, 0, 115, 0, 160, 0, 205, 0, 255)
+        private const val ALARM_RAMP_VIBRATION_REPEAT_INDEX = 1
+        private val WATCH_BRIDGE_VIBRATION_PATTERN =
+            longArrayOf(0, 90, 320, 140, 260, 220, 220, 300)
 
         @Volatile
         private var isRingingActive: Boolean = false
@@ -945,6 +1003,19 @@ class AlarmRingingService : Service() {
             return isRinging(alarmId) &&
                 triggeredAtMillis > 0L &&
                 activeRingingTriggeredAtMillis == triggeredAtMillis
+        }
+
+        fun cancelWatchBridgeFallback(context: Context, alarmId: Long, triggeredAtMillis: Long) {
+            if (!isRinging(alarmId, triggeredAtMillis)) return
+            cancelWatchBridgeNotification(context)
+        }
+
+        private fun cancelWatchBridgeNotification(context: Context) {
+            runCatching {
+                context.applicationContext
+                    .getSystemService(NotificationManager::class.java)
+                    ?.cancel(WATCH_BRIDGE_NOTIFICATION_ID)
+            }
         }
 
         fun stop(context: Context, alarmId: Long) {

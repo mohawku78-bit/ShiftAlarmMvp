@@ -7,6 +7,7 @@ data class WatchAlarmAck(
     val alarmId: Long,
     val label: String,
     val displayMode: String,
+    val triggeredAtMillis: Long,
     val acknowledgedAtMillis: Long
 )
 
@@ -45,6 +46,7 @@ class WatchAlarmDiagnosticsStore(context: Context) {
             .putLong(KEY_ACK_ALARM_ID, payload.alarmId)
             .putString(KEY_ACK_LABEL, payload.label)
             .putString(KEY_ACK_DISPLAY_MODE, displayMode.orEmpty())
+            .putLong(KEY_ACK_TRIGGERED_AT_MILLIS, payload.triggeredAtMillis)
             .putLong(KEY_ACK_AT_MILLIS, System.currentTimeMillis())
             .apply()
 
@@ -115,8 +117,21 @@ class WatchAlarmDiagnosticsStore(context: Context) {
             alarmId = alarmId,
             label = prefs.getString(KEY_ACK_LABEL, "").orEmpty(),
             displayMode = prefs.getString(KEY_ACK_DISPLAY_MODE, "").orEmpty(),
+            triggeredAtMillis = prefs.getLong(KEY_ACK_TRIGGERED_AT_MILLIS, 0L),
             acknowledgedAtMillis = acknowledgedAtMillis
         )
+    }
+
+    fun hasNotificationAckFor(
+        alarmId: Long,
+        triggeredAtMillis: Long,
+        sinceMillis: Long
+    ): Boolean {
+        val ack = latestAck() ?: return false
+        return ack.alarmId == alarmId &&
+            ack.triggeredAtMillis == triggeredAtMillis &&
+            ack.displayMode == WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION &&
+            ack.acknowledgedAtMillis >= sinceMillis
     }
 
     fun latestAcceptedControl(): WatchAlarmControlReceipt? {
@@ -170,6 +185,7 @@ class WatchAlarmDiagnosticsStore(context: Context) {
         private const val KEY_ACK_ALARM_ID = "ack_alarm_id"
         private const val KEY_ACK_LABEL = "ack_label"
         private const val KEY_ACK_DISPLAY_MODE = "ack_display_mode"
+        private const val KEY_ACK_TRIGGERED_AT_MILLIS = "ack_triggered_at_millis"
         private const val KEY_ACK_AT_MILLIS = "ack_at_millis"
         private const val KEY_CONTROL_ALARM_ID = "control_alarm_id"
         private const val KEY_CONTROL_LABEL = "control_label"
