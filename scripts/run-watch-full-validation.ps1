@@ -194,12 +194,11 @@ function Invoke-Smoke {
             "-WaitSeconds", $PreviewWaitSeconds.ToString()
         )
     } else {
-        $mode = if ($Scenario -eq "orphan") { "orphan" } else { "control" }
+        $mode = if ($Scenario -eq "orphan") { "orphan" } else { $Scenario }
         $watchAction = if ($Scenario -eq "orphan") { "stop" } else { $Scenario }
         $args += @(
             "-Mode", $mode,
             "-Label", "Full validation $Scenario",
-            "-AutoWatchAction", $watchAction,
             "-AutoWatchActionSource", $AutoWatchActionSource,
             "-ExpectedAction", $watchAction,
             "-AutoWatchStopKeyCode", $AutoWatchStopKeyCode,
@@ -209,6 +208,9 @@ function Invoke-Smoke {
             "-AutoWatchActionRetrySeconds", $AutoWatchActionRetrySeconds.ToString(),
             "-WaitSeconds", $ControlWaitSeconds.ToString()
         )
+        if ($Scenario -eq "orphan") {
+            $args += @("-AutoWatchAction", $watchAction)
+        }
     }
 
     if ($BlockWatchNotifications) {

@@ -191,13 +191,13 @@ Full control round trip:
 Automated watch stop round trip:
 
 ```powershell
-.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction stop -Clear -Assert
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode stop -Clear -Assert
 ```
 
 Automated watch snooze round trip:
 
 ```powershell
-.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction snooze -Clear -Assert
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode snooze -Clear -Assert
 ```
 
 Orphaned watch alarm stale-control recovery:
@@ -209,16 +209,16 @@ Orphaned watch alarm stale-control recovery:
 Automated hardware-key watch stop round trip:
 
 ```powershell
-.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction stop -AutoWatchActionSource hardwareKey -Clear -Assert
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode stop -AutoWatchActionSource hardwareKey -Clear -Assert
 ```
 
 Automated hardware-key watch snooze round trip:
 
 ```powershell
-.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode control -AutoWatchAction snooze -AutoWatchActionSource hardwareKey -Clear -Assert
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode snooze -AutoWatchActionSource hardwareKey -Clear -Assert
 ```
 
-During manual `control` mode, tap `스누즈` or `끄기` on the watch before the wait window ends. With `-AutoWatchAction`, the side-by-side watch APK uses its current active alarm payload and sends the same internal stop/snooze action that the watch notification buttons use. The automatic action is retried briefly because phone-to-watch delivery can lag on real devices. Filtered phone and watch logs are saved under `manual-validation/watch-alarm/`.
+During manual `control` mode, tap `스누즈` or `끄기` on the watch before the wait window ends. `-Mode stop` and `-Mode snooze` are direct automated round trips that start the phone alarm, send the matching watch action, and assert the expected result. With `-AutoWatchAction`, the side-by-side watch APK uses its current active alarm payload and sends the same internal stop/snooze action that the watch notification buttons use. The automatic action is retried briefly because phone-to-watch delivery can lag on real devices. Filtered phone and watch logs are saved under `manual-validation/watch-alarm/`.
 With `-AutoWatchActionSource hardwareKey`, the script opens the optional watch alarm screen, injects `adb shell input keyevent`, and asserts that the alarm screen received the key before sending stop/snooze.
 
 The `-Assert` flag runs `scripts/assert-watch-smoke-result.ps1` after log capture and fails if the logs do not prove delivery, display, ACK, and the expected watch control round trip. Use `-ExpectedAction snooze` or `-ExpectedAction stop` when you want to require one specific watch button.

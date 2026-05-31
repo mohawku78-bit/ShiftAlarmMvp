@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("preview", "control", "orphan")]
+    [ValidateSet("preview", "control", "orphan", "stop", "snooze")]
     [string]$Mode = "preview",
     [string]$PhoneLog = "",
     [string]$WatchLog = "",
@@ -264,7 +264,13 @@ if ([string]::IsNullOrWhiteSpace($smokeTimestamp)) {
 $phoneDiagnostics = Read-Diagnostics -DeviceLabel "phone" -Timestamp $smokeTimestamp
 $watchDiagnostics = Read-Diagnostics -DeviceLabel "watch" -Timestamp $smokeTimestamp
 $checks = @()
-$expectedAlarmId = switch ($Mode) {
+$AssertionMode = if ($Mode -in @("stop", "snooze")) { "control" } else { $Mode }
+$ResolvedExpectedAction = if ($Mode -in @("stop", "snooze") -and $ExpectedAction -eq "any") {
+    $Mode
+} else {
+    $ExpectedAction
+}
+$expectedAlarmId = switch ($AssertionMode) {
     "control" { "888887" }
     default { "888888" }
 }
@@ -299,7 +305,7 @@ function Add-DisplayPathChecks {
     return $Checks
 }
 
-if ($Mode -eq "preview") {
+if ($AssertionMode -eq "preview") {
     $previewMatch = [regex]::Match(
         $phone,
         "watch preview result connected=(\d+)\s+watchApp=(\d+)\s+messageAttempts=(\d+).*?watchAppError=([^\r\n ]+).*?error=([^\r\n ]+)",
@@ -323,17 +329,17 @@ if ($Mode -eq "preview") {
     $checks = Add-DisplayPathChecks -Checks $checks -LabelPrefix "watch"
 }
 
-if ($Mode -eq "control") {
+if ($AssertionMode -eq "control") {
     $acceptedStop = $phone -match "stop from watch alarmId=$expectedAlarmId"
     $acceptedSnooze = $phone -match "snooze from watch alarmId=$expectedAlarmId"
     $acceptedAction = $acceptedStop -or $acceptedSnooze
-    $expectedControlPathPattern = switch ($ExpectedAction) {
+    $expectedControlPathPattern = switch ($ResolvedExpectedAction) {
         "stop" { "/shift_alarm/alarm/stop" }
         "snooze" { "/shift_alarm/alarm/snooze" }
         default { "/shift_alarm/alarm/(stop|snooze)" }
     }
 
-    $expectedActionAccepted = switch ($ExpectedAction) {
+    $expectedActionAccepted = switch ($ResolvedExpectedAction) {
         "stop" { $acceptedStop }
         "snooze" { $acceptedSnooze }
         default { $acceptedAction }
@@ -345,17 +351,17 @@ if ($Mode -eq "control") {
     $checks += Add-Check "watch exposed alarm controls" ($watch -match $watchAlarmSignalPattern)
     $checks = Add-DisplayPathChecks -Checks $checks -LabelPrefix "watch"
     if ($AutoWatchActionSource -eq "hardwareKey") {
-        $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern alarmId=$expectedAlarmId") "expected=$ExpectedAction alarmId=$expectedAlarmId"
+        $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern alarmId=$expectedAlarmId") "expected=$ResolvedExpectedAction alarmId=$expectedAlarmId"
     }
-    $checks += Add-Check "watch sent expected control" ($watch -match "(send control path=$expectedControlPathPattern|put control data path=$expectedControlPathPattern).*alarmId=$expectedAlarmId") "expected=$ExpectedAction alarmId=$expectedAlarmId"
+    $checks += Add-Check "watch sent expected control" ($watch -match "(send control path=$expectedControlPathPattern|put control data path=$expectedControlPathPattern).*alarmId=$expectedAlarmId") "expected=$ResolvedExpectedAction alarmId=$expectedAlarmId"
     $checks += Add-Check "phone received watch control" ($phone -match "watch control message path=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId|watch control data action=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId") "alarmId=$expectedAlarmId"
-    $checks += Add-Check "phone accepted expected watch control" $expectedActionAccepted "expected=$ExpectedAction alarmId=$expectedAlarmId stop=$acceptedStop snooze=$acceptedSnooze"
+    $checks += Add-Check "phone accepted expected watch control" $expectedActionAccepted "expected=$ResolvedExpectedAction alarmId=$expectedAlarmId stop=$acceptedStop snooze=$acceptedSnooze"
     $checks += Add-Check "watch received phone control ack" ($watch -match "control ack message action=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId|control ack data action=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId") "alarmId=$expectedAlarmId"
     $checks += Add-Check "watch cleared local notification" ($watch -match "cancel alarm notification")
 }
 
-if ($Mode -eq "orphan") {
-    $expectedControlPathPattern = switch ($ExpectedAction) {
+if ($AssertionMode -eq "orphan") {
+    $expectedControlPathPattern = switch ($ResolvedExpectedAction) {
         "stop" { "/shift_alarm/alarm/stop" }
         "snooze" { "/shift_alarm/alarm/snooze" }
         default { "/shift_alarm/alarm/(stop|snooze)" }
@@ -367,9 +373,9 @@ if ($Mode -eq "orphan") {
     $checks += Add-Check "watch exposed orphan alarm controls" ($watch -match $watchAlarmSignalPattern)
     $checks = Add-DisplayPathChecks -Checks $checks -LabelPrefix "watch orphan"
     if ($AutoWatchActionSource -eq "hardwareKey") {
-        $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern alarmId=$expectedAlarmId") "expected=$ExpectedAction alarmId=$expectedAlarmId"
+        $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern alarmId=$expectedAlarmId") "expected=$ResolvedExpectedAction alarmId=$expectedAlarmId"
     }
-    $checks += Add-Check "watch sent orphan expected control" ($watch -match "(send control path=$expectedControlPathPattern|put control data path=$expectedControlPathPattern).*alarmId=$expectedAlarmId") "expected=$ExpectedAction alarmId=$expectedAlarmId"
+    $checks += Add-Check "watch sent orphan expected control" ($watch -match "(send control path=$expectedControlPathPattern|put control data path=$expectedControlPathPattern).*alarmId=$expectedAlarmId") "expected=$ResolvedExpectedAction alarmId=$expectedAlarmId"
     $checks += Add-Check "phone received orphan watch control" ($phone -match "watch control message path=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId|watch control data action=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId") "alarmId=$expectedAlarmId"
     $checks += Add-Check "phone rejected orphan watch control as stale" ($phone -match "ignore stale control action=/shift_alarm/alarm/(stop|snooze) alarmId=$expectedAlarmId")
     $checks += Add-Check "phone sent timestamp cancel for orphan watch alarm" ($phone -match "sendAlarmCancelled alarmId=$expectedAlarmId.*clearActive=false")

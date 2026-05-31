@@ -3,7 +3,7 @@ param(
     [string]$PhoneSerial,
     [Parameter(Mandatory = $true)]
     [string]$WatchSerial,
-    [ValidateSet("preview", "control", "orphan", "stop")]
+    [ValidateSet("preview", "control", "orphan", "stop", "snooze", "cleanup")]
     [string]$Mode = "preview",
     [string]$PackageName = "com.example.shiftalarmmvp.next",
     [string]$AdbPath = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
@@ -42,7 +42,9 @@ $Actions = @{
     preview = "com.example.shiftalarmmvp.action.WATCH_PREVIEW_TEST"
     control = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST"
     orphan = "com.example.shiftalarmmvp.action.WATCH_PREVIEW_TEST"
-    stop = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST_STOP"
+    stop = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST"
+    snooze = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST"
+    cleanup = "com.example.shiftalarmmvp.action.WATCH_CONTROL_TEST_STOP"
 }
 
 $WatchActions = @{
@@ -200,13 +202,28 @@ Assert-NotificationPermission -Serial $WatchSerial -Label "Watch"
 
 $restoreWatchNotifications = $false
 try {
+    $controlActionModes = @("control", "orphan", "stop", "snooze")
+    $effectiveAutoWatchAction = $AutoWatchAction
+    $effectiveExpectedAction = $ExpectedAction
+
+    if ($Mode -in @("stop", "snooze")) {
+        if ($AutoWatchAction -ne "none" -and $AutoWatchAction -ne $Mode) {
+            throw "-Mode $Mode always tests the matching watch action. Use -Mode control for mixed/manual control tests."
+        }
+        if ($ExpectedAction -ne "any" -and $ExpectedAction -ne $Mode) {
+            throw "-Mode $Mode expects the matching watch action. Use -Mode control for custom expected actions."
+        }
+        $effectiveAutoWatchAction = $Mode
+        $effectiveExpectedAction = $Mode
+    }
+
     if ($BlockWatchNotifications) {
         Set-NotificationPermission -Serial $WatchSerial -Label "Watch" -Granted $false
         $restoreWatchNotifications = $true
     }
 
-    if ($AutoWatchAction -ne "none" -and $Mode -notin @("control", "orphan")) {
-        throw "-AutoWatchAction can only be used with -Mode control or -Mode orphan."
+    if ($effectiveAutoWatchAction -ne "none" -and $Mode -notin $controlActionModes) {
+        throw "-AutoWatchAction can only be used with -Mode control, orphan, stop, or snooze."
     }
 
     if ($Clear) {
@@ -219,6 +236,9 @@ try {
         switch ($Mode) {
             "preview" { "ADB watch preview" }
             "orphan" { "ADB watch orphan test" }
+            "stop" { "ADB watch stop test" }
+            "snooze" { "ADB watch snooze test" }
+            "cleanup" { "ADB watch control cleanup" }
             default { "ADB watch control test" }
         }
     } else {
@@ -241,19 +261,19 @@ try {
     Write-Host "Sending $Mode smoke broadcast to $PackageName on phone $PhoneSerial"
     Invoke-Adb -AdbArgs $broadcastArgs
 
-    if ($Mode -in @("control", "orphan")) {
-        if ($AutoWatchAction -eq "none") {
+    if ($Mode -in $controlActionModes) {
+        if ($effectiveAutoWatchAction -eq "none") {
             Write-Host ""
             Write-Host "$Mode mode: tap Stop or Snooze on the watch during the wait window."
         } else {
             $delay = [Math]::Max(0, $AutoWatchActionDelaySeconds)
             if ($delay -gt 0) {
-                Write-Host "Waiting $delay seconds before sending automatic watch $AutoWatchAction action..."
+                Write-Host "Waiting $delay seconds before sending automatic watch $effectiveAutoWatchAction action..."
                 Start-Sleep -Seconds $delay
             }
 
-            $watchAction = $WatchActions[$AutoWatchAction]
-            $hardwareKey = $HardwareKeys[$AutoWatchAction]
+            $watchAction = $WatchActions[$effectiveAutoWatchAction]
+            $hardwareKey = $HardwareKeys[$effectiveAutoWatchAction]
             $attempts = [Math]::Max(1, $AutoWatchActionAttempts)
             $retrySeconds = [Math]::Max(0, $AutoWatchActionRetrySeconds)
             if ($AutoWatchActionSource -eq "hardwareKey") {
@@ -264,10 +284,10 @@ try {
             for ($attempt = 1; $attempt -le $attempts; $attempt++) {
                 Write-Host ""
                 if ($AutoWatchActionSource -eq "hardwareKey") {
-                    Write-Host "Sending automatic watch $AutoWatchAction hardware key $hardwareKey attempt $attempt/$attempts on watch $WatchSerial"
+                    Write-Host "Sending automatic watch $effectiveAutoWatchAction hardware key $hardwareKey attempt $attempt/$attempts on watch $WatchSerial"
                     Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "input", "keyevent", $hardwareKey)
                 } else {
-                    Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
+                    Write-Host "Sending automatic watch $effectiveAutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
                     Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $watchAction)
                 }
                 if ($attempt -lt $attempts -and $retrySeconds -gt 0) {
@@ -297,13 +317,13 @@ try {
     Write-Host "Diagnostics: $ResolvedOutputDir\*-diagnostics-$Mode-$timestamp-*.txt"
     Write-Host "Smoke trigger complete."
 
-    if ($Assert -and $Mode -ne "stop") {
+    if ($Assert -and $Mode -ne "cleanup") {
         Write-Host ""
         Write-Host "Running smoke assertion."
-        $resolvedExpectedAction = if ($Mode -in @("control", "orphan") -and $AutoWatchAction -ne "none" -and $ExpectedAction -eq "any") {
-            $AutoWatchAction
+        $resolvedExpectedAction = if ($Mode -in $controlActionModes -and $effectiveAutoWatchAction -ne "none" -and $effectiveExpectedAction -eq "any") {
+            $effectiveAutoWatchAction
         } else {
-            $ExpectedAction
+            $effectiveExpectedAction
         }
         & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "assert-watch-smoke-result.ps1") `
             -Mode $Mode `
