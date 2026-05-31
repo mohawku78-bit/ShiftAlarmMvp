@@ -62,6 +62,23 @@ class WatchAlarmProtocolTest {
     }
 
     @Test
+    fun displayModeFor_prefersNotificationThenFallbackAndRejectsUnavailableDisplay() {
+        assertEquals(
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION,
+            WatchAlarmProtocol.displayModeFor(notificationShown = true, fallbackShown = false)
+        )
+        assertEquals(
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION,
+            WatchAlarmProtocol.displayModeFor(notificationShown = true, fallbackShown = true)
+        )
+        assertEquals(
+            WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK,
+            WatchAlarmProtocol.displayModeFor(notificationShown = false, fallbackShown = true)
+        )
+        assertNull(WatchAlarmProtocol.displayModeFor(notificationShown = false, fallbackShown = false))
+    }
+
+    @Test
     fun parsePayload_clampsUnsafeNumbersAndRejectsInvalidAlarmId() {
         val parsed = WatchAlarmProtocol.parsePayload(
             JSONObject()

@@ -123,6 +123,14 @@ object WatchAlarmProtocol {
             .toString()
     }
 
+    fun displayModeFor(notificationShown: Boolean, fallbackShown: Boolean): String? {
+        return when {
+            notificationShown -> ACK_DISPLAY_MODE_NOTIFICATION
+            fallbackShown -> ACK_DISPLAY_MODE_FALLBACK
+            else -> null
+        }
+    }
+
     fun parseCancelledAlarmId(bytes: ByteArray): Long {
         return parseCancellation(bytes)?.alarmId ?: -1L
     }

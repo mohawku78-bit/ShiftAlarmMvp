@@ -75,6 +75,7 @@ $watchEventGate = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\we
 $watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmHardwareKeys.kt"
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
+$phoneBridgeTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmBridgeTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
 $connectWatchScript = Read-RepoFile "scripts\connect-watch-wireless.ps1"
 $verifyScript = Read-RepoFile "scripts\verify-watch-side-by-side.ps1"
@@ -155,6 +156,9 @@ Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'attempt=$attempt'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'clearActive: Boolean = true'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'if (clearActive)'
 Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'it.triggeredAtMillis > 0L'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'fun isDisplayHandled(displayMode: String?): Boolean'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'displayMode == ACK_DISPLAY_MODE_NOTIFICATION'
+Assert-Contains "WatchAlarmBridge.kt" $phoneBridge 'displayMode == ACK_DISPLAY_MODE_FALLBACK'
 
 $requiredProtocolConstants = @(
     'PATH_ALARM_START = "/shift_alarm/alarm/start"',
@@ -175,6 +179,9 @@ foreach ($constant in $requiredProtocolConstants) {
     Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol $constant
 }
 Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol 'it.triggeredAtMillis > 0L'
+Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol 'fun displayModeFor(notificationShown: Boolean, fallbackShown: Boolean): String?'
+Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol 'notificationShown -> ACK_DISPLAY_MODE_NOTIFICATION'
+Assert-Contains "WatchAlarmProtocol.kt" $wearProtocol 'fallbackShown -> ACK_DISPLAY_MODE_FALLBACK'
 
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmBridge(this).sendAlarmStarted'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmBridge(this).sendAlarmCancelled'
@@ -205,12 +212,10 @@ Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'dismissIfControlA
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmControlAckStore.record'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.record'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.clearIfMatching'
-Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'ACK_DISPLAY_MODE_NOTIFICATION'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'val notificationShown = WatchAlarmNotifier.show(this, payload)'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'val fallbackShown = if (!notificationShown)'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'AlarmActivity.show(this, payload, useLocalVibration = payload.vibrationEnabled)'
-Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'notificationShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION'
-Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'fallbackShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmProtocol.displayModeFor(notificationShown, fallbackShown)'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.clearIfMatching(this, payload.alarmId, payload.triggeredAtMillis)'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'alarm display unavailable alarmId='
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'PhoneMessageBridge.sendAck(this, payload, displayMode)'
@@ -255,8 +260,7 @@ Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'reco
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'REJECTION_STALE_ALARM'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'clearActive = false'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'cancelBridgeFallbackIfWatchDisplayHandled'
-Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'ACK_DISPLAY_MODE_NOTIFICATION'
-Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'ACK_DISPLAY_MODE_FALLBACK'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmBridge.isDisplayHandled(ack.displayMode)'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'AlarmRingingService.cancelWatchBridgeFallback'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun record'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun matchesRecent'
@@ -402,6 +406,8 @@ Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'hardwareKeysMapT
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'activeStoreMatchingRequiresSameAlarmOccurrence'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'controlAckStoreMatchesOnlySameActionOccurrenceAndRequestWindow'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'eventGateKey_separatesStartCancelAndAlarmOccurrences'
+Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'displayModeFor_prefersNotificationThenFallbackAndRejectsUnavailableDisplay'
+Assert-Contains "WatchAlarmBridgeTest.kt" $phoneBridgeTest 'isDisplayHandled_acceptsNotificationAndFallbackOnly'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"

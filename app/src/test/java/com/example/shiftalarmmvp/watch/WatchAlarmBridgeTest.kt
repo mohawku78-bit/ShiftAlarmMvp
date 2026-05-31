@@ -62,6 +62,14 @@ class WatchAlarmBridgeTest {
     }
 
     @Test
+    fun isDisplayHandled_acceptsNotificationAndFallbackOnly() {
+        assertTrue(WatchAlarmBridge.isDisplayHandled(WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION))
+        assertTrue(WatchAlarmBridge.isDisplayHandled(WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK))
+        assertFalse(WatchAlarmBridge.isDisplayHandled(null))
+        assertFalse(WatchAlarmBridge.isDisplayHandled("unknown"))
+    }
+
+    @Test
     fun parsePayload_clampsUnsafeNumbersAndRejectsInvalidAlarmId() {
         val clamped = WatchAlarmBridge.parsePayload(
             JSONObject()

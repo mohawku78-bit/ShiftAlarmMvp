@@ -367,6 +367,11 @@ class WatchAlarmBridge(context: Context) {
             return parseAck(dataMap.getString(KEY_PAYLOAD_JSON))
         }
 
+        fun isDisplayHandled(displayMode: String?): Boolean {
+            return displayMode == ACK_DISPLAY_MODE_NOTIFICATION ||
+                displayMode == ACK_DISPLAY_MODE_FALLBACK
+        }
+
         private fun parseAck(rawJson: String?): WatchAlarmAckEnvelope? {
             val payload = parsePayload(rawJson) ?: return null
             val displayMode = runCatching {

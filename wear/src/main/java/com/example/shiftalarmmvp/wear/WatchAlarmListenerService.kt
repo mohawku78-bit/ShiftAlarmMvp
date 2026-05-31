@@ -72,11 +72,7 @@ class WatchAlarmListenerService : WearableListenerService() {
         } else {
             false
         }
-        val displayMode = when {
-            notificationShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION
-            fallbackShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK
-            else -> null
-        }
+        val displayMode = WatchAlarmProtocol.displayModeFor(notificationShown, fallbackShown)
         if (displayMode == null) {
             WatchAlarmActiveStore.clearIfMatching(this, payload.alarmId, payload.triggeredAtMillis)
             Log.w(TAG, "alarm display unavailable alarmId=${payload.alarmId}")

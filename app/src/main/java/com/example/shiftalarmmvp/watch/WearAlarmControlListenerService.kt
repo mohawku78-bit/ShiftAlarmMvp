@@ -51,9 +51,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
     }
 
     private fun cancelBridgeFallbackIfWatchDisplayHandled(ack: WatchAlarmAckEnvelope) {
-        if (ack.displayMode != WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION &&
-            ack.displayMode != WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK
-        ) {
+        if (!WatchAlarmBridge.isDisplayHandled(ack.displayMode)) {
             return
         }
         AlarmRingingService.cancelWatchBridgeFallback(
