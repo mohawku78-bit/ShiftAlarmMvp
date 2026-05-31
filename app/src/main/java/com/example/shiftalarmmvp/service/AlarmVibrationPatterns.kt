@@ -8,5 +8,9 @@ internal object AlarmVibrationPatterns {
     const val PHONE_RAMP_REPEAT_INDEX = 9
 
     val WATCH_BRIDGE_RAMP_PATTERN =
-        longArrayOf(0, 25, 1_400, 35, 1_250, 45, 1_100, 60, 950, 80, 800, 105, 700)
+        longArrayOf(
+            0, 25, 1_100, 35, 1_000, 45, 950, 60, 900, 80, 850, 105,
+            1_600, 45, 1_100, 65, 1_000, 85, 950, 110,
+            1_800, 55, 1_100, 75, 1_000, 100, 900, 130
+        )
 }

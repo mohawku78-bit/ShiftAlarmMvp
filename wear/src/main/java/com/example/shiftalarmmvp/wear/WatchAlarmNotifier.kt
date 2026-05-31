@@ -14,13 +14,15 @@ import android.util.Log
 
 object WatchAlarmNotifier {
     private const val TAG = "ShiftWearAlarm"
-    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v6"
+    private const val CHANNEL_ID = "shift_alarm_watch_alarm_v8"
     private val LEGACY_CHANNEL_IDS = arrayOf(
         "shift_alarm_watch_alarm_v1",
         "shift_alarm_watch_alarm_v2",
         "shift_alarm_watch_alarm_v3",
         "shift_alarm_watch_alarm_v4",
-        "shift_alarm_watch_alarm_v5"
+        "shift_alarm_watch_alarm_v5",
+        "shift_alarm_watch_alarm_v6",
+        "shift_alarm_watch_alarm_v7"
     )
     const val NOTIFICATION_ID = 3001
 
@@ -157,8 +159,7 @@ object WatchAlarmNotifier {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = context.getString(R.string.notification_channel_description)
-            enableVibration(true)
-            vibrationPattern = WatchVibrationPatterns.NOTIFICATION_RAMP_PATTERN
+            enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)

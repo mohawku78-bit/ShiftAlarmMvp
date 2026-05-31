@@ -18,12 +18,14 @@ class AlarmVibrationPatternsTest {
     }
 
     @Test
-    fun watchBridgeFallbackNotificationUsesSoftOneShotPattern() {
-        assertNotificationRamp(
+    fun watchBridgeFallbackNotificationUsesSoftMultiPulsePattern() {
+        assertNotificationMultiPulseRamp(
             pattern = AlarmVibrationPatterns.WATCH_BRIDGE_RAMP_PATTERN,
             maxFirstPulseMillis = 25L,
-            maxPulseMillis = 105L,
-            minFirstPauseMillis = 1_200L
+            maxPulseMillis = 130L,
+            minFirstPauseMillis = 900L,
+            minPulseCount = 10,
+            minTotalDurationMillis = 14_000L
         )
     }
 
@@ -50,22 +52,28 @@ class AlarmVibrationPatternsTest {
         }
     }
 
-    private fun assertNotificationRamp(
+    private fun assertNotificationMultiPulseRamp(
         pattern: LongArray,
         maxFirstPulseMillis: Long,
         maxPulseMillis: Long,
-        minFirstPauseMillis: Long
+        minFirstPauseMillis: Long,
+        minPulseCount: Int,
+        minTotalDurationMillis: Long
     ) {
         assertEquals(0L, pattern.first())
-        assertTrue("notification pattern should end after a pulse", pattern.size % 2 == 1)
+        assertTrue("notification pattern should contain wait/pulse pairs", pattern.size >= minPulseCount * 2)
         assertTrue("first notification pulse should stay gentle", pattern[1] <= maxFirstPulseMillis)
         assertTrue("first pause should keep the alert calm", pattern[2] >= minFirstPauseMillis)
+        assertTrue("notification pattern should last long enough to feel like an alarm", pattern.sum() >= minTotalDurationMillis)
 
-        var previousPulseMillis = 0L
+        var pulseCount = 0
+        var strongestPulseMillis = 0L
         for (index in 1 until pattern.size step 2) {
-            assertTrue("notification pulses should ramp upward", pattern[index] >= previousPulseMillis)
+            pulseCount += 1
             assertTrue("notification pulse should stay short", pattern[index] <= maxPulseMillis)
-            previousPulseMillis = pattern[index]
+            strongestPulseMillis = maxOf(strongestPulseMillis, pattern[index])
         }
+        assertTrue("notification should vibrate several times", pulseCount >= minPulseCount)
+        assertTrue("later pulses should grow beyond the first pulse", strongestPulseMillis > pattern[1])
     }
 }

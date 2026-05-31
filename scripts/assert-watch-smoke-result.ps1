@@ -194,6 +194,7 @@ function Write-DiagnosticHints {
         "alarm active data",
         "show alarm",
         "show alarm notification",
+        "start one-shot alarm vibration",
         "show alarm notification skipped permission",
         "show alarm notification failed",
         "show alarm activity",
@@ -276,6 +277,7 @@ $expectedAlarmId = switch ($AssertionMode) {
 }
 $watchAlarmSignalPattern = "show alarm( signal)? alarmId=$expectedAlarmId"
 $watchAlarmNotificationPattern = "show alarm notification alarmId=$expectedAlarmId"
+$watchOneShotVibrationPattern = "start one-shot alarm vibration alarmId=$expectedAlarmId"
 $watchAlarmNotificationSkippedPattern = "show alarm notification skipped permission alarmId=$expectedAlarmId"
 $watchAlarmActivityPattern = "show alarm activity alarmId=$expectedAlarmId"
 $watchAlarmStartPattern = "alarm start message alarmId=$expectedAlarmId|alarm active data alarmId=$expectedAlarmId"
@@ -296,9 +298,13 @@ function Add-DisplayPathChecks {
         $Checks += Add-Check "phone confirmed fallback display mode" ($phone -match $phoneFallbackAckPattern)
     } elseif ($ExpectedDisplayMode -eq "any") {
         $Checks += Add-Check "$LabelPrefix showed notification or fallback controls" (($watch -match $watchAlarmNotificationPattern) -or ($watch -match $watchAlarmActivityPattern))
+        if ($watch -match $watchAlarmNotificationPattern) {
+            $Checks += Add-Check "$LabelPrefix started one-shot alarm vibration" ($watch -match $watchOneShotVibrationPattern)
+        }
         $Checks += Add-Check "phone confirmed any display mode" ($phone -match $phoneAnyAckPattern)
     } else {
         $Checks += Add-Check "$LabelPrefix showed notification controls" ($watch -match $watchAlarmNotificationPattern)
+        $Checks += Add-Check "$LabelPrefix started one-shot alarm vibration" ($watch -match $watchOneShotVibrationPattern)
         $Checks += Add-Check "phone confirmed notification display mode" ($phone -match $phoneNotificationAckPattern)
     }
 

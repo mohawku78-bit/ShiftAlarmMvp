@@ -67,6 +67,9 @@ class WatchAlarmListenerService : WearableListenerService() {
         Log.i(TAG, "show alarm signal alarmId=${payload.alarmId} canSnooze=${payload.canSnooze}")
         WatchAlarmActiveStore.record(this, payload)
         val notificationShown = WatchAlarmNotifier.show(this, payload)
+        if (notificationShown) {
+            WatchAlarmSignalVibrator.startOneShot(this, payload)
+        }
         val fallbackShown = if (!notificationShown) {
             AlarmActivity.show(this, payload, useLocalVibration = payload.vibrationEnabled)
         } else {
@@ -109,6 +112,7 @@ class WatchAlarmListenerService : WearableListenerService() {
             return
         }
         WatchAlarmNotifier.cancel(this)
+        WatchAlarmSignalVibrator.cancel()
         AlarmActivity.dismissIfMatching(cancellation.alarmId, cancellation.eventTimeMillis)
     }
 
@@ -138,6 +142,7 @@ class WatchAlarmListenerService : WearableListenerService() {
 
         WatchAlarmActiveStore.clearIfMatching(this, ack.payload.alarmId, ack.payload.triggeredAtMillis)
         WatchAlarmNotifier.cancel(this)
+        WatchAlarmSignalVibrator.cancel()
         AlarmActivity.dismissIfControlAcknowledged(ack.action, ack.payload)
     }
 

@@ -61,6 +61,7 @@ Write-TextFile -Path $watchStop -Text @"
 alarm start message alarmId=888887
 show alarm signal alarmId=888887 canSnooze=true
 show alarm notification alarmId=888887
+start one-shot alarm vibration alarmId=888887
 send control path=/shift_alarm/alarm/stop attempt=1 nodes=1 alarmId=888887
 control ack message action=/shift_alarm/alarm/stop alarmId=888887
 cancel alarm notification
@@ -78,6 +79,7 @@ Write-TextFile -Path $watchSnooze -Text @"
 alarm start message alarmId=888887
 show alarm signal alarmId=888887 canSnooze=true
 show alarm notification alarmId=888887
+start one-shot alarm vibration alarmId=888887
 send control path=/shift_alarm/alarm/snooze attempt=1 nodes=1 alarmId=888887
 control ack message action=/shift_alarm/alarm/snooze alarmId=888887
 cancel alarm notification
@@ -87,6 +89,7 @@ Write-TextFile -Path $watchWrongAck -Text @"
 alarm start message alarmId=888887
 show alarm signal alarmId=888887 canSnooze=true
 show alarm notification alarmId=888887
+start one-shot alarm vibration alarmId=888887
 send control path=/shift_alarm/alarm/stop attempt=1 nodes=1 alarmId=888887
 control ack message action=/shift_alarm/alarm/snooze alarmId=888887
 cancel alarm notification

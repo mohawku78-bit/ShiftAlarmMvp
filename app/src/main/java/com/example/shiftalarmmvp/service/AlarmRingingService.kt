@@ -978,11 +978,12 @@ class AlarmRingingService : Service() {
         const val ACTION_RELIABILITY_STATE_CHANGED = "com.example.shiftalarmmvp.action.RELIABILITY_STATE_CHANGED"
 
         private const val CHANNEL_ID = "ringing_alarm_channel_silent_v4"
-        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v5"
+        private const val WATCH_BRIDGE_CHANNEL_ID = "watch_alarm_bridge_channel_v6"
         private val WATCH_BRIDGE_LEGACY_CHANNEL_IDS = arrayOf(
             "watch_alarm_bridge_channel_v2",
             "watch_alarm_bridge_channel_v3",
-            "watch_alarm_bridge_channel_v4"
+            "watch_alarm_bridge_channel_v4",
+            "watch_alarm_bridge_channel_v5"
         )
         private const val NOTIFICATION_ID = 1001
         private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002

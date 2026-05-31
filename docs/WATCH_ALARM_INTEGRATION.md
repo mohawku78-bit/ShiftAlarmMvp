@@ -10,11 +10,11 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Phone-to-watch start, cancel, and control-ACK messages are sent in a short three-attempt burst so a brief Bluetooth/Data Layer hiccup is less likely to lose the alarm signal.
 - Watch receives the message in `WatchAlarmListenerService`.
 - Watch shows a high-priority actionable notification directly. By default it does not auto-launch the watch alarm activity, start a foreground ringing service, or hold a wake lock.
-- To protect battery life, the watch uses only the notification channel's soft one-shot ramp vibration pattern and leaves Stop/Snooze as notification actions.
+- To protect battery life, the watch uses a one-shot soft multi-pulse local vibration burst when the alarm notification is shown, without starting a foreground ringing service or holding a wake lock. Stop/Snooze stay as notification actions.
 - The watch alarm activity is available when the user taps the notification, when the side-by-side hardware-key smoke test opens it explicitly, or as a fallback if Wear OS blocks the alarm notification.
 - The optional watch alarm activity uses a centered, scrollable round-screen safe column so the `스누즈` button stays inside the visible circular display area.
 - The optional watch alarm activity turns the screen on when opened but does not hold `FLAG_KEEP_SCREEN_ON`, so the display can time out normally if the user does not interact right away.
-- The watch alarm notification uses the `shift_alarm_watch_alarm_v6` channel and retires older `v1`/`v2`/`v3`/`v4`/`v5` channels so updated soft ramp vibration settings apply after reinstalling the watch app.
+- The watch alarm notification uses the `shift_alarm_watch_alarm_v8` channel and retires older `v1`/`v2`/`v3`/`v4`/`v5`/`v6`/`v7` channels so updated soft ramp vibration settings apply after reinstalling the watch app.
 - Watch keeps separate duplicate gates for alarm start and cancel events, so a fast stop/cancel event is not rejected as a duplicate of the just-received start event.
 - Phone cancellation payloads keep the original alarm occurrence timestamp, and the watch ignores cancellation events that do not match the accepted start occurrence. If cancel arrives before start for the same occurrence, the watch records it and ignores a late start for that occurrence.
 - Watch cancel teardown also requires the cancel timestamp to match the currently active watch alarm occurrence, so a late cancel cannot clear a newer notification or optional alarm screen for the same alarm id.
@@ -241,7 +241,7 @@ Use this first because it does not require waiting for a real alarm:
 3. Tap `워치 알람 미리보기 보내기`.
 4. Expected phone result: the message reports the number of connected watch nodes and message-send attempts.
 5. If the phone reports `연결된 워치가 없습니다`, confirm the watch app is installed, paired, and connected before continuing.
-6. Expected watch result: watch shows an actionable `교대알람` notification with a short vibration. Tapping the notification opens the optional alarm screen.
+6. Expected watch result: watch shows an actionable `교대알람` notification with a soft multi-pulse vibration. Tapping the notification opens the optional alarm screen.
 7. Expected phone result: the test area shows `최근 워치 수신 확인` with the alarm label and ACK time.
 8. Tap `끄기` or `스누즈` on the watch.
 9. Expected watch result: the watch notification or optional alarm screen dismisses.
@@ -255,7 +255,7 @@ Use this after the preview succeeds because it proves watch-to-phone control:
 
 1. On the phone, tap `워치 끄기/스누즈 테스트 울리기`.
 2. Expected phone result: phone alarm screen opens and alarm sound/vibration starts.
-3. Expected watch result: watch shows an actionable `교대알람` notification with a short vibration. Tapping the notification opens the optional alarm screen.
+3. Expected watch result: watch shows an actionable `교대알람` notification with a soft multi-pulse vibration. Tapping the notification opens the optional alarm screen.
 4. Tap `스누즈` on the watch.
 5. Expected phone result: phone alarm stops and schedules snooze with the configured snooze minutes/count.
 6. After the snooze alarm rings again, tap `끄기` on the watch.

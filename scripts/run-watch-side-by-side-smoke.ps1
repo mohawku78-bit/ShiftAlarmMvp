@@ -173,6 +173,14 @@ function Save-AdbOutput {
     Invoke-Adb -AdbArgs $AdbArgs 2>&1 | Set-Content -Encoding UTF8 -LiteralPath $Path
 }
 
+function Assert-LastExitCode {
+    param([string]$StepName)
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$StepName failed with exit code $LASTEXITCODE"
+    }
+}
+
 function Save-DeviceDiagnostics {
     param(
         [string]$Serial,
@@ -332,6 +340,7 @@ try {
             -ExpectedAction $resolvedExpectedAction `
             -ExpectedDisplayMode $ExpectedDisplayMode `
             -AutoWatchActionSource $AutoWatchActionSource
+        Assert-LastExitCode "assert-watch-smoke-result.ps1"
     }
 } finally {
     if ($restoreWatchNotifications) {

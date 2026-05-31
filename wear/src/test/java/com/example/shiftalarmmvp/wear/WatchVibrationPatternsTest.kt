@@ -6,12 +6,17 @@ import org.junit.Test
 
 class WatchVibrationPatternsTest {
     @Test
-    fun notificationVibrationUsesSoftOneShotRamp() {
-        assertNotificationRamp(
+    fun notificationVibrationUsesSoftMultiPulseRamp() {
+        assertNotificationMultiPulseRamp(
             pattern = WatchVibrationPatterns.NOTIFICATION_RAMP_PATTERN,
+            amplitudes = WatchVibrationPatterns.NOTIFICATION_RAMP_AMPLITUDES,
             maxFirstPulseMillis = 25L,
-            maxPulseMillis = 105L,
-            minFirstPauseMillis = 1_200L
+            maxFirstPulseAmplitude = 6,
+            maxPulseMillis = 130L,
+            maxPeakAmplitude = 80,
+            minFirstPauseMillis = 900L,
+            minPulseCount = 10,
+            minTotalDurationMillis = 14_000L
         )
     }
 
@@ -27,23 +32,39 @@ class WatchVibrationPatternsTest {
         )
     }
 
-    private fun assertNotificationRamp(
+    private fun assertNotificationMultiPulseRamp(
         pattern: LongArray,
+        amplitudes: IntArray,
         maxFirstPulseMillis: Long,
+        maxFirstPulseAmplitude: Int,
         maxPulseMillis: Long,
-        minFirstPauseMillis: Long
+        maxPeakAmplitude: Int,
+        minFirstPauseMillis: Long,
+        minPulseCount: Int,
+        minTotalDurationMillis: Long
     ) {
+        assertEquals("notification timing and amplitude arrays must stay aligned", pattern.size, amplitudes.size)
         assertEquals(0L, pattern.first())
-        assertTrue("notification pattern should end after a pulse", pattern.size % 2 == 1)
+        assertEquals(0, amplitudes.first())
+        assertTrue("notification pattern should contain wait/pulse pairs", pattern.size >= minPulseCount * 2)
         assertTrue("first notification pulse should stay gentle", pattern[1] <= maxFirstPulseMillis)
+        assertTrue("first notification amplitude should stay gentle", amplitudes[1] <= maxFirstPulseAmplitude)
         assertTrue("first pause should keep the alert calm", pattern[2] >= minFirstPauseMillis)
+        assertTrue("notification pattern should last long enough to feel like an alarm", pattern.sum() >= minTotalDurationMillis)
 
-        var previousPulseMillis = 0L
+        var pulseCount = 0
+        var strongestPulseMillis = 0L
+        var previousPulseAmplitude = 0
         for (index in 1 until pattern.size step 2) {
-            assertTrue("notification pulses should ramp upward", pattern[index] >= previousPulseMillis)
+            pulseCount += 1
             assertTrue("notification pulse should stay short", pattern[index] <= maxPulseMillis)
-            previousPulseMillis = pattern[index]
+            strongestPulseMillis = maxOf(strongestPulseMillis, pattern[index])
+            assertTrue("notification pulse amplitudes should ramp upward", amplitudes[index] >= previousPulseAmplitude)
+            previousPulseAmplitude = amplitudes[index]
         }
+        assertTrue("notification should vibrate several times", pulseCount >= minPulseCount)
+        assertTrue("later pulses should grow beyond the first pulse", strongestPulseMillis > pattern[1])
+        assertTrue("peak amplitude should stay below harsh full-strength vibration", amplitudes.max() <= maxPeakAmplitude)
     }
 
     private fun assertWaveformRamp(
