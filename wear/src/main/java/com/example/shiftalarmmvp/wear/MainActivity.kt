@@ -67,7 +67,7 @@ class MainActivity : Activity() {
 
             addView(
                 Button(this@MainActivity).apply {
-                    text = "알람 화면 미리보기"
+                    text = getString(R.string.setup_preview_button)
                     isAllCaps = false
                     textSize = 14f
                     typeface = Typeface.DEFAULT_BOLD
@@ -89,7 +89,7 @@ class MainActivity : Activity() {
     private fun showPreviewAlarm() {
         val payload = WatchAlarmPayload(
             alarmId = System.currentTimeMillis().coerceAtMost(Int.MAX_VALUE.toLong()),
-            label = "야간 근무 알람",
+            label = getString(R.string.setup_preview_label),
             snoozeMinutes = 5,
             snoozeMaxCount = 3,
             currentSnoozeCount = 0,

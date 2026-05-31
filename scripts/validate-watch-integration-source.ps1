@@ -68,6 +68,7 @@ $watchPhoneBridge = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\
 $watchActions = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActions.kt"
 $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActionReceiver.kt"
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
+$watchMainActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\MainActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
 $watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
 $watchEventGate = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmEventGate.kt"
@@ -107,6 +108,8 @@ Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'phone accept
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch received phone control ack'
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
+Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.POST_NOTIFICATIONS'
+Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.VIBRATE'
 Assert-Contains "wear AndroidManifest" $wearManifest '.WatchAlarmListenerService'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android:pathPrefix="/shift_alarm/alarm"'
 Assert-NotContains "wear AndroidManifest" $wearManifest '.WatchAlarmRingingService'
@@ -277,6 +280,10 @@ Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun clearIfMatchin
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'fun isMatching'
 Assert-Contains "WatchAlarmActiveStore.kt" $watchActiveStore 'internal fun matches'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'showControlPending'
+Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'canPostNotifications'
+Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'areNotificationsEnabled'
+Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'POST_NOTIFICATIONS'
+Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'IMPORTANCE_NONE'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'createPendingControlIntent'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'requestStartedAtMillis'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'alarm_waiting_phone_confirmation'
@@ -300,6 +307,10 @@ Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'WatchAlarmActions.ACTION
 Assert-NotContains "WatchAlarmNotifier.kt" $watchNotifier 'setFullScreenIntent'
 Assert-Contains "wear strings" $wearStrings 'alarm_snooze_after_minutes'
 Assert-Contains "wear strings" $wearStrings 'alarm_waiting_phone_confirmation'
+Assert-Contains "wear strings" $wearStrings 'setup_preview_button'
+Assert-Contains "wear strings" $wearStrings 'setup_preview_label'
+Assert-Contains "wear MainActivity.kt" $watchMainActivity 'requestNotificationPermissionIfNeeded'
+Assert-Contains "wear MainActivity.kt" $watchMainActivity 'setup_preview_button'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActiveStore.read'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WatchAlarmActionReceiver::class.java'
 Assert-Contains "SideBySideWatchAlarmActionTestReceiver.kt" $sideBySideWatchActionReceiver 'WATCH_TEST_OPEN_ALARM'

@@ -1,12 +1,15 @@
 package com.example.shiftalarmmvp.wear
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
+import android.os.Build
 import android.util.Log
 
 object WatchAlarmNotifier {
@@ -23,8 +26,13 @@ object WatchAlarmNotifier {
     fun show(context: Context, payload: WatchAlarmPayload): Boolean {
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(NotificationManager::class.java)
+        val notification = buildNotification(appContext, payload)
+        if (!canPostNotifications(appContext, manager)) {
+            Log.w(TAG, "show alarm notification skipped permission alarmId=${payload.alarmId}")
+            return false
+        }
         return runCatching {
-            manager.notify(NOTIFICATION_ID, buildNotification(appContext, payload))
+            manager.notify(NOTIFICATION_ID, notification)
         }.onSuccess {
             Log.i(TAG, "show alarm notification alarmId=${payload.alarmId}")
         }.onFailure { error ->
@@ -41,6 +49,10 @@ object WatchAlarmNotifier {
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(NotificationManager::class.java)
         createChannel(appContext, manager)
+        if (!canPostNotifications(appContext, manager)) {
+            Log.w(TAG, "show control pending notification skipped permission alarmId=${payload.alarmId}")
+            return
+        }
 
         val openIntent = PendingIntent.getActivity(
             appContext,
@@ -149,6 +161,16 @@ object WatchAlarmNotifier {
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)
+    }
+
+    private fun canPostNotifications(context: Context, manager: NotificationManager): Boolean {
+        if (!manager.areNotificationsEnabled()) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+        return manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
     }
 
     private fun createAction(
