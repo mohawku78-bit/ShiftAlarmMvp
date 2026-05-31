@@ -56,6 +56,7 @@ $appStrings = Read-RepoFile "app\src\main\res\values\strings.xml"
 $wearStrings = Read-RepoFile "wear\src\main\res\values\strings.xml"
 $phoneBridge = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmBridge.kt"
 $phoneControlListener = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WearAlarmControlListenerService.kt"
+$phoneControlPolicy = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmControlPolicy.kt"
 $phoneAcceptedControlStore = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmAcceptedControlStore.kt"
 $phoneDiagnosticsStore = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\watch\WatchAlarmDiagnosticsStore.kt"
 $mainActivity = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\ui\MainActivity.kt"
@@ -78,6 +79,7 @@ $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
 $watchVibrationPatternsTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchVibrationPatternsTest.kt"
 $phoneBridgeTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmBridgeTest.kt"
+$phoneControlPolicyTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmControlPolicyTest.kt"
 $alarmVibrationPatterns = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmVibrationPatterns.kt"
 $alarmVibrationPatternsTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\service\AlarmVibrationPatternsTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
@@ -266,6 +268,8 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchVibrationPatterns.A
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchVibrationPatterns.ACTIVITY_RAMP_REPEAT_INDEX'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmAcceptedControlStore.matchesRecent'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmControlPolicy.decide'
+Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'acceptControlGate = { WatchAlarmControlGate.accept'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'resend accepted watch control ack'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'acknowledgeAcceptedControl'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'recordControlRejected'
@@ -274,6 +278,16 @@ Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'clea
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'cancelBridgeFallbackIfWatchDisplayHandled'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmBridge.isDisplayHandled(ack.displayMode)'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'AlarmRingingService.cancelWatchBridgeFallback'
+Assert-Contains "WatchAlarmControlPolicy.kt" $phoneControlPolicy 'REPLAY_ACCEPTED_CONTROL_ACK'
+Assert-Contains "WatchAlarmControlPolicy.kt" $phoneControlPolicy 'REJECT_STALE_ALARM'
+Assert-Contains "WatchAlarmControlPolicy.kt" $phoneControlPolicy 'ACCEPT_STOP'
+Assert-Contains "WatchAlarmControlPolicy.kt" $phoneControlPolicy 'ACCEPT_SNOOZE'
+Assert-Contains "WatchAlarmControlPolicy.kt" $phoneControlPolicy 'REJECT_SNOOZE_NOT_ALLOWED'
+Assert-Contains "WatchAlarmControlPolicyTest.kt" $phoneControlPolicyTest 'recentAcceptedControlReplaysAckWithoutCheckingRingingOrGate'
+Assert-Contains "WatchAlarmControlPolicyTest.kt" $phoneControlPolicyTest 'staleControlRejectsAndDoesNotConsumeControlGate'
+Assert-Contains "WatchAlarmControlPolicyTest.kt" $phoneControlPolicyTest 'stopRequiresControlGateAcceptance'
+Assert-Contains "WatchAlarmControlPolicyTest.kt" $phoneControlPolicyTest 'snoozeRejectsWhenLimitReachedWithoutConsumingGate'
+Assert-Contains "WatchAlarmControlPolicyTest.kt" $phoneControlPolicyTest 'unsupportedActionRejectsWithoutConsumingGate'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun record'
 Assert-Contains "WatchAlarmAcceptedControlStore.kt" $phoneAcceptedControlStore 'fun matchesRecent'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data class WatchAlarmSendAttempt'
