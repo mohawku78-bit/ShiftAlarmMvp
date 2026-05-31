@@ -16,7 +16,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
                 "watch ack message alarmId=${ack.payload.alarmId} label=${ack.payload.label} displayMode=${ack.displayMode}"
             )
             WatchAlarmDiagnosticsStore(applicationContext).recordAck(ack.payload, ack.displayMode)
-            cancelBridgeFallbackIfNativeNotificationHandled(ack)
+            cancelBridgeFallbackIfWatchDisplayHandled(ack)
             return
         }
         val payload = WatchAlarmBridge.parsePayload(messageEvent.data) ?: return
@@ -36,7 +36,7 @@ class WearAlarmControlListenerService : WearableListenerService() {
                                 "watch ack data alarmId=${ack.payload.alarmId} label=${ack.payload.label} displayMode=${ack.displayMode}"
                             )
                             WatchAlarmDiagnosticsStore(applicationContext).recordAck(ack.payload, ack.displayMode)
-                            cancelBridgeFallbackIfNativeNotificationHandled(ack)
+                            cancelBridgeFallbackIfWatchDisplayHandled(ack)
                         }
                     }
 
@@ -50,8 +50,12 @@ class WearAlarmControlListenerService : WearableListenerService() {
             }
     }
 
-    private fun cancelBridgeFallbackIfNativeNotificationHandled(ack: WatchAlarmAckEnvelope) {
-        if (ack.displayMode != WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION) return
+    private fun cancelBridgeFallbackIfWatchDisplayHandled(ack: WatchAlarmAckEnvelope) {
+        if (ack.displayMode != WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION &&
+            ack.displayMode != WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK
+        ) {
+            return
+        }
         AlarmRingingService.cancelWatchBridgeFallback(
             context = applicationContext,
             alarmId = ack.payload.alarmId,

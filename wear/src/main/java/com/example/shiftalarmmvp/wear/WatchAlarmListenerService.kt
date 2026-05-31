@@ -67,13 +67,19 @@ class WatchAlarmListenerService : WearableListenerService() {
         Log.i(TAG, "show alarm signal alarmId=${payload.alarmId} canSnooze=${payload.canSnooze}")
         WatchAlarmActiveStore.record(this, payload)
         val notificationShown = WatchAlarmNotifier.show(this, payload)
-        if (!notificationShown) {
+        val fallbackShown = if (!notificationShown) {
             AlarmActivity.show(this, payload, useLocalVibration = payload.vibrationEnabled)
-        }
-        val displayMode = if (notificationShown) {
-            WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION
         } else {
-            WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK
+            false
+        }
+        val displayMode = when {
+            notificationShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION
+            fallbackShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK
+            else -> null
+        }
+        if (displayMode == null) {
+            Log.w(TAG, "alarm display unavailable alarmId=${payload.alarmId}")
+            return
         }
         PhoneMessageBridge.sendAck(this, payload, displayMode)
     }

@@ -197,6 +197,7 @@ function Write-DiagnosticHints {
         "show alarm notification skipped permission",
         "show alarm notification failed",
         "show alarm activity",
+        "alarm display unavailable",
         "show fallback notification",
         "show fallback notification failed",
         "show control pending notification",
@@ -285,6 +286,7 @@ function Add-DisplayPathChecks {
     if ($ExpectedDisplayMode -eq "fallback") {
         $Checks += Add-Check "$LabelPrefix detected blocked notification fallback" ($watch -match $watchAlarmNotificationSkippedPattern)
         $Checks += Add-Check "$LabelPrefix opened fallback alarm screen" ($watch -match $watchAlarmActivityPattern)
+        $Checks += Add-Check "$LabelPrefix did not report unavailable display" ($watch -notmatch "alarm display unavailable alarmId=$expectedAlarmId")
         $Checks += Add-Check "phone confirmed fallback display mode" ($phone -match $phoneFallbackAckPattern)
     } elseif ($ExpectedDisplayMode -eq "any") {
         $Checks += Add-Check "$LabelPrefix showed notification or fallback controls" (($watch -match $watchAlarmNotificationPattern) -or ($watch -match $watchAlarmActivityPattern))
