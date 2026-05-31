@@ -123,6 +123,28 @@ function Save-FilteredLog {
     Invoke-Adb -AdbArgs $args | Set-Content -Encoding UTF8 -LiteralPath $Path
 }
 
+function Save-AdbOutput {
+    param(
+        [string[]]$AdbArgs,
+        [string]$Path
+    )
+
+    Invoke-Adb -AdbArgs $AdbArgs 2>&1 | Set-Content -Encoding UTF8 -LiteralPath $Path
+}
+
+function Save-DeviceDiagnostics {
+    param(
+        [string]$Serial,
+        [string]$Label,
+        [string]$Timestamp
+    )
+
+    $prefix = Join-Path $ResolvedOutputDir "$($Label.ToLowerInvariant())-diagnostics-$Mode-$Timestamp"
+    Save-AdbOutput -AdbArgs @("-s", $Serial, "shell", "dumpsys", "package", $PackageName) -Path "$prefix-package.txt"
+    Save-AdbOutput -AdbArgs @("-s", $Serial, "shell", "cmd", "notification", "channels", $PackageName) -Path "$prefix-notification-channels.txt"
+    Save-AdbOutput -AdbArgs @("-s", $Serial, "shell", "appops", "get", $PackageName, "POST_NOTIFICATION") -Path "$prefix-appops-post-notification.txt"
+}
+
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
@@ -220,10 +242,13 @@ $watchLog = Join-Path $ResolvedOutputDir "watch-smoke-$Mode-$timestamp.log"
 
 Save-FilteredLog -Serial $PhoneSerial -Path $phoneLog -Tags @("ShiftWatchTest:I", "ShiftWatchBridge:I", "ShiftWearAlarm:I")
 Save-FilteredLog -Serial $WatchSerial -Path $watchLog -Tags @("ShiftWearAlarm:I", "ShiftWatchBridge:I")
+Save-DeviceDiagnostics -Serial $PhoneSerial -Label "phone" -Timestamp $timestamp
+Save-DeviceDiagnostics -Serial $WatchSerial -Label "watch" -Timestamp $timestamp
 
 Write-Host ""
 Write-Host "Phone log: $phoneLog"
 Write-Host "Watch log: $watchLog"
+Write-Host "Diagnostics: $ResolvedOutputDir\*-diagnostics-$Mode-$timestamp-*.txt"
 Write-Host "Smoke trigger complete."
 
 if ($Assert -and $Mode -ne "stop") {
