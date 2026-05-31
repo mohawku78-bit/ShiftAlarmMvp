@@ -679,7 +679,7 @@ class AlarmRingingService : Service() {
         watchBridgeFallbackRunnable?.let(watchBridgeFallbackHandler::removeCallbacks)
         val runnable = Runnable {
             if (!isRinging(alarmId, triggeredAtMillis)) return@Runnable
-            val nativeWatchHandledAlarm = WatchAlarmDiagnosticsStore(this).hasNotificationAckFor(
+            val nativeWatchHandledAlarm = WatchAlarmDiagnosticsStore(this).hasHandledDisplayAckFor(
                 alarmId = alarmId,
                 triggeredAtMillis = triggeredAtMillis,
                 sinceMillis = triggeredAtMillis

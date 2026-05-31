@@ -122,13 +122,13 @@ class WatchAlarmDiagnosticsStore(context: Context) {
         )
     }
 
-    fun hasNotificationAckFor(
+    fun hasHandledDisplayAckFor(
         alarmId: Long,
         triggeredAtMillis: Long,
         sinceMillis: Long
     ): Boolean {
         val ack = latestAck() ?: return false
-        return matchesNotificationAck(ack, alarmId, triggeredAtMillis, sinceMillis)
+        return matchesHandledDisplayAck(ack, alarmId, triggeredAtMillis, sinceMillis)
     }
 
     fun latestAcceptedControl(): WatchAlarmControlReceipt? {
@@ -170,7 +170,7 @@ class WatchAlarmDiagnosticsStore(context: Context) {
         const val REJECTION_SNOOZE_NOT_ALLOWED = "snooze_not_allowed"
         const val REJECTION_UNSUPPORTED_ACTION = "unsupported_action"
 
-        internal fun matchesNotificationAck(
+        internal fun matchesHandledDisplayAck(
             ack: WatchAlarmAck?,
             alarmId: Long,
             triggeredAtMillis: Long,
@@ -178,7 +178,7 @@ class WatchAlarmDiagnosticsStore(context: Context) {
         ): Boolean {
             return ack?.alarmId == alarmId &&
                 ack.triggeredAtMillis == triggeredAtMillis &&
-                ack.displayMode == WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION &&
+                WatchAlarmBridge.isDisplayHandled(ack.displayMode) &&
                 ack.acknowledgedAtMillis >= sinceMillis
         }
 

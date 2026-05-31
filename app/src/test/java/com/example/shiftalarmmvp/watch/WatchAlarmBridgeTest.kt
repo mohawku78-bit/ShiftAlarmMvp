@@ -201,7 +201,7 @@ class WatchAlarmBridgeTest {
     }
 
     @Test
-    fun notificationAckMatch_requiresSameAlarmOccurrenceAndNotificationMode() {
+    fun handledDisplayAckMatch_requiresSameAlarmOccurrenceAndHandledDisplayMode() {
         val ack = WatchAlarmAck(
             alarmId = 77L,
             label = "night",
@@ -211,15 +211,15 @@ class WatchAlarmBridgeTest {
         )
 
         assertTrue(
-            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+            WatchAlarmDiagnosticsStore.matchesHandledDisplayAck(
                 ack = ack,
                 alarmId = 77L,
                 triggeredAtMillis = 10_000L,
                 sinceMillis = 49_000L
             )
         )
-        assertFalse(
-            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+        assertTrue(
+            WatchAlarmDiagnosticsStore.matchesHandledDisplayAck(
                 ack = ack.copy(displayMode = WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK),
                 alarmId = 77L,
                 triggeredAtMillis = 10_000L,
@@ -227,7 +227,15 @@ class WatchAlarmBridgeTest {
             )
         )
         assertFalse(
-            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+            WatchAlarmDiagnosticsStore.matchesHandledDisplayAck(
+                ack = ack.copy(displayMode = "unknown"),
+                alarmId = 77L,
+                triggeredAtMillis = 10_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmDiagnosticsStore.matchesHandledDisplayAck(
                 ack = ack.copy(triggeredAtMillis = 11_000L),
                 alarmId = 77L,
                 triggeredAtMillis = 10_000L,
@@ -235,7 +243,7 @@ class WatchAlarmBridgeTest {
             )
         )
         assertFalse(
-            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+            WatchAlarmDiagnosticsStore.matchesHandledDisplayAck(
                 ack = ack.copy(acknowledgedAtMillis = 48_000L),
                 alarmId = 77L,
                 triggeredAtMillis = 10_000L,
@@ -243,7 +251,7 @@ class WatchAlarmBridgeTest {
             )
         )
         assertFalse(
-            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+            WatchAlarmDiagnosticsStore.matchesHandledDisplayAck(
                 ack = null,
                 alarmId = 77L,
                 triggeredAtMillis = 10_000L,

@@ -189,7 +189,7 @@ Assert-Contains "AlarmRingingService.kt" $ringingService 'triggeredAtMillis = ac
 Assert-Contains "AlarmRingingService.kt" $ringingService 'fun isRinging(alarmId: Long, triggeredAtMillis: Long)'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'scheduleWatchBridgeFallbackNotification'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WATCH_BRIDGE_FALLBACK_DELAY_MILLIS = 6_000L'
-Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmDiagnosticsStore(this).hasNotificationAckFor'
+Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmDiagnosticsStore(this).hasHandledDisplayAckFor'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'cancelWatchBridgeFallback'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'ALARM_RAMP_VIBRATION_AMPLITUDES'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'ALARM_RAMP_VIBRATION_REPEAT_INDEX'
@@ -268,8 +268,9 @@ Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data cla
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data class WatchAlarmControlRejection'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'triggeredAtMillis: Long'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'KEY_ACK_TRIGGERED_AT_MILLIS'
-Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun hasNotificationAckFor'
-Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'matchesNotificationAck'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun hasHandledDisplayAckFor'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'matchesHandledDisplayAck'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'WatchAlarmBridge.isDisplayHandled(ack.displayMode)'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun recordSendAttempt'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun latestSendAttempt'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun recordControlRejected'
@@ -408,6 +409,7 @@ Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'controlAckStoreM
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'eventGateKey_separatesStartCancelAndAlarmOccurrences'
 Assert-Contains "WatchAlarmProtocolTest.kt" $watchProtocolTest 'displayModeFor_prefersNotificationThenFallbackAndRejectsUnavailableDisplay'
 Assert-Contains "WatchAlarmBridgeTest.kt" $phoneBridgeTest 'isDisplayHandled_acceptsNotificationAndFallbackOnly'
+Assert-Contains "WatchAlarmBridgeTest.kt" $phoneBridgeTest 'handledDisplayAckMatch_requiresSameAlarmOccurrenceAndHandledDisplayMode'
 
 $phoneApk = Join-Path $RootDir "app\build\outputs\apk\sideBySide\app-sideBySide.apk"
 $watchApk = Join-Path $RootDir "wear\build\outputs\apk\sideBySide\wear-sideBySide.apk"
