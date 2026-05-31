@@ -112,6 +112,10 @@ Assert-Contains "run-watch-side-by-side-smoke.ps1" $smokeScript 'appops", "get",
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch preview result connected='
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'phone accepted expected watch control'
 Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'watch received phone control ack'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Resolve-DiagnosticPath'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'Read-Diagnostics'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'permission/channel diagnostics'
+Assert-Contains "assert-watch-smoke-result.ps1" $smokeAssertScript 'POST_NOTIFICATION'
 
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.hardware.type.watch'
 Assert-Contains "wear AndroidManifest" $wearManifest 'android.permission.POST_NOTIFICATIONS'

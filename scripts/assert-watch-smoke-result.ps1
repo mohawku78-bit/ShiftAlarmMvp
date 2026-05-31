@@ -71,10 +71,102 @@ function Select-InterestingLines {
     return @($matches | Select-Object -Last $MaxLines)
 }
 
+function Resolve-SmokeTimestamp {
+    param([string]$Path)
+
+    $fileName = [System.IO.Path]::GetFileName($Path)
+    if ($fileName -match "$Mode-(\d{8}-\d{6})\.log$") {
+        return $Matches[1]
+    }
+    return ""
+}
+
+function Read-OptionalText {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return ""
+    }
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
+}
+
+function Resolve-DiagnosticPath {
+    param(
+        [string]$DeviceLabel,
+        [string]$Kind,
+        [string]$Timestamp
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($Timestamp)) {
+        $expected = Join-Path $ResolvedOutputDir "$DeviceLabel-diagnostics-$Mode-$Timestamp-$Kind.txt"
+        if (Test-Path -LiteralPath $expected) {
+            return $expected
+        }
+    }
+
+    $latest = Get-ChildItem -LiteralPath $ResolvedOutputDir -Filter "$DeviceLabel-diagnostics-$Mode-*-$Kind.txt" -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if ($latest) {
+        return $latest.FullName
+    }
+    return ""
+}
+
+function Read-Diagnostics {
+    param(
+        [string]$DeviceLabel,
+        [string]$Timestamp
+    )
+
+    [pscustomobject]@{
+        Package = Read-OptionalText -Path (Resolve-DiagnosticPath -DeviceLabel $DeviceLabel -Kind "package" -Timestamp $Timestamp)
+        Channels = Read-OptionalText -Path (Resolve-DiagnosticPath -DeviceLabel $DeviceLabel -Kind "notification-channels" -Timestamp $Timestamp)
+        AppOps = Read-OptionalText -Path (Resolve-DiagnosticPath -DeviceLabel $DeviceLabel -Kind "appops-post-notification" -Timestamp $Timestamp)
+    }
+}
+
+function Write-DeviceDiagnosticHints {
+    param(
+        [string]$Label,
+        [object]$Diagnostics
+    )
+
+    $combined = @(
+        $Diagnostics.Package,
+        $Diagnostics.Channels,
+        $Diagnostics.AppOps
+    ) -join [Environment]::NewLine
+    if ([string]::IsNullOrWhiteSpace($combined)) {
+        Write-Host "  No $Label permission/channel diagnostics found."
+        return
+    }
+
+    $hints = Select-InterestingLines -Text $combined -Patterns @(
+        "POST_NOTIFICATIONS",
+        "granted=",
+        "POST_NOTIFICATION",
+        "allow|deny|ignore|default",
+        "channel",
+        "importance",
+        "blocked",
+        "vibration",
+        "shift_alarm",
+        "watch_alarm"
+    ) -MaxLines 30
+    if ($hints.Count -gt 0) {
+        $hints | ForEach-Object { Write-Host "  $_" }
+    } else {
+        Write-Host "  No matching $Label diagnostic lines found."
+    }
+}
+
 function Write-DiagnosticHints {
     param(
         [string]$PhoneText,
-        [string]$WatchText
+        [string]$WatchText,
+        [object]$PhoneDiagnostics,
+        [object]$WatchDiagnostics
     )
 
     $phoneHints = Select-InterestingLines -Text $PhoneText -Patterns @(
@@ -140,6 +232,14 @@ function Write-DiagnosticHints {
     } else {
         Write-Host "  No matching watch diagnostic lines found."
     }
+
+    Write-Host ""
+    Write-Host "Phone permission/channel diagnostics:"
+    Write-DeviceDiagnosticHints -Label "phone" -Diagnostics $PhoneDiagnostics
+
+    Write-Host ""
+    Write-Host "Watch permission/channel diagnostics:"
+    Write-DeviceDiagnosticHints -Label "watch" -Diagnostics $WatchDiagnostics
 }
 
 if ([string]::IsNullOrWhiteSpace($PhoneLog)) {
@@ -152,6 +252,12 @@ if ([string]::IsNullOrWhiteSpace($WatchLog)) {
 
 $phone = Read-Log -Path $PhoneLog -Label "Phone"
 $watch = Read-Log -Path $WatchLog -Label "Watch"
+$smokeTimestamp = Resolve-SmokeTimestamp -Path $PhoneLog
+if ([string]::IsNullOrWhiteSpace($smokeTimestamp)) {
+    $smokeTimestamp = Resolve-SmokeTimestamp -Path $WatchLog
+}
+$phoneDiagnostics = Read-Diagnostics -DeviceLabel "phone" -Timestamp $smokeTimestamp
+$watchDiagnostics = Read-Diagnostics -DeviceLabel "watch" -Timestamp $smokeTimestamp
 $checks = @()
 $watchAlarmSignalPattern = "show alarm( signal)? alarmId="
 $watchAlarmNotificationPattern = "show alarm notification alarmId="
@@ -256,7 +362,7 @@ foreach ($check in $checks) {
 }
 
 if ($failed.Count -gt 0) {
-    Write-DiagnosticHints -PhoneText $phone -WatchText $watch
+    Write-DiagnosticHints -PhoneText $phone -WatchText $watch -PhoneDiagnostics $phoneDiagnostics -WatchDiagnostics $watchDiagnostics
     throw "Watch smoke assertion failed: $($failed.Count) check(s) failed."
 }
 
