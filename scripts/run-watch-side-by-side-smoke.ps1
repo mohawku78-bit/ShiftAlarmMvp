@@ -24,9 +24,12 @@ param(
     [int]$AutoWatchActionAttempts = 3,
     [int]$AutoWatchActionRetrySeconds = 2,
     [int]$WaitSeconds = 20,
+    [switch]$BlockWatchNotifications,
     [switch]$Assert,
     [ValidateSet("any", "stop", "snooze")]
     [string]$ExpectedAction = "any",
+    [ValidateSet("any", "notification", "fallback")]
+    [string]$ExpectedDisplayMode = "notification",
     [switch]$Clear
 )
 
@@ -112,6 +115,42 @@ function Assert-NotificationPermission {
     Write-Host "$Label notification permission: OK"
 }
 
+function Set-NotificationPermission {
+    param(
+        [string]$Serial,
+        [string]$Label,
+        [bool]$Granted
+    )
+
+    $sdk = Get-DeviceSdkInt -Serial $Serial
+    if ($sdk -lt 33) {
+        if (-not $Granted) {
+            throw "$Label notification permission cannot be revoked on SDK $sdk."
+        }
+        Write-Host "$Label notification permission restore: not required on SDK $sdk"
+        return
+    }
+
+    $operation = if ($Granted) { "grant" } else { "revoke" }
+    Invoke-Adb -AdbArgs @("-s", $Serial, "shell", "pm", $operation, $PackageName, "android.permission.POST_NOTIFICATIONS") | Out-Null
+    $dump = Invoke-Adb -AdbArgs @("-s", $Serial, "shell", "dumpsys", "package", $PackageName)
+    $match = $dump |
+        Select-String -Pattern "android\.permission\.POST_NOTIFICATIONS:.*granted=(true|false)" |
+        Select-Object -First 1
+
+    if (-not $match) {
+        throw "Could not verify $Label POST_NOTIFICATIONS permission after $operation."
+    }
+
+    $actual = $match.Matches[0].Groups[1].Value -eq "true"
+    if ($actual -ne $Granted) {
+        throw "$Label POST_NOTIFICATIONS permission state mismatch after ${operation}: $($match.Line.Trim())"
+    }
+
+    $state = if ($Granted) { "granted" } else { "revoked for fallback smoke" }
+    Write-Host "$Label notification permission: $state"
+}
+
 function Save-FilteredLog {
     param(
         [string]$Serial,
@@ -159,110 +198,125 @@ Assert-Device -Serial $WatchSerial -Label "Watch"
 Assert-NotificationPermission -Serial $PhoneSerial -Label "Phone"
 Assert-NotificationPermission -Serial $WatchSerial -Label "Watch"
 
-if ($AutoWatchAction -ne "none" -and $Mode -notin @("control", "orphan")) {
-    throw "-AutoWatchAction can only be used with -Mode control or -Mode orphan."
-}
-
-if ($Clear) {
-    Invoke-Adb -AdbArgs @("-s", $PhoneSerial, "logcat", "-c")
-    Invoke-Adb -AdbArgs @("-s", $WatchSerial, "logcat", "-c")
-}
-
-$action = $Actions[$Mode]
-$resolvedLabel = if ([string]::IsNullOrWhiteSpace($Label)) {
-    switch ($Mode) {
-        "preview" { "ADB watch preview" }
-        "orphan" { "ADB watch orphan test" }
-        default { "ADB watch control test" }
+$restoreWatchNotifications = $false
+try {
+    if ($BlockWatchNotifications) {
+        Set-NotificationPermission -Serial $WatchSerial -Label "Watch" -Granted $false
+        $restoreWatchNotifications = $true
     }
-} else {
-    $Label
-}
 
-$broadcastArgs = @(
-    "-s", $PhoneSerial,
-    "shell", "am", "broadcast",
-    "-p", $PackageName,
-    "-a", $action,
-    "--es", "label", $resolvedLabel,
-    "--es", "soundType", $SoundType,
-    "--ei", "snoozeMinutes", ([Math]::Max(1, [Math]::Min(60, $SnoozeMinutes))).ToString(),
-    "--ei", "volumePercent", ([Math]::Max(0, [Math]::Min(100, $VolumePercent))).ToString(),
-    "--ez", "vibrationEnabled", $VibrationEnabled.ToString().ToLowerInvariant()
-)
+    if ($AutoWatchAction -ne "none" -and $Mode -notin @("control", "orphan")) {
+        throw "-AutoWatchAction can only be used with -Mode control or -Mode orphan."
+    }
 
-Write-Host ""
-Write-Host "Sending $Mode smoke broadcast to $PackageName on phone $PhoneSerial"
-Invoke-Adb -AdbArgs $broadcastArgs
+    if ($Clear) {
+        Invoke-Adb -AdbArgs @("-s", $PhoneSerial, "logcat", "-c")
+        Invoke-Adb -AdbArgs @("-s", $WatchSerial, "logcat", "-c")
+    }
 
-if ($Mode -in @("control", "orphan")) {
-    if ($AutoWatchAction -eq "none") {
-        Write-Host ""
-        Write-Host "$Mode mode: tap Stop or Snooze on the watch during the wait window."
+    $action = $Actions[$Mode]
+    $resolvedLabel = if ([string]::IsNullOrWhiteSpace($Label)) {
+        switch ($Mode) {
+            "preview" { "ADB watch preview" }
+            "orphan" { "ADB watch orphan test" }
+            default { "ADB watch control test" }
+        }
     } else {
-        $delay = [Math]::Max(0, $AutoWatchActionDelaySeconds)
-        if ($delay -gt 0) {
-            Write-Host "Waiting $delay seconds before sending automatic watch $AutoWatchAction action..."
-            Start-Sleep -Seconds $delay
-        }
-
-        $watchAction = $WatchActions[$AutoWatchAction]
-        $hardwareKey = $HardwareKeys[$AutoWatchAction]
-        $attempts = [Math]::Max(1, $AutoWatchActionAttempts)
-        $retrySeconds = [Math]::Max(0, $AutoWatchActionRetrySeconds)
-        if ($AutoWatchActionSource -eq "hardwareKey") {
-            Write-Host "Opening watch alarm activity before hardware-key injection on watch $WatchSerial"
-            Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $WatchOpenAlarmAction)
-            Start-Sleep -Seconds 1
-        }
-        for ($attempt = 1; $attempt -le $attempts; $attempt++) {
-            Write-Host ""
-            if ($AutoWatchActionSource -eq "hardwareKey") {
-                Write-Host "Sending automatic watch $AutoWatchAction hardware key $hardwareKey attempt $attempt/$attempts on watch $WatchSerial"
-                Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "input", "keyevent", $hardwareKey)
-            } else {
-                Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
-                Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $watchAction)
-            }
-            if ($attempt -lt $attempts -and $retrySeconds -gt 0) {
-                Start-Sleep -Seconds $retrySeconds
-            }
-        }
+        $Label
     }
-}
 
-if ($WaitSeconds -gt 0) {
-    Write-Host "Waiting $WaitSeconds seconds before collecting filtered logs..."
-    Start-Sleep -Seconds $WaitSeconds
-}
+    $broadcastArgs = @(
+        "-s", $PhoneSerial,
+        "shell", "am", "broadcast",
+        "-p", $PackageName,
+        "-a", $action,
+        "--es", "label", $resolvedLabel,
+        "--es", "soundType", $SoundType,
+        "--ei", "snoozeMinutes", ([Math]::Max(1, [Math]::Min(60, $SnoozeMinutes))).ToString(),
+        "--ei", "volumePercent", ([Math]::Max(0, [Math]::Min(100, $VolumePercent))).ToString(),
+        "--ez", "vibrationEnabled", $VibrationEnabled.ToString().ToLowerInvariant()
+    )
 
-$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$phoneLog = Join-Path $ResolvedOutputDir "phone-watch-smoke-$Mode-$timestamp.log"
-$watchLog = Join-Path $ResolvedOutputDir "watch-smoke-$Mode-$timestamp.log"
-
-Save-FilteredLog -Serial $PhoneSerial -Path $phoneLog -Tags @("ShiftWatchTest:I", "ShiftWatchBridge:I", "ShiftWearAlarm:I")
-Save-FilteredLog -Serial $WatchSerial -Path $watchLog -Tags @("ShiftWearAlarm:I", "ShiftWatchBridge:I")
-Save-DeviceDiagnostics -Serial $PhoneSerial -Label "phone" -Timestamp $timestamp
-Save-DeviceDiagnostics -Serial $WatchSerial -Label "watch" -Timestamp $timestamp
-
-Write-Host ""
-Write-Host "Phone log: $phoneLog"
-Write-Host "Watch log: $watchLog"
-Write-Host "Diagnostics: $ResolvedOutputDir\*-diagnostics-$Mode-$timestamp-*.txt"
-Write-Host "Smoke trigger complete."
-
-if ($Assert -and $Mode -ne "stop") {
     Write-Host ""
-    Write-Host "Running smoke assertion."
-    $resolvedExpectedAction = if ($Mode -in @("control", "orphan") -and $AutoWatchAction -ne "none" -and $ExpectedAction -eq "any") {
-        $AutoWatchAction
-    } else {
-        $ExpectedAction
+    Write-Host "Sending $Mode smoke broadcast to $PackageName on phone $PhoneSerial"
+    Invoke-Adb -AdbArgs $broadcastArgs
+
+    if ($Mode -in @("control", "orphan")) {
+        if ($AutoWatchAction -eq "none") {
+            Write-Host ""
+            Write-Host "$Mode mode: tap Stop or Snooze on the watch during the wait window."
+        } else {
+            $delay = [Math]::Max(0, $AutoWatchActionDelaySeconds)
+            if ($delay -gt 0) {
+                Write-Host "Waiting $delay seconds before sending automatic watch $AutoWatchAction action..."
+                Start-Sleep -Seconds $delay
+            }
+
+            $watchAction = $WatchActions[$AutoWatchAction]
+            $hardwareKey = $HardwareKeys[$AutoWatchAction]
+            $attempts = [Math]::Max(1, $AutoWatchActionAttempts)
+            $retrySeconds = [Math]::Max(0, $AutoWatchActionRetrySeconds)
+            if ($AutoWatchActionSource -eq "hardwareKey") {
+                Write-Host "Opening watch alarm activity before hardware-key injection on watch $WatchSerial"
+                Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $WatchOpenAlarmAction)
+                Start-Sleep -Seconds 1
+            }
+            for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+                Write-Host ""
+                if ($AutoWatchActionSource -eq "hardwareKey") {
+                    Write-Host "Sending automatic watch $AutoWatchAction hardware key $hardwareKey attempt $attempt/$attempts on watch $WatchSerial"
+                    Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "input", "keyevent", $hardwareKey)
+                } else {
+                    Write-Host "Sending automatic watch $AutoWatchAction broadcast attempt $attempt/$attempts to $PackageName on watch $WatchSerial"
+                    Invoke-Adb -AdbArgs @("-s", $WatchSerial, "shell", "am", "broadcast", "-p", $PackageName, "-a", $watchAction)
+                }
+                if ($attempt -lt $attempts -and $retrySeconds -gt 0) {
+                    Start-Sleep -Seconds $retrySeconds
+                }
+            }
+        }
     }
-    & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "assert-watch-smoke-result.ps1") `
-        -Mode $Mode `
-        -PhoneLog $phoneLog `
-        -WatchLog $watchLog `
-        -ExpectedAction $resolvedExpectedAction `
-        -AutoWatchActionSource $AutoWatchActionSource
+
+    if ($WaitSeconds -gt 0) {
+        Write-Host "Waiting $WaitSeconds seconds before collecting filtered logs..."
+        Start-Sleep -Seconds $WaitSeconds
+    }
+
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $phoneLog = Join-Path $ResolvedOutputDir "phone-watch-smoke-$Mode-$timestamp.log"
+    $watchLog = Join-Path $ResolvedOutputDir "watch-smoke-$Mode-$timestamp.log"
+
+    Save-FilteredLog -Serial $PhoneSerial -Path $phoneLog -Tags @("ShiftWatchTest:I", "ShiftWatchBridge:I", "ShiftWearAlarm:I")
+    Save-FilteredLog -Serial $WatchSerial -Path $watchLog -Tags @("ShiftWearAlarm:I", "ShiftWatchBridge:I")
+    Save-DeviceDiagnostics -Serial $PhoneSerial -Label "phone" -Timestamp $timestamp
+    Save-DeviceDiagnostics -Serial $WatchSerial -Label "watch" -Timestamp $timestamp
+
+    Write-Host ""
+    Write-Host "Phone log: $phoneLog"
+    Write-Host "Watch log: $watchLog"
+    Write-Host "Diagnostics: $ResolvedOutputDir\*-diagnostics-$Mode-$timestamp-*.txt"
+    Write-Host "Smoke trigger complete."
+
+    if ($Assert -and $Mode -ne "stop") {
+        Write-Host ""
+        Write-Host "Running smoke assertion."
+        $resolvedExpectedAction = if ($Mode -in @("control", "orphan") -and $AutoWatchAction -ne "none" -and $ExpectedAction -eq "any") {
+            $AutoWatchAction
+        } else {
+            $ExpectedAction
+        }
+        & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "assert-watch-smoke-result.ps1") `
+            -Mode $Mode `
+            -PhoneLog $phoneLog `
+            -WatchLog $watchLog `
+            -ExpectedAction $resolvedExpectedAction `
+            -ExpectedDisplayMode $ExpectedDisplayMode `
+            -AutoWatchActionSource $AutoWatchActionSource
+    }
+} finally {
+    if ($restoreWatchNotifications) {
+        Write-Host ""
+        Write-Host "Restoring watch notification permission..."
+        Set-NotificationPermission -Serial $WatchSerial -Label "Watch" -Granted $true
+    }
 }

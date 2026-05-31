@@ -15,6 +15,7 @@ param(
     [switch]$SkipInstall,
     [switch]$SkipLaunch,
     [switch]$SkipOrphanSmoke,
+    [switch]$SkipFallbackSmoke,
     [switch]$SkipHardwareKeySmoke
 )
 
@@ -169,7 +170,10 @@ function Invoke-Smoke {
         [ValidateSet("preview", "stop", "snooze", "orphan")]
         [string]$Scenario,
         [ValidateSet("broadcast", "hardwareKey")]
-        [string]$AutoWatchActionSource = "broadcast"
+        [string]$AutoWatchActionSource = "broadcast",
+        [ValidateSet("any", "notification", "fallback")]
+        [string]$ExpectedDisplayMode = "notification",
+        [switch]$BlockWatchNotifications
     )
 
     $args = @(
@@ -206,6 +210,11 @@ function Invoke-Smoke {
             "-WaitSeconds", $ControlWaitSeconds.ToString()
         )
     }
+
+    if ($BlockWatchNotifications) {
+        $args += "-BlockWatchNotifications"
+    }
+    $args += @("-ExpectedDisplayMode", $ExpectedDisplayMode)
 
     & powershell @args
     Assert-LastExitCode "run-watch-side-by-side-smoke.ps1"
@@ -288,6 +297,12 @@ try {
 
         Invoke-ValidationStep "Preview delivery smoke" {
             Invoke-Smoke -Scenario preview
+        }
+
+        if (-not $SkipFallbackSmoke) {
+            Invoke-ValidationStep "Notification-blocked fallback smoke" {
+                Invoke-Smoke -Scenario preview -BlockWatchNotifications -ExpectedDisplayMode fallback
+            }
         }
 
         if (-not $SkipOrphanSmoke) {

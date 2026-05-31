@@ -19,6 +19,7 @@ This project now has a phone app module and a Wear OS companion module for alarm
 - Watch cancel teardown also requires the cancel timestamp to match the currently active watch alarm occurrence, so a late cancel cannot clear a newer notification or optional alarm screen for the same alarm id.
 - Watch advertises the `shift_alarm_watch_control` Wear capability. The phone preview test checks this capability, so it can distinguish "a watch is connected" from "the matching Shift Alarm watch app is installed and reachable".
 - Watch sends `/shift_alarm/alarm/ack` back to the phone with the display path it used: notification control mode or notification fallback.
+- The full validation script includes a notification-blocked fallback smoke test: it temporarily revokes the watch notification permission, verifies that the watch opens the fallback alarm screen and reports `displayMode=fallback`, then restores the permission.
 - Watch `끄기` sends `/shift_alarm/alarm/stop` back to the phone through both message and control `DataItem`.
 - Watch `스누즈` sends `/shift_alarm/alarm/snooze` back to the phone with the original snooze payload through both message and control `DataItem`.
 - Watch stop/snooze controls are sent in a short three-attempt burst, and notification actions keep their receiver alive briefly with `goAsync()` so a single transient Data Layer miss is less likely to lose the control.
@@ -167,12 +168,18 @@ If exactly one phone and one watch are connected through ADB, the serials can be
 .\scripts\run-watch-full-validation.ps1
 ```
 
-This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, orphaned watch alarm stale-control recovery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Hardware-key smoke opens the optional watch alarm screen through the side-by-side test receiver before injecting the key, because the battery-saving default is notification-only. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
+This builds and installs the side-by-side phone/watch APKs, verifies both packages, then runs preview delivery, notification-blocked fallback, orphaned watch alarm stale-control recovery, automated watch stop/snooze, and hardware-key stop/snooze smoke assertions. Hardware-key smoke opens the optional watch alarm screen through the side-by-side test receiver before injecting the key, because the battery-saving default is notification-only. Use this as the main pass/fail gate before treating the watch integration as verified on a physical Galaxy Watch. If a watch model or emulator cannot inject key events through ADB, pass `-SkipHardwareKeySmoke` and validate the physical buttons manually.
 
 Preview delivery test:
 
 ```powershell
 .\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode preview -Clear -Assert
+```
+
+Notification-blocked fallback test:
+
+```powershell
+.\scripts\run-watch-side-by-side-smoke.ps1 -PhoneSerial PHONE_SERIAL -WatchSerial WATCH_SERIAL -Mode preview -BlockWatchNotifications -ExpectedDisplayMode fallback -Clear -Assert
 ```
 
 Full control round trip:

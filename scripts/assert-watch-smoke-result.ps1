@@ -6,6 +6,8 @@ param(
     [string]$OutputDir = "manual-validation\watch-alarm",
     [ValidateSet("any", "stop", "snooze")]
     [string]$ExpectedAction = "any",
+    [ValidateSet("any", "notification", "fallback")]
+    [string]$ExpectedDisplayMode = "notification",
     [ValidateSet("broadcast", "hardwareKey")]
     [string]$AutoWatchActionSource = "broadcast"
 )
@@ -192,7 +194,9 @@ function Write-DiagnosticHints {
         "alarm active data",
         "show alarm",
         "show alarm notification",
+        "show alarm notification skipped permission",
         "show alarm notification failed",
+        "show alarm activity",
         "show fallback notification",
         "show fallback notification failed",
         "show control pending notification",
@@ -265,8 +269,33 @@ $expectedAlarmId = switch ($Mode) {
 }
 $watchAlarmSignalPattern = "show alarm( signal)? alarmId=$expectedAlarmId"
 $watchAlarmNotificationPattern = "show alarm notification alarmId=$expectedAlarmId"
+$watchAlarmNotificationSkippedPattern = "show alarm notification skipped permission alarmId=$expectedAlarmId"
+$watchAlarmActivityPattern = "show alarm activity alarmId=$expectedAlarmId"
 $watchAlarmStartPattern = "alarm start message alarmId=$expectedAlarmId|alarm active data alarmId=$expectedAlarmId"
+$phoneAnyAckPattern = "watch ack (message|data) alarmId=$expectedAlarmId\b"
 $phoneNotificationAckPattern = "watch ack (message|data) alarmId=$expectedAlarmId\b.*displayMode=notification"
+$phoneFallbackAckPattern = "watch ack (message|data) alarmId=$expectedAlarmId\b.*displayMode=fallback"
+
+function Add-DisplayPathChecks {
+    param(
+        [object[]]$Checks,
+        [string]$LabelPrefix = "watch"
+    )
+
+    if ($ExpectedDisplayMode -eq "fallback") {
+        $Checks += Add-Check "$LabelPrefix detected blocked notification fallback" ($watch -match $watchAlarmNotificationSkippedPattern)
+        $Checks += Add-Check "$LabelPrefix opened fallback alarm screen" ($watch -match $watchAlarmActivityPattern)
+        $Checks += Add-Check "phone confirmed fallback display mode" ($phone -match $phoneFallbackAckPattern)
+    } elseif ($ExpectedDisplayMode -eq "any") {
+        $Checks += Add-Check "$LabelPrefix showed notification or fallback controls" (($watch -match $watchAlarmNotificationPattern) -or ($watch -match $watchAlarmActivityPattern))
+        $Checks += Add-Check "phone confirmed any display mode" ($phone -match $phoneAnyAckPattern)
+    } else {
+        $Checks += Add-Check "$LabelPrefix showed notification controls" ($watch -match $watchAlarmNotificationPattern)
+        $Checks += Add-Check "phone confirmed notification display mode" ($phone -match $phoneNotificationAckPattern)
+    }
+
+    return $Checks
+}
 
 if ($Mode -eq "preview") {
     $previewMatch = [regex]::Match(
@@ -288,9 +317,8 @@ if ($Mode -eq "preview") {
     $checks += Add-Check "phone send result has no errors" (($watchAppError -eq "null") -and ($sendError -eq "null")) "watchAppError=$watchAppError error=$sendError"
     $checks += Add-Check "watch received alarm start" ($watch -match $watchAlarmStartPattern) "alarmId=$expectedAlarmId"
     $checks += Add-Check "watch exposed alarm controls" ($watch -match $watchAlarmSignalPattern)
-    $checks += Add-Check "watch showed notification controls" ($watch -match $watchAlarmNotificationPattern)
-    $checks += Add-Check "watch acknowledged display path" ($phone -match "watch ack (message|data) alarmId=$expectedAlarmId\b") "alarmId=$expectedAlarmId"
-    $checks += Add-Check "phone confirmed notification display mode" ($phone -match $phoneNotificationAckPattern)
+    $checks += Add-Check "watch acknowledged display path" ($phone -match $phoneAnyAckPattern) "alarmId=$expectedAlarmId expectedDisplay=$ExpectedDisplayMode"
+    $checks = Add-DisplayPathChecks -Checks $checks -LabelPrefix "watch"
 }
 
 if ($Mode -eq "control") {
@@ -313,8 +341,7 @@ if ($Mode -eq "control") {
     $checks += Add-Check "phone sent active alarm to watch" ($phone -match "sendAlarmStarted alarmId=$expectedAlarmId|sendMessage path=/shift_alarm/alarm/start") "alarmId=$expectedAlarmId"
     $checks += Add-Check "watch received alarm start" ($watch -match $watchAlarmStartPattern) "alarmId=$expectedAlarmId"
     $checks += Add-Check "watch exposed alarm controls" ($watch -match $watchAlarmSignalPattern)
-    $checks += Add-Check "watch showed notification controls" ($watch -match $watchAlarmNotificationPattern)
-    $checks += Add-Check "phone confirmed notification display mode" ($phone -match $phoneNotificationAckPattern)
+    $checks = Add-DisplayPathChecks -Checks $checks -LabelPrefix "watch"
     if ($AutoWatchActionSource -eq "hardwareKey") {
         $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern alarmId=$expectedAlarmId") "expected=$ExpectedAction alarmId=$expectedAlarmId"
     }
@@ -336,8 +363,7 @@ if ($Mode -eq "orphan") {
     $checks += Add-Check "phone sent orphan alarm to watch" ($phone -match "watch preview result connected=|sendMessage path=/shift_alarm/alarm/start|putDataItem path=/shift_alarm/alarm/active")
     $checks += Add-Check "watch received orphan alarm start" ($watch -match $watchAlarmStartPattern) "alarmId=$expectedAlarmId"
     $checks += Add-Check "watch exposed orphan alarm controls" ($watch -match $watchAlarmSignalPattern)
-    $checks += Add-Check "watch showed orphan notification controls" ($watch -match $watchAlarmNotificationPattern)
-    $checks += Add-Check "phone confirmed orphan notification display mode" ($phone -match $phoneNotificationAckPattern)
+    $checks = Add-DisplayPathChecks -Checks $checks -LabelPrefix "watch orphan"
     if ($AutoWatchActionSource -eq "hardwareKey") {
         $checks += Add-Check "watch received hardware key control" ($watch -match "hardware key control keyCode=.*action=$expectedControlPathPattern alarmId=$expectedAlarmId") "expected=$ExpectedAction alarmId=$expectedAlarmId"
     }
