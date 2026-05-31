@@ -388,14 +388,14 @@ class AlarmActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibe.vibrate(
                 VibrationEffect.createWaveform(
-                    RAMP_VIBRATION_TIMINGS,
-                    RAMP_VIBRATION_AMPLITUDES,
-                    RAMP_VIBRATION_REPEAT_INDEX
+                    WatchVibrationPatterns.ACTIVITY_RAMP_TIMINGS,
+                    WatchVibrationPatterns.ACTIVITY_RAMP_AMPLITUDES,
+                    WatchVibrationPatterns.ACTIVITY_RAMP_REPEAT_INDEX
                 )
             )
         } else {
             @Suppress("DEPRECATION")
-            vibe.vibrate(RAMP_VIBRATION_TIMINGS, RAMP_VIBRATION_REPEAT_INDEX)
+            vibe.vibrate(WatchVibrationPatterns.ACTIVITY_RAMP_TIMINGS, WatchVibrationPatterns.ACTIVITY_RAMP_REPEAT_INDEX)
         }
     }
 
@@ -481,12 +481,6 @@ class AlarmActivity : Activity() {
         private const val EXTRA_PENDING_CONTROL_ACTION = "extra_pending_control_action"
         private const val EXTRA_PENDING_CONTROL_STARTED_AT_MILLIS = "extra_pending_control_started_at_millis"
         private const val CONTROL_ACK_TIMEOUT_MILLIS = 8_000L
-        private val RAMP_VIBRATION_TIMINGS =
-            longArrayOf(0, 25, 1_200, 35, 1_100, 45, 1_000, 60, 900, 80, 800, 110, 700, 150, 600)
-        private val RAMP_VIBRATION_AMPLITUDES =
-            intArrayOf(0, 6, 0, 9, 0, 14, 0, 22, 0, 32, 0, 46, 0, 64, 0)
-        private const val RAMP_VIBRATION_REPEAT_INDEX = 9
-
         fun createIntent(
             context: Context,
             payload: WatchAlarmPayload,

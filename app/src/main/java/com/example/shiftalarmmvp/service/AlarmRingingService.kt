@@ -254,14 +254,14 @@ class AlarmRingingService : Service() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibe.vibrate(
                         VibrationEffect.createWaveform(
-                            ALARM_RAMP_VIBRATION_TIMINGS,
-                            ALARM_RAMP_VIBRATION_AMPLITUDES,
-                            ALARM_RAMP_VIBRATION_REPEAT_INDEX
+                            AlarmVibrationPatterns.PHONE_RAMP_TIMINGS,
+                            AlarmVibrationPatterns.PHONE_RAMP_AMPLITUDES,
+                            AlarmVibrationPatterns.PHONE_RAMP_REPEAT_INDEX
                         )
                     )
                 } else {
                     @Suppress("DEPRECATION")
-                    vibe.vibrate(ALARM_RAMP_VIBRATION_TIMINGS, ALARM_RAMP_VIBRATION_REPEAT_INDEX)
+                    vibe.vibrate(AlarmVibrationPatterns.PHONE_RAMP_TIMINGS, AlarmVibrationPatterns.PHONE_RAMP_REPEAT_INDEX)
                 }
             }
         }
@@ -759,7 +759,7 @@ class AlarmRingingService : Service() {
             NotificationManager.IMPORTANCE_MAX
         ).apply {
             enableVibration(true)
-            vibrationPattern = WATCH_BRIDGE_VIBRATION_PATTERN
+            vibrationPattern = AlarmVibrationPatterns.WATCH_BRIDGE_RAMP_PATTERN
             description = getString(com.example.shiftalarmmvp.R.string.notification_watch_bridge_channel_description)
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
@@ -883,7 +883,7 @@ class AlarmRingingService : Service() {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSilent(false)
-            .setVibrate(WATCH_BRIDGE_VIBRATION_PATTERN)
+            .setVibrate(AlarmVibrationPatterns.WATCH_BRIDGE_RAMP_PATTERN)
             .setDefaults(0)
             .setOnlyAlertOnce(false)
             .setLocalOnly(false)
@@ -988,14 +988,6 @@ class AlarmRingingService : Service() {
         private const val WATCH_BRIDGE_NOTIFICATION_ID = 1002
         private const val WATCH_BRIDGE_FALLBACK_DELAY_MILLIS = 6_000L
         private const val WATCH_BRIDGE_TIMEOUT_MILLIS = 2 * 60 * 1000L
-        private val ALARM_RAMP_VIBRATION_TIMINGS =
-            longArrayOf(0, 35, 1_800, 45, 1_600, 60, 1_400, 80, 1_200, 105, 1_000, 140, 850, 180, 700, 230, 560, 280, 460)
-        private val ALARM_RAMP_VIBRATION_AMPLITUDES =
-            intArrayOf(0, 8, 0, 12, 0, 18, 0, 28, 0, 42, 0, 60, 0, 85, 0, 115, 0, 150, 0)
-        private const val ALARM_RAMP_VIBRATION_REPEAT_INDEX = 9
-        private val WATCH_BRIDGE_VIBRATION_PATTERN =
-            longArrayOf(0, 25, 1_400, 35, 1_250, 45, 1_100, 60, 950, 80, 800, 105, 700)
-
         @Volatile
         private var isRingingActive: Boolean = false
         @Volatile

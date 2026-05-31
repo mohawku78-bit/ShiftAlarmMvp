@@ -22,8 +22,6 @@ object WatchAlarmNotifier {
         "shift_alarm_watch_alarm_v4",
         "shift_alarm_watch_alarm_v5"
     )
-    private val GENTLE_RAMP_VIBRATION_PATTERN =
-        longArrayOf(0, 25, 1_400, 35, 1_250, 45, 1_100, 60, 950, 80, 800, 105, 700)
     const val NOTIFICATION_ID = 3001
 
     fun show(context: Context, payload: WatchAlarmPayload): Boolean {
@@ -160,7 +158,7 @@ object WatchAlarmNotifier {
         ).apply {
             description = context.getString(R.string.notification_channel_description)
             enableVibration(true)
-            vibrationPattern = GENTLE_RAMP_VIBRATION_PATTERN
+            vibrationPattern = WatchVibrationPatterns.NOTIFICATION_RAMP_PATTERN
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)

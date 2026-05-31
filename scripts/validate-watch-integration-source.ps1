@@ -70,12 +70,16 @@ $watchActionReceiver = Read-RepoFile "wear\src\main\java\com\example\shiftalarmm
 $watchAlarmActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\AlarmActivity.kt"
 $watchMainActivity = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\MainActivity.kt"
 $watchNotifier = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmNotifier.kt"
+$watchVibrationPatterns = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchVibrationPatterns.kt"
 $watchControlAckStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmControlAckStore.kt"
 $watchEventGate = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmEventGate.kt"
 $watchHardwareKeys = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmHardwareKeys.kt"
 $watchActiveStore = Read-RepoFile "wear\src\main\java\com\example\shiftalarmmvp\wear\WatchAlarmActiveStore.kt"
 $watchProtocolTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchAlarmProtocolTest.kt"
+$watchVibrationPatternsTest = Read-RepoFile "wear\src\test\java\com\example\shiftalarmmvp\wear\WatchVibrationPatternsTest.kt"
 $phoneBridgeTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\watch\WatchAlarmBridgeTest.kt"
+$alarmVibrationPatterns = Read-RepoFile "app\src\main\java\com\example\shiftalarmmvp\service\AlarmVibrationPatterns.kt"
+$alarmVibrationPatternsTest = Read-RepoFile "app\src\test\java\com\example\shiftalarmmvp\service\AlarmVibrationPatternsTest.kt"
 $installScript = Read-RepoFile "scripts\install-watch-side-by-side.ps1"
 $diagnoseAdbScript = Read-RepoFile "scripts\diagnose-watch-adb.ps1"
 $connectWatchScript = Read-RepoFile "scripts\connect-watch-wireless.ps1"
@@ -194,9 +198,13 @@ Assert-Contains "AlarmRingingService.kt" $ringingService 'scheduleWatchBridgeFal
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WATCH_BRIDGE_FALLBACK_DELAY_MILLIS = 6_000L'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'WatchAlarmDiagnosticsStore(this).hasHandledDisplayAckFor'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'cancelWatchBridgeFallback'
-Assert-Contains "AlarmRingingService.kt" $ringingService 'ALARM_RAMP_VIBRATION_AMPLITUDES'
-Assert-Contains "AlarmRingingService.kt" $ringingService 'ALARM_RAMP_VIBRATION_REPEAT_INDEX'
-Assert-Contains "AlarmRingingService.kt" $ringingService 'WATCH_BRIDGE_VIBRATION_PATTERN'
+Assert-Contains "AlarmRingingService.kt" $ringingService 'AlarmVibrationPatterns.PHONE_RAMP_AMPLITUDES'
+Assert-Contains "AlarmRingingService.kt" $ringingService 'AlarmVibrationPatterns.PHONE_RAMP_REPEAT_INDEX'
+Assert-Contains "AlarmRingingService.kt" $ringingService 'AlarmVibrationPatterns.WATCH_BRIDGE_RAMP_PATTERN'
+Assert-Contains "AlarmVibrationPatterns.kt" $alarmVibrationPatterns 'PHONE_RAMP_REPEAT_INDEX = 9'
+Assert-Contains "AlarmVibrationPatterns.kt" $alarmVibrationPatterns 'WATCH_BRIDGE_RAMP_PATTERN'
+Assert-Contains "AlarmVibrationPatternsTest.kt" $alarmVibrationPatternsTest 'phoneAlarmVibrationStartsGentleAndRampsUp'
+Assert-Contains "AlarmVibrationPatternsTest.kt" $alarmVibrationPatternsTest 'watchBridgeFallbackNotificationUsesSoftOneShotPattern'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'watch_alarm_bridge_channel_v5'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'watch_alarm_bridge_channel_v4'
 Assert-Contains "AlarmRingingService.kt" $ringingService 'watch_alarm_bridge_channel_v3'
@@ -254,8 +262,8 @@ Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'control ack timeout in a
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'CONTROL_ACK_TIMEOUT_MILLIS'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_waiting_stop_ack'
 Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'alarm_missing_phone_ack'
-Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'RAMP_VIBRATION_AMPLITUDES'
-Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'RAMP_VIBRATION_REPEAT_INDEX'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchVibrationPatterns.ACTIVITY_RAMP_AMPLITUDES'
+Assert-Contains "AlarmActivity.kt" $watchAlarmActivity 'WatchVibrationPatterns.ACTIVITY_RAMP_REPEAT_INDEX'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'sendControlAcknowledged'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'WatchAlarmAcceptedControlStore.matchesRecent'
 Assert-Contains "WearAlarmControlListenerService.kt" $phoneControlListener 'resend accepted watch control ack'
@@ -336,8 +344,12 @@ Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'shift_alarm_watch_alarm_
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'shift_alarm_watch_alarm_v2'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'shift_alarm_watch_alarm_v3'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'shift_alarm_watch_alarm_v4'
-Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'GENTLE_RAMP_VIBRATION_PATTERN'
-Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'vibrationPattern = GENTLE_RAMP_VIBRATION_PATTERN'
+Assert-Contains "WatchVibrationPatterns.kt" $watchVibrationPatterns 'NOTIFICATION_RAMP_PATTERN'
+Assert-Contains "WatchVibrationPatterns.kt" $watchVibrationPatterns 'ACTIVITY_RAMP_AMPLITUDES'
+Assert-Contains "WatchVibrationPatterns.kt" $watchVibrationPatterns 'ACTIVITY_RAMP_REPEAT_INDEX = 9'
+Assert-Contains "WatchVibrationPatternsTest.kt" $watchVibrationPatternsTest 'notificationVibrationUsesSoftOneShotRamp'
+Assert-Contains "WatchVibrationPatternsTest.kt" $watchVibrationPatternsTest 'optionalAlarmScreenVibrationStartsGentleAndRampsUp'
+Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'vibrationPattern = WatchVibrationPatterns.NOTIFICATION_RAMP_PATTERN'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'useLocalVibration: Boolean = false'
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'show alarm notification alarmId='
 Assert-Contains "WatchAlarmNotifier.kt" $watchNotifier 'NotificationManager.IMPORTANCE_HIGH'
