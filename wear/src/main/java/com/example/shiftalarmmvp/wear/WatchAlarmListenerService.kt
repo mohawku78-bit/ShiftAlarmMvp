@@ -78,6 +78,7 @@ class WatchAlarmListenerService : WearableListenerService() {
             else -> null
         }
         if (displayMode == null) {
+            WatchAlarmActiveStore.clearIfMatching(this, payload.alarmId, payload.triggeredAtMillis)
             Log.w(TAG, "alarm display unavailable alarmId=${payload.alarmId}")
             return
         }

@@ -211,6 +211,7 @@ Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'val fallbackShown
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'AlarmActivity.show(this, payload, useLocalVibration = payload.vibrationEnabled)'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'notificationShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_NOTIFICATION'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'fallbackShown -> WatchAlarmProtocol.ACK_DISPLAY_MODE_FALLBACK'
+Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmActiveStore.clearIfMatching(this, payload.alarmId, payload.triggeredAtMillis)'
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'alarm display unavailable alarmId='
 Assert-Contains "WatchAlarmListenerService.kt" $watchListener 'PhoneMessageBridge.sendAck(this, payload, displayMode)'
 Assert-NotContains "WatchAlarmListenerService.kt" $watchListener 'WatchAlarmRingingService.start(this, payload)'
