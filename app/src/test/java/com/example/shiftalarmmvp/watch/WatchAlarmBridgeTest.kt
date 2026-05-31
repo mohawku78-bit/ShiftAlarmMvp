@@ -191,4 +191,56 @@ class WatchAlarmBridgeTest {
             )
         )
     }
+
+    @Test
+    fun notificationAckMatch_requiresSameAlarmOccurrenceAndNotificationMode() {
+        val ack = WatchAlarmAck(
+            alarmId = 77L,
+            label = "night",
+            displayMode = WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION,
+            triggeredAtMillis = 10_000L,
+            acknowledgedAtMillis = 50_000L
+        )
+
+        assertTrue(
+            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+                ack = ack,
+                alarmId = 77L,
+                triggeredAtMillis = 10_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+                ack = ack.copy(displayMode = WatchAlarmBridge.ACK_DISPLAY_MODE_FALLBACK),
+                alarmId = 77L,
+                triggeredAtMillis = 10_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+                ack = ack.copy(triggeredAtMillis = 11_000L),
+                alarmId = 77L,
+                triggeredAtMillis = 10_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+                ack = ack.copy(acknowledgedAtMillis = 48_000L),
+                alarmId = 77L,
+                triggeredAtMillis = 10_000L,
+                sinceMillis = 49_000L
+            )
+        )
+        assertFalse(
+            WatchAlarmDiagnosticsStore.matchesNotificationAck(
+                ack = null,
+                alarmId = 77L,
+                triggeredAtMillis = 10_000L,
+                sinceMillis = 49_000L
+            )
+        )
+    }
 }

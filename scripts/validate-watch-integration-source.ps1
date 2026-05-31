@@ -229,6 +229,7 @@ Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'data cla
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'triggeredAtMillis: Long'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'KEY_ACK_TRIGGERED_AT_MILLIS'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun hasNotificationAckFor'
+Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'matchesNotificationAck'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun recordSendAttempt'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun latestSendAttempt'
 Assert-Contains "WatchAlarmDiagnosticsStore.kt" $phoneDiagnosticsStore 'fun recordControlRejected'

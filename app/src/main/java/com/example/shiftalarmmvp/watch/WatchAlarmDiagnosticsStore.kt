@@ -128,10 +128,7 @@ class WatchAlarmDiagnosticsStore(context: Context) {
         sinceMillis: Long
     ): Boolean {
         val ack = latestAck() ?: return false
-        return ack.alarmId == alarmId &&
-            ack.triggeredAtMillis == triggeredAtMillis &&
-            ack.displayMode == WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION &&
-            ack.acknowledgedAtMillis >= sinceMillis
+        return matchesNotificationAck(ack, alarmId, triggeredAtMillis, sinceMillis)
     }
 
     fun latestAcceptedControl(): WatchAlarmControlReceipt? {
@@ -172,6 +169,18 @@ class WatchAlarmDiagnosticsStore(context: Context) {
         const val REJECTION_DUPLICATE_CONTROL = "duplicate_control"
         const val REJECTION_SNOOZE_NOT_ALLOWED = "snooze_not_allowed"
         const val REJECTION_UNSUPPORTED_ACTION = "unsupported_action"
+
+        internal fun matchesNotificationAck(
+            ack: WatchAlarmAck?,
+            alarmId: Long,
+            triggeredAtMillis: Long,
+            sinceMillis: Long
+        ): Boolean {
+            return ack?.alarmId == alarmId &&
+                ack.triggeredAtMillis == triggeredAtMillis &&
+                ack.displayMode == WatchAlarmBridge.ACK_DISPLAY_MODE_NOTIFICATION &&
+                ack.acknowledgedAtMillis >= sinceMillis
+        }
 
         private const val PREFS_NAME = "watch_alarm_diagnostics"
         private const val KEY_SEND_ALARM_ID = "send_alarm_id"
